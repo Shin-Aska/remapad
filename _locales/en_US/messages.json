@@ -1,0 +1,10 @@
+{
+  "extensionName": {
+    "message": "Remapad",
+    "description": "Extension name"
+  },
+  "extensionDescription": {
+    "message": "Navigate streaming sites with your gamepad controller",
+    "description": "Extension description"
+  }
+}

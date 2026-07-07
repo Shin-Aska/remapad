@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Remapad — Controller &amp; Mapping Editor</title>
+  <link rel="stylesheet" href="../shared/design-tokens.css">
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+
+<!-- Top Navigation -->
+<nav class="options-nav">
+  <a href="#" class="nav-logo">Remapad</a>
+  
+  <div class="nav-right">
+    <div style="display:flex;align-items:center;gap:8px;padding:4px 12px 4px 8px;background:rgba(30,30,30,0.82);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.08);border-radius:9999px">
+      <!-- Inline Gamepad SVG -->
+      <svg viewBox="0 0 24 24" fill="var(--secondary)" style="width:18px;height:18px;display:block"><path d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-10 7H8v3H6v-3H3v-2h3V8h2v3h3v2zm4.5 3c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm3-3c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+      <div>
+        <div style="font-family:var(--font-label);font-size:12px;font-weight:600;line-height:1;color:var(--on-surface)" id="nav-controller-name">No Controller</div>
+      </div>
+    </div>
+    <button class="btn-icon">
+      <!-- Inline User Icon -->
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;display:block"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    </button>
+  </div>
+</nav>
+
+<!-- Main Content -->
+<main class="options-main">
+  <div class="options-content">
+
+    <!-- Page Header -->
+    <div class="page-header">
+      <h1 style="display:flex;align-items:center;gap:12px">
+        <!-- Inline Gamepad SVG -->
+        <svg viewBox="0 0 24 24" fill="var(--primary-container)" style="width:32px;height:32px;display:block"><path d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-10 7H8v3H6v-3H3v-2h3V8h2v3h3v2zm4.5 3c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm3-3c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+        Gamepad Controller &amp; Mappings
+      </h1>
+      <p>Configure and map button bindings to specific browser and webpage actions for Remapad.</p>
+    </div>
+
+    <!-- ── Left Column ──────────────────────────────────────────────────────── -->
+    <div class="left-col">
+
+      <!-- Controller Status -->
+      <section class="card">
+        <div class="controller-header">
+          <div class="card-title">Controller Status</div>
+          <span class="status-badge disconnected" id="status-badge">
+            <span class="status-dot" id="status-dot"></span>
+            <span id="status-text">DISCONNECTED</span>
+          </span>
+        </div>
+        <div class="controller-device">
+          <div class="device-icon-wrap">
+            <!-- Inline Gamepad SVG -->
+            <svg viewBox="0 0 24 24" fill="var(--primary)" style="width:28px;height:28px;display:block"><path d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-10 7H8v3H6v-3H3v-2h3V8h2v3h3v2zm4.5 3c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm3-3c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+          </div>
+          <div>
+            <div class="device-name" id="device-name">No Controller Detected</div>
+            <div class="device-battery" id="device-battery" style="display:none">
+              <!-- Inline Battery SVG -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block"><rect x="1" y="6" width="18" height="12" rx="2" ry="2"/><line x1="23" y1="11" x2="23" y2="13"/></svg>
+              <span id="battery-text">Unknown</span>
+            </div>
+          </div>
+        </div>
+        <button class="btn-primary" id="test-input-btn" style="width:100%;margin-top:12px">
+          Test Gamepad Input
+        </button>
+      </section>
+
+
+
+      <!-- Website Mappings -->
+      <section class="card">
+        <div class="card-title">Website Mappings</div>
+        <div class="mapping-list-options" id="website-mappings-list">
+          <!-- Filled by JS -->
+        </div>
+        <!-- Add Website Form -->
+        <div style="display:flex;gap:6px;margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06)">
+          <input type="text" id="new-site-input" placeholder="e.g. twitch.tv" style="flex:1;background:var(--surface-container);color:var(--on-surface);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:6px 10px;font-size:12px;outline:none;font-family:var(--font-body)">
+          <button class="btn-ghost" id="add-site-btn" style="padding:6px 12px;font-size:12px;font-weight:600">+ Add</button>
+        </div>
+      </section>
+
+      <!-- Icon Style -->
+      <section class="card">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:var(--space-sm)">
+          <!-- Inline Palette SVG -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;display:block"><path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 14.7255 3.09032 17.1962 4.85857 19C5.01438 19.1558 5.09228 19.2337 5.12903 19.3243C5.16578 19.4149 5.15545 19.5168 5.1348 19.7207L5.05051 20.5517C4.98188 21.2281 5.3789 21.8687 6.01579 22.1001C6.10862 22.1339 6.2086 22.15 6.30722 22.15H12Z"/><circle cx="7.5" cy="10.5" r="1.5" fill="currentColor"/><circle cx="11.5" cy="7.5" r="1.5" fill="currentColor"/><circle cx="16.5" cy="9.5" r="1.5" fill="currentColor"/><circle cx="15.5" cy="14.5" r="1.5" fill="currentColor"/></svg>
+          <div class="card-title" style="margin-bottom:0">Icon Layout Style</div>
+        </div>
+        <div class="icon-style-list" id="icon-style-list">
+          <!-- Filled by JS -->
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ── Right Column — Mapping Editor ──────────────────────────────────── -->
+    <div class="right-col">
+      <section class="card mapping-editor-card">
+
+        <div class="editor-header">
+          <div>
+            <div class="editor-title">Visual Mapping Editor</div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+              <span class="editor-subtitle" style="margin-top:0">Mapping for:</span>
+              <select id="editor-site-select" style="background:var(--surface-container-high);color:var(--on-surface);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:4px 8px;font-size:12px;font-family:var(--font-body);outline:none;cursor:pointer">
+                <option value="default">Default (All Other Sites)</option>
+              </select>
+            </div>
+          </div>
+          <div class="editor-actions">
+            <button class="btn-ghost" id="reset-btn">Reset Mapping</button>
+            <button class="btn-secondary" id="save-btn">Save Changes</button>
+          </div>
+        </div>
+
+        <!-- Gamepad Visual Editor -->
+        <div class="gamepad-canvas">
+          <div class="controller-img-wrap" id="controller-img-wrap">
+
+            <!-- SVG Gamepad (DualSense style) -->
+            <svg class="controller-svg" viewBox="0 0 440 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M60 100 C60 60 90 40 130 40 L310 40 C350 40 380 60 380 100 L395 200 C395 240 370 260 340 260 L290 260 C270 260 250 245 230 240 L210 240 C190 245 170 260 150 260 L100 260 C70 260 45 240 45 200 Z" fill="#1b1b1b" stroke="rgba(255,255,255,0.12)" stroke-width="1.5"/>
+              <rect x="165" y="80" width="110" height="72" rx="8" fill="#131313" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+              
+              <!-- D-Pad -->
+              <path id="svg-btn-12" d="M90 115 H106 V125 H90 Z" fill="#2a2a2a" class="svg-btn"/> <!-- D-pad Up -->
+              <path id="svg-btn-13" d="M90 151 H106 V161 H90 Z" fill="#2a2a2a" class="svg-btn"/> <!-- D-pad Down -->
+              <path id="svg-btn-14" d="M76 129 H86 V145 H76 Z" fill="#2a2a2a" class="svg-btn"/> <!-- D-pad Left -->
+              <path id="svg-btn-15" d="M110 129 H120 V145 H110 Z" fill="#2a2a2a" class="svg-btn"/> <!-- D-pad Right -->
+              <rect x="86" y="125" width="28" height="26" fill="#2a2a2a"/>
+
+              <!-- Left Stick -->
+              <circle id="svg-axis-L" cx="135" cy="185" r="22" fill="#222" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+              <circle id="svg-axis-L-thumb" cx="135" cy="185" r="13" fill="#333" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+              
+              <!-- Right Stick -->
+              <circle id="svg-axis-R" cx="265" cy="185" r="22" fill="#222" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+              <circle id="svg-axis-R-thumb" cx="265" cy="185" r="13" fill="#333" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+
+              <!-- Face Buttons -->
+              <circle id="svg-btn-3" cx="340" cy="120" r="10" fill="#2a2a2a" class="svg-btn"/> <!-- Triangle -->
+              <circle id="svg-btn-1" cx="360" cy="140" r="10" fill="#2a2a2a" class="svg-btn"/> <!-- Circle -->
+              <circle id="svg-btn-2" cx="320" cy="140" r="10" fill="#2a2a2a" class="svg-btn"/> <!-- Square -->
+              <circle id="svg-btn-0" cx="340" cy="160" r="10" fill="#2a2a2a" class="svg-btn"/> <!-- Cross -->
+
+              <text x="340" y="123" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="8" font-family="sans-serif">△</text>
+              <text x="360" y="143" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="8" font-family="sans-serif">○</text>
+              <text x="320" y="143" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="8" font-family="sans-serif">□</text>
+              <text x="340" y="163" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="8" font-family="sans-serif">✕</text>
+
+              <!-- Shoulder Buttons -->
+              <path id="svg-btn-4" d="M100 42 C105 32 130 28 150 30 L150 42 Z" fill="#2a2a2a" class="svg-btn"/> <!-- L1 -->
+              <path id="svg-btn-5" d="M340 42 C335 32 310 28 290 30 L290 42 Z" fill="#2a2a2a" class="svg-btn"/> <!-- R1 -->
+
+              <!-- L2/R2 Triggers -->
+              <path id="svg-btn-6" d="M80 40 C85 25 115 18 145 22 L150 40 Z" fill="#222" class="svg-btn"/> <!-- L2 -->
+              <path id="svg-btn-7" d="M360 40 C355 25 325 18 295 22 L290 40 Z" fill="#222" class="svg-btn"/> <!-- R2 -->
+              
+              <!-- Start / Select -->
+              <circle id="svg-btn-8" cx="200" cy="110" r="5" fill="#222" class="svg-btn"/> <!-- Select -->
+              <circle id="svg-btn-9" cx="240" cy="110" r="5" fill="#222" class="svg-btn"/> <!-- Start -->
+            </svg>
+
+            <!-- Spaced and fixed positioned callouts (no overlaps) -->
+            <!-- Cross / A -->
+            <div class="editor-callout right callout-cross" data-btn="0">
+              <div class="callout-dot"></div>
+              <div class="callout-meta">
+                <span class="callout-btn-name">Cross (A)</span>
+                <span class="callout-action-label" id="label-btn-0">Select</span>
+              </div>
+            </div>
+
+            <!-- Circle / B -->
+            <div class="editor-callout right callout-circle" data-btn="1">
+              <div class="callout-dot"></div>
+              <div class="callout-meta">
+                <span class="callout-btn-name">Circle (B)</span>
+                <span class="callout-action-label" id="label-btn-1">Back</span>
+              </div>
+            </div>
+
+            <!-- Square / X -->
+            <div class="editor-callout right callout-square" data-btn="2">
+              <div class="callout-dot"></div>
+              <div class="callout-meta">
+                <span class="callout-btn-name">Square (X)</span>
+                <span class="callout-action-label" id="label-btn-2">Fullscreen</span>
+              </div>
+            </div>
+
+            <!-- Triangle / Y -->
+            <div class="editor-callout right callout-triangle" data-btn="3">
+              <div class="callout-dot"></div>
+              <div class="callout-meta">
+                <span class="callout-btn-name">Triangle (Y)</span>
+                <span class="callout-action-label" id="label-btn-3">Search</span>
+              </div>
+            </div>
+
+            <!-- D-Pad Up -->
+            <div class="editor-callout callout-dpad-up" data-btn="12">
+              <div class="callout-dot"></div>
+              <div class="callout-meta">
+                <span class="callout-btn-name">D-Pad Up</span>
+                <span class="callout-action-label" id="label-btn-12">Scroll Up</span>
+              </div>
+            </div>
+
+            <!-- D-Pad Left -->
+            <div class="editor-callout callout-dpad-left" data-btn="14">
+              <div class="callout-dot"></div>
+              <div class="callout-meta">
+                <span class="callout-btn-name">D-Pad Left</span>
+                <span class="callout-action-label" id="label-btn-14">Scroll Left</span>
+              </div>
+            </div>
+
+            <!-- D-Pad Right -->
+            <div class="editor-callout callout-dpad-right" data-btn="15">
+              <div class="callout-dot"></div>
+              <div class="callout-meta">
+                <span class="callout-btn-name">D-Pad Right</span>
+                <span class="callout-action-label" id="label-btn-15">Scroll Right</span>
+              </div>
+            </div>
+
+            <!-- D-Pad Down -->
+            <div class="editor-callout callout-dpad-down" data-btn="13">
+              <div class="callout-dot"></div>
+              <div class="callout-meta">
+                <span class="callout-btn-name">D-Pad Down</span>
+                <span class="callout-action-label" id="label-btn-13">Scroll Down</span>
+              </div>
+            </div>
+
+            <!-- L1 Bumper -->
+            <div class="editor-callout callout-l1" data-btn="4">
+              <div class="callout-dot"></div>
+              <div class="callout-meta">
+                <span class="callout-btn-name">L1 Bumper</span>
+                <span class="callout-action-label" id="label-btn-4">Rewind</span>
+              </div>
+            </div>
+
+            <!-- R1 Bumper -->
+            <div class="editor-callout right callout-r1" data-btn="5">
+              <div class="callout-dot"></div>
+              <div class="callout-meta">
+                <span class="callout-btn-name">R1 Bumper</span>
+                <span class="callout-action-label" id="label-btn-5">Fast Forward</span>
+              </div>
+            </div>
+
+            <!-- L2 Trigger -->
+            <div class="editor-callout callout-l2" data-btn="6">
+              <div class="callout-dot"></div>
+              <div class="callout-meta">
+                <span class="callout-btn-name">L2 Trigger</span>
+                <span class="callout-action-label" id="label-btn-6">Volume Down</span>
+              </div>
+            </div>
+
+            <!-- R2 Trigger -->
+            <div class="editor-callout right callout-r2" data-btn="7">
+              <div class="callout-dot"></div>
+              <div class="callout-meta">
+                <span class="callout-btn-name">R2 Trigger</span>
+                <span class="callout-action-label" id="label-btn-7">Volume Up</span>
+              </div>
+            </div>
+
+            <!-- Select button -->
+            <div class="editor-callout callout-select" data-btn="8">
+              <div class="callout-dot"></div>
+              <div class="callout-meta">
+                <span class="callout-btn-name">Select</span>
+                <span class="callout-action-label" id="label-btn-8">Play/Pause</span>
+              </div>
+            </div>
+
+            <!-- Start button -->
+            <div class="editor-callout right callout-start" data-btn="9">
+              <div class="callout-dot"></div>
+              <div class="callout-meta">
+                <span class="callout-btn-name">Start</span>
+                <span class="callout-action-label" id="label-btn-9">Options</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Inline Popover Action Dropdown (positioned dynamically by JS) -->
+        <div class="action-dropdown" id="action-dropdown">
+          <select id="action-select">
+            <option value="none">-- Unmapped --</option>
+          </select>
+        </div>
+
+      </section>
+    </div><!-- right-col -->
+
+  </div><!-- options-content -->
+</main>
+
+<!-- Custom Action Config Modal -->
+<div class="modal-backdrop" id="config-modal" style="display:none">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 id="modal-title">Configure Binding</h3>
+      <button class="modal-close-x" id="modal-close-x">&times;</button>
+    </div>
+    
+    <div class="modal-body">
+      <!-- Keyboard Listener Section -->
+      <div id="modal-keyboard-sec" style="display:none">
+        <p class="modal-instruction">Press any key on your keyboard to capture it.</p>
+        <div class="keyboard-capture-box" id="keyboard-capture-box">
+          <span id="detected-key-display">Press a key...</span>
+        </div>
+        <p class="modal-subtext">Modifiers (Ctrl, Alt, Shift) are supported and captured automatically.</p>
+      </div>
+
+      <!-- CSS Selector Section -->
+      <div id="modal-selector-sec" style="display:none">
+        <p class="modal-instruction">Select a common video control helper or type a custom selector.</p>
+        
+        <div class="form-group" style="margin-bottom:16px">
+          <label for="common-selectors-select" style="display:block;margin-bottom:6px;font-size:12px;color:var(--on-surface-variant)">Common Controls Helper</label>
+          <select id="common-selectors-select" class="form-control" style="width:100%;box-sizing:border-box;background:rgba(30,30,30,0.8);color:var(--on-surface);border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:8px;font-size:13px;outline:none">
+            <option value="">-- Custom CSS Selector --</option>
+            <option value="video, .play-button, .ytp-play-button, button.play, [aria-label*='play' i], [aria-label*='pause' i]">Play / Pause Button</option>
+            <option value=".skip-button, .ytp-ad-skip-button, .watch-video--skip-content, button.skip, [class*='skip' i]">Skip Intro / Skip Ads Button</option>
+            <option value=".next-button, .ytp-next-button, button.next, [aria-label*='next' i]">Next Episode / Video Button</option>
+            <option value=".mute-button, .ytp-mute-button, button.mute, [aria-label*='mute' i]">Mute / Unmute Button</option>
+            <option value=".cc-button, .ytp-subtitles-button, button.cc, [aria-label*='subtitles' i]">Subtitles / Captions (CC) Button</option>
+            <option value=".fullscreen-button, .ytp-fullscreen-button, button.fullscreen, [aria-label*='fullscreen' i]">Fullscreen Button</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="custom-selector-input" style="display:block;margin-bottom:6px;font-size:12px;color:var(--on-surface-variant)">CSS Selector Target</label>
+          <input type="text" id="custom-selector-input" class="form-control" placeholder="e.g. .skip-button, button.play" style="width:100%;box-sizing:border-box;background:rgba(30,30,30,0.8);color:var(--on-surface);border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:8px;font-size:13px;outline:none">
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:12px;margin-top:20px">
+      <button class="btn btn-secondary" id="modal-cancel-btn" style="background:rgba(255,255,255,0.05);color:var(--on-surface);border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:8px 16px;cursor:pointer;font-size:13px;transition:background 0.2s">Cancel</button>
+      <button class="btn btn-primary" id="modal-confirm-btn" style="background:var(--primary);color:var(--on-primary);border:none;border-radius:4px;padding:8px 16px;cursor:pointer;font-size:13px;font-weight:600;transition:background 0.2s">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Message Alerts -->
+<div class="toast" id="toast"></div>
+
+<script src="options.js"></script>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Remapad Controller</title>
+  <link rel="stylesheet" href="../shared/design-tokens.css">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+
+<!-- Header -->
+<header class="popup-header">
+  <div style="display:flex;align-items:center;gap:8px">
+    <span class="header-logo">Remapad</span>
+    <span class="active-indicator" id="global-active-indicator" title="Global Status"></span>
+  </div>
+  
+  <div style="display:flex;align-items:center;gap:12px">
+    <!-- Global Enable/Disable Toggle -->
+    <label class="switch-container" title="Global Toggle">
+      <input type="checkbox" id="global-toggle" checked>
+      <span class="switch-slider"></span>
+    </label>
+    
+    <!-- Inline SVG Settings Gear Icon -->
+    <button class="btn-icon" id="open-options-btn" title="Open Mapping Editor">
+      <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;display:block"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+  </div>
+</header>
+
+<main class="popup-main">
+  <!-- Active Tab Card -->
+  <section class="card active-tab-card" id="active-tab-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;width:100%;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <!-- Inline SVG Globe Icon -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        <span class="site-domain" id="site-domain">active-tab.com</span>
+      </div>
+      <!-- Site-specific Enable/Disable Toggle -->
+      <label class="switch-container" title="Enable on this site">
+        <input type="checkbox" id="site-toggle" checked>
+        <span class="switch-slider"></span>
+      </label>
+    </div>
+
+    <div class="mapping-status-wrap" style="display:flex;flex-direction:column;gap:4px;margin-top:4px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-family:var(--font-label);font-size:12px;color:var(--on-surface-variant)">Mapping Status</span>
+        <span id="mapping-status-badge" style="font-family:var(--font-label);font-size:11px;font-weight:600;padding:2px 6px;border-radius:4px;background:rgba(255,255,255,0.06);color:var(--on-surface)">Default Mapping</span>
+      </div>
+      <button class="btn-ghost" id="customize-site-btn" style="width:100%;margin-top:10px;font-size:12px;padding:6px 0;font-weight:600">Customize Mapping...</button>
+    </div>
+  </section>
+
+  <!-- Controller Live Status Card -->
+  <section class="card controller-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <!-- Inline SVG Gamepad Icon -->
+        <svg viewBox="0 0 24 24" fill="var(--primary-container)" style="width:18px;height:18px;display:block"><path d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-10 7H8v3H6v-3H3v-2h3V8h2v3h3v2zm4.5 3c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm3-3c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+        <span class="card-title" style="margin-bottom:0">Controller Status</span>
+      </div>
+      <span class="status-badge disconnected" id="status-badge">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">DISCONNECTED</span>
+      </span>
+    </div>
+
+    <div class="controller-info">
+      <div class="controller-name" id="controller-name">No Controller Detected</div>
+      <div class="battery-info" id="battery-info" style="display:none">
+        <!-- Inline SVG Battery Icon -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block"><rect x="1" y="6" width="18" height="12" rx="2" ry="2"/><line x1="23" y1="11" x2="23" y2="13"/></svg>
+        <span id="battery-text">82%</span>
+      </div>
+    </div>
+
+    <!-- Real-time Live Inputs Grid -->
+    <div class="live-inputs-grid" id="live-inputs-grid">
+      <div class="input-tag" data-btn="12" title="D-pad Up">↑</div>
+      <div class="input-tag" data-btn="13" title="D-pad Down">↓</div>
+      <div class="input-tag" data-btn="14" title="D-pad Left">←</div>
+      <div class="input-tag" data-btn="15" title="D-pad Right">→</div>
+      <div class="input-tag font-bold text-red-500" data-btn="0" title="Cross / A">A</div>
+      <div class="input-tag font-bold text-blue-400" data-btn="1" title="Circle / B">B</div>
+      <div class="input-tag font-bold text-green-400" data-btn="2" title="Square / X">X</div>
+      <div class="input-tag font-bold text-yellow-500" data-btn="3" title="Triangle / Y">Y</div>
+      <div class="input-tag text-xs" data-btn="4">L1</div>
+      <div class="input-tag text-xs" data-btn="5">R1</div>
+      <div class="input-tag text-xs" data-btn="6">L2</div>
+      <div class="input-tag text-xs" data-btn="7">R2</div>
+    </div>
+  </section>
+
+  <!-- Quick Links List -->
+  <section class="quick-links-section">
+    <div class="section-title">Streaming Shortcuts</div>
+    <div class="shortcuts-grid" id="shortcuts-grid">
+      <!-- Dynamically rendered -->
+    </div>
+  </section>
+</main>
+
+<!-- Mapping Editor Link Button -->
+<footer class="popup-footer">
+  <button class="btn-primary" id="go-to-editor-btn" style="width:100%;height:38px;display:flex;align-items:center;justify-content:center;gap:8px">
+    <!-- Inline SVG Edit Square Icon -->
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+    Open Mapping Editor
+  </button>
+</footer>
+
+<script src="popup.js"></script>
+</body>
+</html>
