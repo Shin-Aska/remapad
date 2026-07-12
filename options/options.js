@@ -222,16 +222,16 @@ async function loadSettings() {
 
     if (data.profiles && Object.keys(data.profiles).length > 0) {
       const profiles = data.profiles;
-      const defaultProfile = profiles['default'] || DEFAULT_PROFILE;
+      const defaultProfile = mergeProfileWithDefaults(profiles['default']);
       settings.defaultMapping = { ...defaultProfile };
       settings.websiteMappings = {};
       if (data.websiteMappings) {
         Object.keys(data.websiteMappings).forEach(domain => {
           const val = data.websiteMappings[domain];
           if (typeof val === 'string') {
-            settings.websiteMappings[domain] = { ...(profiles[val] || defaultProfile) };
+            settings.websiteMappings[domain] = mergeProfileWithDefaults(profiles[val] || defaultProfile);
           } else if (val && typeof val === 'object') {
-            settings.websiteMappings[domain] = val;
+            settings.websiteMappings[domain] = mergeProfileWithDefaults(val);
           }
         });
       }
@@ -242,12 +242,14 @@ async function loadSettings() {
       await api.storage.local.remove('profiles');
     } else {
       if (data.defaultMapping) {
-        settings.defaultMapping = data.defaultMapping;
+        settings.defaultMapping = mergeProfileWithDefaults(data.defaultMapping);
       } else {
         settings.defaultMapping = { ...DEFAULT_PROFILE };
       }
       if (data.websiteMappings && Object.keys(data.websiteMappings).length > 0) {
-        settings.websiteMappings = data.websiteMappings;
+        settings.websiteMappings = Object.fromEntries(
+          Object.entries(data.websiteMappings).map(([domain, profile]) => [domain, mergeProfileWithDefaults(profile)])
+        );
       } else {
         settings.websiteMappings = {
           'netflix.com':    { ...DEFAULT_PROFILE },
@@ -275,6 +277,12 @@ async function loadSettings() {
   } catch (e) {
     console.error('[Remapad Options] Load settings failed:', e);
   }
+}
+
+function mergeProfileWithDefaults(profile) {
+  return profile && typeof profile === 'object'
+    ? { ...DEFAULT_PROFILE, ...profile }
+    : { ...DEFAULT_PROFILE };
 }
 
 // ─── Save Settings ────────────────────────────────────────────────────────────
@@ -703,8 +711,8 @@ function pollGamepads() {
     });
 
     // 2. Animate stick offsets in SVG
-    const leftStickThumb = document.getElementById('svg-axis-L-thumb');
-    const rightStickThumb = document.getElementById('svg-axis-R-thumb');
+    const leftStickThumb = document.getElementById('svg-btn-10');
+    const rightStickThumb = document.getElementById('svg-btn-11');
 
     if (leftStickThumb) {
       const lx = gp.axes[0] || 0;
@@ -1240,4 +1248,3 @@ document.getElementById('cnav-save-all-btn')?.addEventListener('click', () => {
   initTabs();
   startPolling();
 })();
-

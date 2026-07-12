@@ -178,6 +178,11 @@
   let gamepadEventListenersAttached = false;
   let cnavHudElement = null;
   let cnavHudTimeout = null;
+  let modalFocusObserver = null;
+  let modalFocusTimeout = null;
+  let modalFocusAnimationFrame = null;
+  let modalFocusGeneration = 0;
+  const modalOpeners = new WeakMap();
 
   const currentHostname = location.hostname.replace(/^www\./, '');
 
@@ -225,6 +230,8 @@
         activeProfile = settings.websiteMappings[currentHostname] || settings.defaultMapping || DEFAULT_PROFILE;
         isMapped = settings.websiteMappings[currentHostname] !== undefined;
       }
+
+      activeProfile = { ...DEFAULT_PROFILE, ...activeProfile };
 
       const siteEnabled = settings.enabledSites[currentHostname] !== false;
       const quickMapAvailable = settings.globalEnabled && siteEnabled;
@@ -469,8 +476,10 @@
       const selector = action.substring('click_element:'.length);
       const el = safeQuerySelector(selector);
       if (el) {
+        const modalFocusState = beginModalFocusTracking();
         el.click();
         el.focus?.();
+        focusNewModalAfterClick(modalFocusState);
       } else {
         console.warn('[Remapad CS] Selector not found for click:', selector);
       }
@@ -538,7 +547,9 @@
       case 'click': {
         const el = document.activeElement;
         if (el && el !== document.body) {
+          const modalFocusState = beginModalFocusTracking();
           el.click();
+          focusNewModalAfterClick(modalFocusState);
         } else {
           // Fallback select element
           dispatchKeyEvent(document.body, 'Enter', 'Enter');
@@ -546,13 +557,7 @@
         break;
       }
       case 'back': {
-        dispatchKeyEvent(document.activeElement || document.body, 'Escape', 'Escape');
-        setTimeout(() => {
-          const esc = new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true });
-          if (!esc.defaultPrevented) {
-            history.back();
-          }
-        }, 100);
+        performBackAction();
         break;
       }
       case 'search': {
@@ -967,7 +972,9 @@
 
     switch (config.operation) {
       case 'click':
+        const modalFocusState = beginModalFocusTracking();
         element.click();
+        focusNewModalAfterClick(modalFocusState);
         break;
       case 'focus':
         focusElement(element);
@@ -1121,6 +1128,181 @@
     const exitFullscreen = document.exitFullscreen || document.webkitExitFullscreen;
     if (!exitFullscreen) return Promise.reject(new Error('Fullscreen API is unavailable for this document.'));
     return Promise.resolve(exitFullscreen.call(document));
+  }
+
+  function performBackAction() {
+    if (navigateNetflixJbvStateHome()) return;
+
+    const modal = getOpenModals()[0];
+    if (modal && closeModal(modal)) return;
+
+    resetNavigationState();
+    history.back();
+  }
+
+  function getOpenModals() {
+    const selector = [
+      '[role="dialog"]',
+      '[aria-modal="true"]',
+      '[data-uia*="modal" i]',
+      '[data-testid*="modal" i]',
+      '[class*="modal" i]'
+    ].join(', ');
+
+    return Array.from(document.querySelectorAll(selector))
+      .filter(element => !isRemapadElement(element) && isVisibleElement(element))
+      .sort((first, second) => {
+        const firstZIndex = Number.parseInt(getComputedStyle(first).zIndex, 10) || 0;
+        const secondZIndex = Number.parseInt(getComputedStyle(second).zIndex, 10) || 0;
+        if (firstZIndex !== secondZIndex) return secondZIndex - firstZIndex;
+        return first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING ? 1 : -1;
+      });
+  }
+
+  function closeModal(modal) {
+    const previousFocus = modalOpeners.get(modal) || controllerFocusedElement;
+    const closeControl = Array.from(modal.querySelectorAll('button, [role="button"], a[href]')).find(
+      element => isVisibleElement(element) && !element.matches(':disabled') && isDismissControl(element)
+    );
+
+    if (closeControl) {
+      closeControl.click();
+      restoreFocusAfterModalClose(previousFocus, modal);
+      return true;
+    }
+
+    if (typeof modal.close === 'function') {
+      modal.close();
+      restoreFocusAfterModalClose(previousFocus, modal);
+      return true;
+    }
+
+    return false;
+  }
+
+  function isDismissControl(element) {
+    if (element.matches('button.close, button.close-button, [role="button"].close-button, button[class~="close" i], [role="button"][class~="close" i]')) {
+      return true;
+    }
+
+    const hasDismissIdentifier = value => /(?:^|[-_\s])(?:close|dismiss|cancel)(?:$|[-_\s])/i.test(value || '');
+    if (hasDismissIdentifier(element.getAttribute('data-uia')) || hasDismissIdentifier(element.getAttribute('data-testid'))) {
+      return true;
+    }
+
+    const isDismissLabel = value => /^(?:close|dismiss|cancel)(?:\s+(?:dialog|modal|menu|panel|overlay|player|preview))?$/i.test((value || '').trim());
+    return isDismissLabel(element.getAttribute('aria-label')) || isDismissLabel(element.getAttribute('title'));
+  }
+
+  function restoreFocusAfterModalClose(previousFocus, modal) {
+    stopModalFocusObserver();
+    resetNavigationState();
+    const generation = modalFocusGeneration;
+    const restoreFocus = () => {
+      if (generation !== modalFocusGeneration) return true;
+      if (modal.isConnected && isVisibleElement(modal)) return false;
+      stopModalFocusObserver();
+      if (previousFocus?.isConnected && isVisibleElement(previousFocus)) {
+        focusElement(previousFocus);
+      }
+      return true;
+    };
+
+    modalFocusAnimationFrame = requestAnimationFrame(() => {
+      modalFocusAnimationFrame = null;
+      if (generation !== modalFocusGeneration) return;
+      if (restoreFocus()) return;
+      modalFocusObserver = new MutationObserver(restoreFocus);
+      modalFocusObserver.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['aria-hidden', 'class', 'open', 'style']
+      });
+      modalFocusTimeout = setTimeout(stopModalFocusObserver, 1200);
+    });
+  }
+
+  function navigateNetflixJbvStateHome() {
+    if (currentHostname !== 'netflix.com') return false;
+
+    const url = new URL(location.href);
+    const isTitleRoute = /^\/(?:title|watch)\//.test(url.pathname);
+    if (!url.searchParams.has('jbv') && !isTitleRoute) return false;
+
+    location.replace(`${url.origin}/`);
+    return true;
+  }
+
+  function beginModalFocusTracking() {
+    stopModalFocusObserver();
+    return {
+      existingModals: new Set(getOpenModals()),
+      opener: controllerFocusedElement,
+      initialUrl: location.href,
+      generation: modalFocusGeneration
+    };
+  }
+
+  function focusNewModalAfterClick({ existingModals, opener, initialUrl, generation }) {
+
+    const focusNewModal = () => {
+      if (generation !== modalFocusGeneration) return true;
+      const modal = getOpenModals().find(element => !existingModals.has(element));
+      if (!modal) return false;
+
+      if (opener?.isConnected) modalOpeners.set(modal, opener);
+      resetNavigationState();
+      const focusTarget = getModalFocusTarget(modal);
+      if (focusTarget) focusElement(focusTarget);
+      stopModalFocusObserver();
+      return true;
+    };
+
+    if (focusNewModal()) return;
+
+    modalFocusObserver = new MutationObserver(focusNewModal);
+    modalFocusObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['aria-hidden', 'class', 'open', 'style']
+    });
+    modalFocusTimeout = setTimeout(() => {
+      if (generation !== modalFocusGeneration) return;
+      if (location.href !== initialUrl) resetNavigationState();
+      stopModalFocusObserver();
+    }, 1200);
+  }
+
+  function stopModalFocusObserver() {
+    modalFocusGeneration += 1;
+    modalFocusObserver?.disconnect();
+    modalFocusObserver = null;
+    clearTimeout(modalFocusTimeout);
+    modalFocusTimeout = null;
+    if (modalFocusAnimationFrame !== null) cancelAnimationFrame(modalFocusAnimationFrame);
+    modalFocusAnimationFrame = null;
+  }
+
+  function getModalFocusTarget(modal) {
+    const selector = [
+      '[autofocus]',
+      '[data-uia*="close" i]',
+      '[data-testid*="close" i]',
+      '[aria-label*="close" i]',
+      'button:not([disabled])',
+      'a[href]',
+      '[tabindex]:not([tabindex="-1"])'
+    ].join(', ');
+
+    return Array.from(modal.querySelectorAll(selector)).find(isVisibleElement) || null;
+  }
+
+  function resetNavigationState() {
+    controllerFocusedElement?.classList.remove('remapad-controller-focus');
+    controllerFocusedElement = null;
+    resetCollectionNavState();
   }
 
   function getScrollableElement() {
@@ -1534,14 +1716,32 @@
         pointer-events: auto;
       }
        .remapad-hud-item {
-        display: flex !important;
+         display: flex !important;
         align-items: center !important;
         gap: 8px !important;
         color: #e5e2e1 !important;
         font-size: 13px !important;
         font-weight: 600 !important;
         letter-spacing: 0.03em !important;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.5) !important;
+         text-shadow: 0 1px 2px rgba(0,0,0,0.5) !important;
+       }
+       .remapad-hud-sticks {
+         display: flex !important;
+         align-items: center !important;
+         gap: 12px !important;
+         padding-left: 12px !important;
+         border-left: 1px solid rgba(255, 255, 255, 0.1) !important;
+       }
+       .remapad-hud-stick {
+         display: flex !important;
+         align-items: center !important;
+         gap: 8px !important;
+         color: #e5e2e1 !important;
+         font-size: 13px !important;
+         font-weight: 600 !important;
+         letter-spacing: 0.03em !important;
+         text-shadow: 0 1px 2px rgba(0,0,0,0.5) !important;
+         white-space: nowrap !important;
        }
        .remapad-hud-row {
          display: flex !important;
@@ -1911,13 +2111,15 @@
     }).join('');
 
     const stickItems = `
-      <div class="remapad-hud-item">
+      <div class="remapad-hud-sticks" aria-label="Stick controls">
+      <div class="remapad-hud-stick">
         <span class="remapad-hud-glyph">LS</span>
         <span class="remapad-hud-label">Scroll</span>
       </div>
-      <div class="remapad-hud-item">
+      <div class="remapad-hud-stick">
         <span class="remapad-hud-glyph">RS↑↓</span>
         <span class="remapad-hud-label">Focus</span>
+      </div>
       </div>
     `;
     let innerHtml = `<div class="remapad-hud-row">${items}${stickItems}</div>`;
@@ -1943,15 +2145,13 @@
 
   function updateHUDHighlight() {
     if (!hudElement) return;
-    const items = hudElement.querySelectorAll('.remapad-hud-row .remapad-hud-item');
+    const items = hudElement.querySelectorAll('.remapad-hud-row > .remapad-hud-item');
     items.forEach((item, idx) => {
-      if (idx < 16) { // standardButtons length is 16
-        if (idx === hudHighlightedIndex) {
-          item.classList.add('highlighted');
-          item.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-        } else {
-          item.classList.remove('highlighted');
-        }
+      if (idx === hudHighlightedIndex) {
+        item.classList.add('highlighted');
+        item.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      } else {
+        item.classList.remove('highlighted');
       }
     });
   }
@@ -1982,6 +2182,7 @@
 
   function removeHUD(stopPolling = true) {
     closeQuickMap();
+    stopModalFocusObserver();
     hudHighlightedIndex = -1;
     document.documentElement.removeAttribute('data-remapad-active');
     if (hudElement) {
@@ -2039,7 +2240,8 @@
 
   window.addEventListener('pagehide', () => {
     closeQuickMap();
-    resetCollectionNavState();
+    stopModalFocusObserver();
+    resetNavigationState();
   });
 
   // Handle COUNT_SELECTORS message from options page "Test Selectors" feature
