@@ -7,3 +7,6 @@ dist/
 build/
 .env*
 .cache/
+.playwright-mcp/
+graphify-out/
+.idea/
