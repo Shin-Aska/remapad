@@ -42,7 +42,7 @@ const DEFAULT_PROFILE = {
   "6": "volume_down",    // L2 Trigger
   "7": "volume_up",      // R2 Trigger
   "8": "toggle_play",    // Select
-  "9": "open_options",   // Start
+  "9": "quick_map",      // Start
   "12": "scroll_up",     // D-Pad Up
   "13": "scroll_down",   // D-Pad Down
   "14": "scroll_left",   // D-Pad Left
@@ -81,16 +81,20 @@ const ACTION_OPTIONS = [
   { value: 'scroll_down',   label: 'Scroll Down'        },
   { value: 'scroll_left',   label: 'Scroll Left'        },
   { value: 'scroll_right',  label: 'Scroll Right'       },
+  { value: 'focus_next',    label: 'Focus Next Element' },
+  { value: 'focus_prev',    label: 'Focus Previous Element' },
   { value: 'volume_up',     label: 'Volume Up'          },
   { value: 'volume_down',   label: 'Volume Down'        },
-  { value: 'seek_forward',  label: 'Seek Forward 10s'   },
-  { value: 'seek_backward', label: 'Seek Backward 10s'  },
+  { value: 'seek_forward',  label: 'Seek Forward'       },
+  { value: 'seek_backward', label: 'Seek Backward'      },
   { value: 'next_tab',      label: 'Next Tab'           },
   { value: 'prev_tab',      label: 'Previous Tab'       },
   { value: 'close_tab',     label: 'Close Active Tab'   },
+  { value: 'quick_map',     label: 'Quick Map on Page'  },
   { value: 'open_options',  label: 'Open Options Editor'},
   { value: 'click_element', label: 'Click CSS Element...' },
   { value: 'hover_element', label: 'Hover CSS Element...' },
+  { value: 'focus_element', label: 'Focus CSS Element...' },
   { value: 'press_key',     label: 'Press Keyboard Key...' }
 ];
 
@@ -207,7 +211,7 @@ async function loadSettings() {
       if (cleanSite) {
         if (!settings.websiteMappings[cleanSite]) {
           settings.websiteMappings[cleanSite] = { ...settings.defaultMapping };
-          unsavedChanges = true;
+          await api.storage.local.set({ websiteMappings: settings.websiteMappings });
         }
         selectedSiteKey = cleanSite;
       }
@@ -425,15 +429,18 @@ function populateVisualLabels() {
     const labelEl = document.getElementById(`label-btn-${btnKey}`);
     if (labelEl) {
       const action = mapping[btnKey] || 'none';
+      const displayAction = btnKey === '9' && action === 'open_options' ? 'quick_map' : action;
       let actionLabel = '';
-      if (action.startsWith('click_element:')) {
+      if (displayAction.startsWith('click_element:')) {
         actionLabel = `Click: ${action.substring('click_element:'.length)}`;
-      } else if (action.startsWith('hover_element:')) {
+      } else if (displayAction.startsWith('hover_element:')) {
         actionLabel = `Hover: ${action.substring('hover_element:'.length)}`;
-      } else if (action.startsWith('press_key:')) {
+      } else if (displayAction.startsWith('press_key:')) {
         actionLabel = `Key: ${action.substring('press_key:'.length)}`;
+      } else if (displayAction.startsWith('focus_element:')) {
+        actionLabel = `Focus: ${action.substring('focus_element:'.length)}`;
       } else {
-        actionLabel = ACTION_OPTIONS.find(a => a.value === action)?.label || action;
+        actionLabel = ACTION_OPTIONS.find(a => a.value === displayAction)?.label || displayAction;
       }
       labelEl.textContent = actionLabel;
       labelEl.title = actionLabel;
@@ -477,6 +484,8 @@ document.querySelectorAll('.editor-callout').forEach(callout => {
       actionSelect.value = 'hover_element';
     } else if (currentAction.startsWith('press_key:')) {
       actionSelect.value = 'press_key';
+    } else if (currentAction.startsWith('focus_element:')) {
+      actionSelect.value = 'focus_element';
     } else {
       actionSelect.value = currentAction;
     }
@@ -515,6 +524,17 @@ actionSelect.addEventListener('change', async () => {
       newAction = `hover_element:${val.trim()}`;
     } else {
       actionSelect.value = currentVal.startsWith('hover_element:') ? 'hover_element' : 'none';
+      return;
+    }
+  } else if (newAction === 'focus_element') {
+    const initVal = currentVal.startsWith('focus_element:') ? currentVal.substring('focus_element:'.length) : '';
+    const val = await openConfigModal('focus', initVal);
+    if (val && val.trim()) {
+      newAction = `focus_element:${val.trim()}`;
+    } else if (btnKey === '9' && currentAction === 'open_options') {
+      actionSelect.value = 'quick_map';
+    } else {
+      actionSelect.value = currentVal.startsWith('focus_element:') ? 'focus_element' : 'none';
       return;
     }
   } else if (newAction === 'press_key') {
@@ -795,7 +815,7 @@ function openConfigModal(mode, currentVal = '') {
       
       window.addEventListener('keydown', handleModalKeyDown, true);
     } else {
-      modalTitle.textContent = mode === 'click' ? 'Configure Click Element' : 'Configure Hover Element';
+      modalTitle.textContent = mode === 'click' ? 'Configure Click Element' : mode === 'hover' ? 'Configure Hover Element' : 'Configure Focus Element';
       modalKeyboardSec.style.display = 'none';
       modalSelectorSec.style.display = 'block';
       

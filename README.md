@@ -19,6 +19,8 @@ With Remapad, you can bind gamepad buttons to perform common browser actions, di
 
 ## 🛠 Installation
 
+Remapad requires Firefox 128+ or a Chromium-based browser 111+ because it uses Manifest V3 MAIN-world content scripts to prevent page-level gamepad conflicts.
+
 ### Firefox (Add-on Developer Mode)
 1. Open Firefox and navigate to `about:debugging#/runtime/this-firefox`.
 2. Click **Load Temporary Add-on...**
@@ -41,3 +43,7 @@ With Remapad, you can bind gamepad buttons to perform common browser actions, di
    - Click a button callout on the controller to open the actions popover.
    - Choose a predefined shortcut, input a selector, or capture a keyboard key.
 4. **Save:** Click **Save Changes** in the top-right to write configuration settings to storage.
+
+### Quick Map on the Page
+
+Press **Start** while Remapad is enabled to map a live page control without leaving the site. Press the controller button to bind, choose **Click**, **Focus**, or **Hover**, select the page control, then save the generated selector. Press **Start** again or **Esc** to cancel. This is useful for player controls that ignore synthetic keyboard shortcuts.

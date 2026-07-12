@@ -9,11 +9,32 @@ const api = typeof chrome !== 'undefined' ? chrome : browser;
 
 // Listen for messages from content scripts, popups, or options page
 api.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === 'BROWSER_ACTION') {
+  if (message && message.type === 'BROWSER_ACTION') {
     handleBrowserAction(message.action, sender)
       .then(res => sendResponse(res))
       .catch(err => sendResponse({ error: err.message }));
     return true; // Keeps channel open for async response
+  }
+
+  if (message && message.type === 'OPEN_SITE_MAPPING') {
+    let hostname = '';
+    try {
+      const tabUrl = sender.tab?.url;
+      if (tabUrl && /^https?:/.test(tabUrl)) {
+        hostname = new URL(tabUrl).hostname.replace(/^www\./, '');
+      }
+    } catch (e) {
+      hostname = '';
+    }
+    if (!hostname) {
+      sendResponse({ error: 'A website tab is required to edit a site mapping.' });
+      return false;
+    }
+    const url = api.runtime.getURL('options/options.html') + (hostname ? '?site=' + encodeURIComponent(hostname) : '');
+    api.tabs.create({ url })
+      .then(() => sendResponse({ success: true }))
+      .catch(err => sendResponse({ error: err.message }));
+    return true;
   }
 });
 

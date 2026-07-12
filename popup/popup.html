@@ -51,7 +51,7 @@
         <span style="font-family:var(--font-label);font-size:12px;color:var(--on-surface-variant)">Mapping Status</span>
         <span id="mapping-status-badge" style="font-family:var(--font-label);font-size:11px;font-weight:600;padding:2px 6px;border-radius:4px;background:rgba(255,255,255,0.06);color:var(--on-surface)">Default Mapping</span>
       </div>
-      <button class="btn-ghost" id="customize-site-btn" style="width:100%;margin-top:10px;font-size:12px;padding:6px 0;font-weight:600">Customize Mapping...</button>
+      <button class="btn-primary site-mapping-cta" id="customize-site-btn" aria-label="Create mapping for the active site">Create mapping for active site</button>
     </div>
   </section>
 
@@ -103,15 +103,6 @@
     </div>
   </section>
 </main>
-
-<!-- Mapping Editor Link Button -->
-<footer class="popup-footer">
-  <button class="btn-primary" id="go-to-editor-btn" style="width:100%;height:38px;display:flex;align-items:center;justify-content:center;gap:8px">
-    <!-- Inline SVG Edit Square Icon -->
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-    Open Mapping Editor
-  </button>
-</footer>
 
 <script src="popup.js"></script>
 </body>

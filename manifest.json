@@ -32,10 +32,19 @@
   },
 
   "background": {
-    "scripts": ["background/service_worker.js"]
+    "scripts": ["background/service_worker.js"],
+    "service_worker": "background/service_worker.js"
   },
 
   "content_scripts": [
+    {
+      "matches": [
+        "*://*/*"
+      ],
+      "js": ["content/gamepad_blocker.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
     {
       "matches": [
         "*://*/*"
@@ -58,7 +67,7 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "remapad@extension",
-      "strict_min_version": "109.0"
+      "strict_min_version": "128.0"
     }
   },
 

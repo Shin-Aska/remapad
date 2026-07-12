@@ -18,7 +18,7 @@ const DEFAULT_PROFILE = {
   "6": "volume_down",
   "7": "volume_up",
   "8": "toggle_play",
-  "9": "open_options",
+  "9": "quick_map",
   "12": "scroll_up",
   "13": "scroll_down",
   "14": "scroll_left",
@@ -33,6 +33,7 @@ const WEBSITE_MAPPINGS_DEFAULT = {
 // ─── State ────────────────────────────────────────────────────────────────────
 
 let currentHostname = '';
+let legacyProfiles = {};
 let settings = {
   iconStyle: 'playstation',
   websiteMappings: { ...WEBSITE_MAPPINGS_DEFAULT },
@@ -55,7 +56,6 @@ const statusBadgeEl      = document.getElementById('status-badge');
 const statusDotEl        = document.getElementById('status-dot');
 const statusTextEl       = document.getElementById('status-text');
 const openOptionsBtn     = document.getElementById('open-options-btn');
-const goToEditorBtn      = document.getElementById('go-to-editor-btn');
 const activeIndicator    = document.getElementById('global-active-indicator');
 const activeTabCard      = document.getElementById('active-tab-card');
 
@@ -66,7 +66,7 @@ async function init() {
     // 1. Get active tab
     const [tab] = await api.tabs.query({ active: true, currentWindow: true });
     if (tab && tab.url && tab.url.startsWith('http')) {
-      currentHostname = new URL(tab.url).hostname.replace('www.', '');
+      currentHostname = new URL(tab.url).hostname.replace(/^www\./, '');
       siteDomainEl.textContent = currentHostname;
     } else {
       currentHostname = '';
@@ -78,7 +78,7 @@ async function init() {
 
     // 2. Load storage settings
     const data = await api.storage.local.get([
-      'iconStyle', 'websiteMappings', 'defaultMapping', 'enabledSites', 'globalEnabled'
+      'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled'
     ]);
 
     if (data.iconStyle) settings.iconStyle = data.iconStyle;
@@ -88,6 +88,7 @@ async function init() {
       settings.websiteMappings = { ...WEBSITE_MAPPINGS_DEFAULT };
     }
     if (data.defaultMapping) settings.defaultMapping = data.defaultMapping;
+    if (data.profiles) legacyProfiles = data.profiles;
     if (data.enabledSites) settings.enabledSites = data.enabledSites;
     if (data.globalEnabled !== undefined) settings.globalEnabled = data.globalEnabled;
 
@@ -122,13 +123,24 @@ function updateActiveIndicators() {
   if (currentHostname) {
     const hasCustom = settings.websiteMappings[currentHostname] !== undefined;
     if (hasCustom) {
-      mappingStatusBadge.textContent = 'Site-specific Mapping';
+      const storedMapping = settings.websiteMappings[currentHostname];
+      const mapping = typeof storedMapping === 'string'
+        ? legacyProfiles[storedMapping] || settings.defaultMapping
+        : storedMapping;
+      const mappedCount = mapping && typeof mapping === 'object'
+        ? Object.values(mapping).filter(action => action && action !== 'none').length
+        : 0;
+      mappingStatusBadge.textContent = `${mappedCount} mapped controls`;
       mappingStatusBadge.style.background = 'rgba(0, 168, 225, 0.15)';
       mappingStatusBadge.style.color = '#00a8e1';
+      customizeSiteBtn.textContent = `Edit mapping for ${currentHostname}`;
+      customizeSiteBtn.setAttribute('aria-label', `Edit mapping for ${currentHostname}`);
     } else {
-      mappingStatusBadge.textContent = 'Default Mapping';
+      mappingStatusBadge.textContent = 'No site mapping yet';
       mappingStatusBadge.style.background = 'rgba(255,255,255,0.06)';
       mappingStatusBadge.style.color = 'var(--on-surface)';
+      customizeSiteBtn.textContent = `Create mapping for ${currentHostname}`;
+      customizeSiteBtn.setAttribute('aria-label', `Create mapping for ${currentHostname}`);
     }
   }
 }
@@ -161,7 +173,6 @@ const triggerOptions = () => {
 };
 
 openOptionsBtn.addEventListener('click', triggerOptions);
-goToEditorBtn.addEventListener('click', triggerOptions);
 
 // Dynamic Shortcut Launching
 function renderShortcuts() {
