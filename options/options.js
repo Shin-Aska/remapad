@@ -786,6 +786,8 @@ function handleModalKeyDown(e) {
   if (e.key !== 'Control' && e.key !== 'Alt' && e.key !== 'Shift' && e.key !== 'Meta') {
     if (e.key === ' ') {
       parts.push('Space');
+    } else if (e.key === '+') {
+      parts.push('Plus');
     } else {
       parts.push(e.key);
     }

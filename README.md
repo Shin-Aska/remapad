@@ -44,6 +44,8 @@ Remapad requires Firefox 128+ or a Chromium-based browser 111+ because it uses M
    - Choose a predefined shortcut, input a selector, or capture a keyboard key.
 4. **Save:** Click **Save Changes** in the top-right to write configuration settings to storage.
 
+Keyboard-key mappings send synthetic page events, so they work with sites that accept scripted shortcuts but cannot bypass sites that require trusted physical keyboard input. Use Quick Map for a visible player control when a keyboard shortcut is ignored.
+
 ### Quick Map on the Page
 
 Press **Start** while Remapad is enabled to map a live page control without leaving the site. Press the controller button to bind, choose **Click**, **Focus**, or **Hover**, select the page control, then save the generated selector. Press **Start** again or **Esc** to cancel. This is useful for player controls that ignore synthetic keyboard shortcuts.

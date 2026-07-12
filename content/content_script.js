@@ -369,38 +369,16 @@
     if (action.startsWith('press_key:')) {
       const fullKey = action.substring('press_key:'.length);
       const parts = fullKey.split('+');
-      let key = parts[parts.length - 1];
+      let key = fullKey.endsWith('+') ? '+' : parts[parts.length - 1];
       if (key === 'Space') key = ' ';
+      if (key === 'Plus') key = '+';
 
-      const ctrlKey = parts.includes('Ctrl');
-      const altKey = parts.includes('Alt');
-      const shiftKey = parts.includes('Shift');
-      const metaKey = parts.includes('Meta');
-
-      const target = document.activeElement || document.body;
-
-      const eventDown = new KeyboardEvent('keydown', {
-        key,
-        code: key,
-        ctrlKey,
-        altKey,
-        shiftKey,
-        metaKey,
-        bubbles: true,
-        cancelable: true
+      dispatchKeyEvent(document.activeElement || document.body, key, getKeyboardCode(key), {
+        ctrlKey: parts.includes('Ctrl'),
+        altKey: parts.includes('Alt'),
+        shiftKey: parts.includes('Shift'),
+        metaKey: parts.includes('Meta')
       });
-      const eventUp = new KeyboardEvent('keyup', {
-        key,
-        code: key,
-        ctrlKey,
-        altKey,
-        shiftKey,
-        metaKey,
-        bubbles: true,
-        cancelable: true
-      });
-      target.dispatchEvent(eventDown);
-      target.dispatchEvent(eventUp);
       return;
     }
 
@@ -526,8 +504,91 @@
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
 
-  function dispatchKeyEvent(target, key, code) {
-    const opts = { bubbles: true, cancelable: true, key, code };
+  function getKeyboardCode(key) {
+    const punctuationCodes = {
+      '!': 'Digit1', '@': 'Digit2', '#': 'Digit3', '$': 'Digit4', '%': 'Digit5', '^': 'Digit6',
+      '&': 'Digit7', '*': 'Digit8', '(': 'Digit9', ')': 'Digit0', '-': 'Minus', '_': 'Minus',
+      '=': 'Equal', '+': 'Equal', '[': 'BracketLeft', '{': 'BracketLeft', ']': 'BracketRight',
+      '}': 'BracketRight', '\\': 'Backslash', '|': 'Backslash', ';': 'Semicolon', ':': 'Semicolon',
+      "'": 'Quote', '"': 'Quote', ',': 'Comma', '<': 'Comma', '.': 'Period', '>': 'Period',
+      '/': 'Slash', '?': 'Slash', '`': 'Backquote', '~': 'Backquote'
+    };
+
+    if (/^[a-zA-Z]$/.test(key)) return `Key${key.toUpperCase()}`;
+    if (/^[0-9]$/.test(key)) return `Digit${key}`;
+    if (key === ' ') return 'Space';
+    return punctuationCodes[key] || key;
+  }
+
+  function getLegacyKeyCode(key) {
+    const namedKeys = {
+      ' ': 32,
+      ArrowLeft: 37,
+      ArrowUp: 38,
+      ArrowRight: 39,
+      ArrowDown: 40,
+      Enter: 13,
+      Escape: 27,
+      Tab: 9,
+      Backspace: 8,
+      Delete: 46,
+      Home: 36,
+      End: 35,
+      PageUp: 33,
+      PageDown: 34,
+      '!': 49,
+      '@': 50,
+      '#': 51,
+      '$': 52,
+      '%': 53,
+      '^': 54,
+      '&': 55,
+      '*': 56,
+      '(': 57,
+      ')': 48,
+      '-': 189,
+      '_': 189,
+      '=': 187,
+      '+': 187,
+      '[': 219,
+      '{': 219,
+      ']': 221,
+      '}': 221,
+      '\\': 220,
+      '|': 220,
+      ';': 186,
+      ':': 186,
+      "'": 222,
+      '"': 222,
+      ',': 188,
+      '<': 188,
+      '.': 190,
+      '>': 190,
+      '/': 191,
+      '?': 191,
+      '`': 192,
+      '~': 192
+    };
+
+    if (namedKeys[key] !== undefined) return namedKeys[key];
+    if (/^[a-zA-Z]$/.test(key)) return key.toUpperCase().charCodeAt(0);
+    if (/^[0-9]$/.test(key)) return key.charCodeAt(0);
+    return 0;
+  }
+
+  function dispatchKeyEvent(target, key, code = getKeyboardCode(key), modifiers = {}) {
+    const keyCode = getLegacyKeyCode(key);
+    const opts = {
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      view: window,
+      key,
+      code,
+      keyCode,
+      which: keyCode,
+      ...modifiers
+    };
     target.dispatchEvent(new KeyboardEvent('keydown', opts));
     target.dispatchEvent(new KeyboardEvent('keyup', opts));
   }
