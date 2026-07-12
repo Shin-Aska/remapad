@@ -112,15 +112,67 @@ body {
   max-width: 1400px;
   margin: 0 auto;
   padding: var(--space-md) var(--space-container);
+}
+
+/* ── Tab Bar ─────────────────────────────────────────────────────────────────── */
+.tab-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: var(--space-md);
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--radius-full, 9999px);
+  width: fit-content;
+}
+
+.tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: var(--radius-full, 9999px);
+  border: none;
+  background: transparent;
+  color: var(--on-surface-variant);
+  font-family: var(--font-label);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+  letter-spacing: 0.02em;
+}
+.tab-btn:hover {
+  background: var(--surface-container-high);
+  color: var(--on-surface);
+}
+.tab-btn.active {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 0 16px rgba(229, 9, 20, 0.4);
+}
+.tab-btn.active svg { stroke: #fff; fill: #fff; }
+
+/* ── Tab Panels ──────────────────────────────────────────────────────────────── */
+.tab-panel[hidden] { display: none; }
+.tab-panel { animation: tabFadeIn 0.22s ease; }
+@keyframes tabFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Two-col grid (Controller tab) ──────────────────────────────────────────── */
+.two-col-grid {
   display: grid;
   grid-template-columns: 320px 1fr;
   gap: var(--space-gutter);
   align-items: start;
 }
 
+
 /* ── Page Header ────────────────────────────────────────────────────────────── */
 .page-header {
-  grid-column: 1 / -1;
   padding-bottom: var(--space-sm);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   margin-bottom: var(--space-sm);
@@ -662,4 +714,136 @@ body {
 @keyframes slideUp {
   from { transform: translateY(20px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
+}
+
+/* ── Collection Nav Tab Panel ────────────────────────────────────────────────── */
+.cnav-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.cnav-intro {
+  /* no extra rules needed, .card handles it */
+}
+
+.cnav-body {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: var(--space-sm);
+  align-items: start;
+}
+
+.cnav-sidebar {
+  position: sticky;
+  top: 80px;
+}
+
+.cnav-editor {
+  min-height: 380px;
+}
+
+.cnav-sites-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cnav-site-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--surface-container-low);
+  border: 1px solid rgba(255,255,255,0.03);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--on-surface);
+}
+.cnav-site-item:hover {
+  background: var(--surface-container-high);
+}
+.cnav-site-item.active {
+  border-color: var(--primary);
+  background: rgba(229, 9, 20, 0.08);
+}
+.cnav-site-label {
+  flex: 1;
+  overflow: hidden;
+}
+.cnav-site-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--on-surface);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cnav-site-domain {
+  font-size: 11px;
+  color: var(--on-surface-variant);
+}
+.cnav-site-status {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  flex-shrink: 0;
+}
+.cnav-site-status.configured {
+  background: #4ade80;
+  box-shadow: 0 0 6px rgba(74, 222, 128, 0.5);
+}
+
+.cnav-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 200px;
+  color: var(--on-surface-variant);
+  font-family: var(--font-body);
+  font-size: 13px;
+  text-align: center;
+  padding: 32px;
+}
+
+/* Selector input fields in the cnav editor */
+.cnav-field-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--on-surface-variant);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 5px;
+}
+.cnav-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--surface-container);
+  color: var(--on-surface);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: var(--font-mono, monospace);
+  outline: none;
+  transition: border-color 0.2s;
+}
+.cnav-input:focus {
+  border-color: var(--primary);
+}
+.cnav-test-result {
+  display: none;
+  margin: 10px 0;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-family: var(--font-body);
+  line-height: 1.4;
 }

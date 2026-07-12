@@ -76,7 +76,11 @@
     focus_prev: "Focus Previous",
     quick_map: "Quick Map",
     toggle_hud: "Toggle Navigation Guide",
-    dom_action: "DOM Action"
+    dom_action: "DOM Action",
+    nav_next_collection: "Next Row",
+    nav_prev_collection: "Prev Row",
+    nav_next_item: "Next Item",
+    nav_prev_item: "Prev Item"
   };
 
   const DOM_ACTION_OPERATIONS = new Set([
@@ -127,13 +131,30 @@
     'primevideo.com': { ...DEFAULT_PROFILE }
   };
 
+  const SITE_COLLECTIONS_DEFAULT = {
+    'netflix.com': {
+      containerSelector: '.lolomoRow',
+      itemSelector: '.title-card-container'
+    },
+    'primevideo.com': {
+      containerSelector: '[data-testid="grid-lockup"], ._1h3rtFr, .wv_A6',
+      itemSelector: '[data-testid="card"], ._1t8qyG2, .P2TLe'
+    }
+  };
+
   let settings = {
     iconStyle: 'playstation',
     websiteMappings: { ...WEBSITE_MAPPINGS_DEFAULT },
     defaultMapping: { ...DEFAULT_PROFILE },
     enabledSites: {}, // hostname -> bool (defaults to true)
-    globalEnabled: true
+    globalEnabled: true,
+    siteCollections: { ...SITE_COLLECTIONS_DEFAULT }
   };
+
+  // ─── Collection Navigation State ─────────────────────────────────────────────
+  let activeCollectionIndex = -1;
+  let activeItemIndex = -1;
+  let activeCollectionEl = null;
 
   let activeProfile = { ...DEFAULT_PROFILE };
   let prevButtonStates = [];
@@ -152,6 +173,8 @@
   let quickMapSuppressClick = false;
   let quickMapSuppressPointerUp = false;
   let gamepadEventListenersAttached = false;
+  let cnavHudElement = null;
+  let cnavHudTimeout = null;
 
   const currentHostname = location.hostname.replace(/^www\./, '');
 
@@ -160,12 +183,15 @@
   async function init() {
     try {
       const data = await api.storage.local.get([
-        'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled'
+        'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'siteCollections'
       ]);
 
       if (data.iconStyle) settings.iconStyle = data.iconStyle;
       if (data.enabledSites) settings.enabledSites = data.enabledSites;
       if (data.globalEnabled !== undefined) settings.globalEnabled = data.globalEnabled;
+      if (data.siteCollections && typeof data.siteCollections === 'object') {
+        settings.siteCollections = data.siteCollections;
+      }
 
       let isMapped = false;
 
@@ -372,6 +398,13 @@
       return;
     }
 
+    // Collection navigation actions
+    if (action === 'nav_next_collection' || action === 'nav_prev_collection' ||
+        action === 'nav_next_item' || action === 'nav_prev_item') {
+      executeCollectionNav(action);
+      return;
+    }
+
     // Complex custom actions
     if (action.startsWith('click_element:')) {
       const selector = action.substring('click_element:'.length);
@@ -531,6 +564,230 @@
         break;
       }
     }
+  }
+
+  // ─── Collection Navigation ───────────────────────────────────────────────────
+
+  function getCollectionConfig() {
+    return settings.siteCollections?.[currentHostname] || null;
+  }
+
+  function getCollectionContainers() {
+    const config = getCollectionConfig();
+    if (!config?.containerSelector) return [];
+    try {
+      return Array.from(document.querySelectorAll(config.containerSelector)).filter(
+        el => !el.closest('.remapad-hud-container, .remapad-quick-map') && isVisibleElement(el)
+      );
+    } catch (e) {
+      console.warn('[Remapad CS] Invalid containerSelector:', config.containerSelector, e);
+      return [];
+    }
+  }
+
+  function getCollectionItems(containerEl) {
+    const config = getCollectionConfig();
+    if (!config?.itemSelector || !containerEl) return [];
+    try {
+      return Array.from(containerEl.querySelectorAll(config.itemSelector)).filter(
+        el => isVisibleElement(el)
+      );
+    } catch (e) {
+      console.warn('[Remapad CS] Invalid itemSelector:', config.itemSelector, e);
+      return [];
+    }
+  }
+
+  function setActiveCollectionEl(el) {
+    if (activeCollectionEl === el) return;
+    activeCollectionEl?.classList.remove('remapad-active-collection');
+    activeCollectionEl = el;
+    activeCollectionEl?.classList.add('remapad-active-collection');
+  }
+
+  function executeCollectionNav(action) {
+    const config = getCollectionConfig();
+    if (!config) {
+      console.warn('[Remapad CS] No collection config for:', currentHostname);
+      return;
+    }
+
+    if (action === 'nav_next_collection' || action === 'nav_prev_collection') {
+      const containers = getCollectionContainers();
+      if (!containers.length) return;
+
+      const direction = action === 'nav_next_collection' ? 1 : -1;
+
+      if (activeCollectionIndex === -1) {
+        // First press: find container closest to the current viewport center
+        const viewportMid = window.innerHeight / 2;
+        let closestIdx = 0;
+        let closestDist = Infinity;
+        containers.forEach((c, i) => {
+          const rect = c.getBoundingClientRect();
+          const dist = Math.abs(rect.top + rect.height / 2 - viewportMid);
+          if (dist < closestDist) { closestDist = dist; closestIdx = i; }
+        });
+        activeCollectionIndex = closestIdx;
+      } else {
+        activeCollectionIndex = Math.max(0, Math.min(containers.length - 1, activeCollectionIndex + direction));
+      }
+
+      // Reset item index when switching collections
+      activeItemIndex = -1;
+
+      const activeContainer = containers[activeCollectionIndex];
+      setActiveCollectionEl(activeContainer);
+      activeContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+
+    } else if (action === 'nav_next_item' || action === 'nav_prev_item') {
+      // If no collection is active yet, select the closest one first
+      if (activeCollectionIndex === -1 || !activeCollectionEl) {
+        executeCollectionNav('nav_next_collection');
+        if (activeCollectionIndex === -1) return;
+      }
+
+      const containers = getCollectionContainers();
+      const container = containers[activeCollectionIndex] || activeCollectionEl;
+      if (!container) return;
+
+      const items = getCollectionItems(container);
+      if (!items.length) return;
+
+      const direction = action === 'nav_next_item' ? 1 : -1;
+
+      if (activeItemIndex === -1) {
+        activeItemIndex = direction > 0 ? 0 : items.length - 1;
+      } else {
+        activeItemIndex = Math.max(0, Math.min(items.length - 1, activeItemIndex + direction));
+      }
+
+      const item = items[activeItemIndex];
+      item.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+
+      // Try to focus the item or its first focusable child
+      const focusTarget = item.matches('a,button,[tabindex]') ? item
+        : item.querySelector('a,button,[tabindex]:not([tabindex="-1"])');
+      if (focusTarget) {
+        focusElement(focusTarget);
+      } else {
+        // Dispatch hover events to trigger UI on non-focusable cards
+        const hoverOpts = { bubbles: true, cancelable: true, view: window };
+        item.dispatchEvent(new MouseEvent('mouseover', hoverOpts));
+        item.dispatchEvent(new MouseEvent('mouseenter', hoverOpts));
+        item.classList.add('remapad-hover');
+      }
+
+      // Show HUD with updated item info
+      const allContainers = getCollectionContainers();
+      showCNavHUD(
+        activeCollectionIndex,
+        allContainers.length,
+        activeItemIndex,
+        items.length,
+        getCollectionLabel(container)
+      );
+      return; // HUD already shown, skip bottom call
+    }
+
+    // Show HUD for collection-level changes (called after nav_next/prev_collection)
+    if (action === 'nav_next_collection' || action === 'nav_prev_collection') {
+      const allContainers = getCollectionContainers();
+      const container = allContainers[activeCollectionIndex];
+      if (container) {
+        showCNavHUD(
+          activeCollectionIndex,
+          allContainers.length,
+          -1,
+          getCollectionItems(container).length,
+          getCollectionLabel(container)
+        );
+      }
+    }
+  }
+
+  function resetCollectionNavState() {
+    setActiveCollectionEl(null);
+    activeCollectionIndex = -1;
+    activeItemIndex = -1;
+    hideCNavHUD(true);
+  }
+
+  // ─── Collection Nav HUD ──────────────────────────────────────────────────────
+
+  function getCollectionLabel(containerEl) {
+    if (!containerEl) return '';
+    // Try common heading/label attributes within the container
+    const labelEl = containerEl.querySelector(
+      '[aria-label], h2, h3, h4, [data-title], .row-header, .lolomoRowHeader, .title'
+    );
+    const text = (labelEl?.getAttribute('aria-label') || labelEl?.textContent || '').trim();
+    return text.length > 40 ? text.slice(0, 40) + '…' : text;
+  }
+
+  function showCNavHUD(collectionIndex, collectionCount, itemIndex, itemCount, collectionLabel) {
+    injectHUDStyles();
+
+    if (!cnavHudElement) {
+      cnavHudElement = document.createElement('div');
+      cnavHudElement.className = 'remapad-cnav-hud';
+      cnavHudElement.setAttribute('role', 'status');
+      cnavHudElement.setAttribute('aria-live', 'polite');
+      document.body.appendChild(cnavHudElement);
+      // Trigger entrance animation on next frame
+      requestAnimationFrame(() => cnavHudElement?.classList.add('visible'));
+    }
+
+    // Build dot-progress for items
+    const MAX_DOTS = 12;
+    let dotsHtml = '';
+    if (itemCount > 0 && itemIndex >= 0) {
+      const dotCount = Math.min(itemCount, MAX_DOTS);
+      const dotActive = itemCount <= MAX_DOTS
+        ? itemIndex
+        : Math.round((itemIndex / (itemCount - 1)) * (MAX_DOTS - 1));
+      for (let i = 0; i < dotCount; i++) {
+        dotsHtml += `<span class="remapad-cnav-dot${i === dotActive ? ' active' : ''}"></span>`;
+      }
+    }
+
+    const rowLabel = collectionLabel ? `<span class="remapad-cnav-label">${escapeHtml(collectionLabel)}</span>` : '';
+    const rowPos = `<span class="remapad-cnav-pos">Row ${collectionIndex + 1} <span class="remapad-cnav-of">of</span> ${collectionCount}</span>`;
+    const itemPos = itemIndex >= 0 && itemCount > 0
+      ? `<span class="remapad-cnav-item">Item ${itemIndex + 1} <span class="remapad-cnav-of">of</span> ${itemCount}</span>`
+      : (itemCount > 0 ? `<span class="remapad-cnav-item remapad-cnav-item--hint">${itemCount} item${itemCount !== 1 ? 's' : ''}</span>` : '');
+
+    cnavHudElement.innerHTML = `
+      <div class="remapad-cnav-left">
+        <svg class="remapad-cnav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        ${rowPos}
+        ${rowLabel}
+      </div>
+      <div class="remapad-cnav-right">
+        ${dotsHtml ? `<div class="remapad-cnav-dots">${dotsHtml}</div>` : ''}
+        ${itemPos}
+      </div>
+    `;
+
+    // Auto-dismiss after 2.5s of no input
+    clearTimeout(cnavHudTimeout);
+    cnavHudTimeout = setTimeout(() => hideCNavHUD(), 2500);
+  }
+
+  function hideCNavHUD(immediate = false) {
+    clearTimeout(cnavHudTimeout);
+    cnavHudTimeout = null;
+    if (!cnavHudElement) return;
+    if (immediate) {
+      cnavHudElement.remove();
+      cnavHudElement = null;
+      return;
+    }
+    cnavHudElement.classList.remove('visible');
+    const el = cnavHudElement;
+    cnavHudElement = null;
+    // Remove from DOM after transition
+    setTimeout(() => el.remove(), 400);
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -1446,11 +1703,114 @@
          opacity: 0.45 !important;
        }
         .remapad-picker-target {
-          outline: 3px solid #00a8e1 !important;
-         outline-offset: 3px !important;
-         box-shadow: 0 0 12px rgba(0, 167, 223, 0.7) !important;
-       }
-    `;
+           outline: 3px solid #00a8e1 !important;
+          outline-offset: 3px !important;
+          box-shadow: 0 0 12px rgba(0, 167, 223, 0.7) !important;
+        }
+        .remapad-active-collection {
+          outline: 2px solid rgba(229, 9, 20, 0.7) !important;
+          outline-offset: 4px !important;
+          box-shadow: 0 0 0 4px rgba(229, 9, 20, 0.12), 0 0 20px rgba(229, 9, 20, 0.25) !important;
+          border-radius: 4px !important;
+          transition: outline 0.2s ease, box-shadow 0.2s ease !important;
+        }
+         .remapad-cnav-hud {
+           position: fixed !important;
+           top: 20px !important;
+           left: 50% !important;
+           transform: translateX(-50%) translateY(-110%) !important;
+           z-index: 2147483647 !important;
+           background: rgba(16, 16, 16, 0.92) !important;
+           backdrop-filter: blur(20px) !important;
+           -webkit-backdrop-filter: blur(20px) !important;
+           border: 1px solid rgba(255, 255, 255, 0.1) !important;
+           border-radius: 9999px !important;
+           padding: 10px 20px !important;
+           display: flex !important;
+           align-items: center !important;
+           justify-content: space-between !important;
+           gap: 20px !important;
+           min-width: 280px !important;
+           max-width: calc(100vw - 48px) !important;
+           box-sizing: border-box !important;
+           box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(229, 9, 20, 0.15) !important;
+           font-family: 'Geist', 'Inter', -apple-system, sans-serif !important;
+           transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease !important;
+           opacity: 0 !important;
+           pointer-events: none !important;
+           user-select: none !important;
+         }
+         .remapad-cnav-hud.visible {
+           transform: translateX(-50%) translateY(0) !important;
+           opacity: 1 !important;
+         }
+         .remapad-cnav-left {
+           display: flex !important;
+           align-items: center !important;
+           gap: 10px !important;
+           overflow: hidden !important;
+           min-width: 0 !important;
+         }
+         .remapad-cnav-right {
+           display: flex !important;
+           align-items: center !important;
+           gap: 10px !important;
+           flex-shrink: 0 !important;
+         }
+         .remapad-cnav-icon {
+           width: 14px !important;
+           height: 14px !important;
+           color: rgba(229, 9, 20, 0.9) !important;
+           flex-shrink: 0 !important;
+         }
+         .remapad-cnav-pos {
+           font-size: 13px !important;
+           font-weight: 700 !important;
+           color: #fff !important;
+           white-space: nowrap !important;
+           flex-shrink: 0 !important;
+         }
+         .remapad-cnav-label {
+           font-size: 12px !important;
+           font-weight: 500 !important;
+           color: rgba(255, 255, 255, 0.5) !important;
+           white-space: nowrap !important;
+           overflow: hidden !important;
+           text-overflow: ellipsis !important;
+         }
+         .remapad-cnav-of {
+           font-weight: 400 !important;
+           opacity: 0.55 !important;
+           font-size: 11px !important;
+         }
+         .remapad-cnav-dots {
+           display: flex !important;
+           align-items: center !important;
+           gap: 4px !important;
+         }
+         .remapad-cnav-dot {
+           width: 5px !important;
+           height: 5px !important;
+           border-radius: 50% !important;
+           background: rgba(255, 255, 255, 0.2) !important;
+           transition: background 0.2s, transform 0.2s !important;
+           display: block !important;
+         }
+         .remapad-cnav-dot.active {
+           background: #e50914 !important;
+           transform: scale(1.4) !important;
+         }
+         .remapad-cnav-item {
+           font-size: 12px !important;
+           font-weight: 600 !important;
+           color: rgba(255, 255, 255, 0.75) !important;
+           white-space: nowrap !important;
+         }
+         .remapad-cnav-item--hint {
+           color: rgba(255, 255, 255, 0.35) !important;
+           font-weight: 500 !important;
+         }
+     `;
     document.head.appendChild(hudStyleElement);
   }
 
@@ -1591,6 +1951,33 @@
 
   // ─── Boot ───────────────────────────────────────────────────────────────────
 
-  window.addEventListener('pagehide', closeQuickMap);
+  window.addEventListener('pagehide', () => {
+    closeQuickMap();
+    resetCollectionNavState();
+  });
+
+  // Handle COUNT_SELECTORS message from options page "Test Selectors" feature
+  api.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+    if (msg?.type === 'COUNT_SELECTORS') {
+      const { containerSelector, itemSelector } = msg;
+      let containerCount = 0;
+      let itemCount = 0;
+      let error = null;
+      try {
+        const containers = Array.from(document.querySelectorAll(containerSelector || ''));
+        containerCount = containers.filter(el => isVisibleElement(el)).length;
+        if (itemSelector) {
+          containers.forEach(c => {
+            itemCount += Array.from(c.querySelectorAll(itemSelector)).filter(el => isVisibleElement(el)).length;
+          });
+        }
+      } catch (e) {
+        error = e.message;
+      }
+      sendResponse({ containerCount, itemCount, error });
+      return true;
+    }
+  });
+
   init();
 })();

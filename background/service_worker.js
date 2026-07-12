@@ -16,6 +16,19 @@ api.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // Keeps channel open for async response
   }
 
+  if (message && message.type === 'COUNT_SELECTORS') {
+    getActiveTab().then(tab => {
+      if (!tab?.id) {
+        sendResponse({ error: 'No active tab found.' });
+        return;
+      }
+      api.tabs.sendMessage(tab.id, message)
+        .then(res => sendResponse(res))
+        .catch(err => sendResponse({ error: err.message }));
+    });
+    return true;
+  }
+
   if (message && message.type === 'OPEN_SITE_MAPPING') {
     let hostname = '';
     try {
