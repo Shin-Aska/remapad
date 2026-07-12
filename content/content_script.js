@@ -16,7 +16,6 @@
   // ─── Constants & Settings ──────────────────────────────────────────────────
 
   const POLL_INTERVAL_MS = 50;
-  const HUD_AUTO_HIDE_MS = 4000;
   const DEADZONE = 0.3;
   const AXIS_REPEAT_DELAY_MS = 150;
 
@@ -75,8 +74,31 @@
     close_tab: "Close Tab",
     focus_next: "Focus Next",
     focus_prev: "Focus Previous",
-    quick_map: "Quick Map"
+    quick_map: "Quick Map",
+    toggle_hud: "Toggle Navigation Guide",
+    dom_action: "DOM Action"
   };
+
+  const DOM_ACTION_OPERATIONS = new Set([
+    'click',
+    'focus',
+    'scroll',
+    'set-value',
+    'toggle-attribute',
+    'toggle-media'
+  ]);
+  const MAX_DOM_ACTION_PAYLOAD_LENGTH = 12000;
+  const TOGGLEABLE_DOM_ATTRIBUTES = new Set([
+    'hidden',
+    'disabled',
+    'open',
+    'checked',
+    'selected',
+    'muted',
+    'controls',
+    'loop',
+    'autoplay'
+  ]);
 
   const SITE_SEARCH_SELECTORS = {
     'youtube.com': '#search-input input, input#search',
@@ -87,6 +109,16 @@
     'hulu.com': '.NavSearch-searchInput, [placeholder*="Search"]',
     'max.com': '[data-testid="search-bar-input"]'
   };
+
+  const FULLSCREEN_CONTROL_SELECTOR = [
+    '[data-uia*="fullscreen" i]',
+    '[data-testid*="fullscreen" i]',
+    '.fullscreen-button',
+    '.ytp-fullscreen-button',
+    'button.fullscreen',
+    '[aria-label*="fullscreen" i]',
+    '[title*="fullscreen" i]'
+  ].join(', ');
 
   // ─── State ──────────────────────────────────────────────────────────────────
 
@@ -211,7 +243,6 @@
   function onGamepadConnect(e) {
     console.log('[Remapad CS] Gamepad connected:', e.gamepad.id);
     gamepadConnected = true;
-    showHUDTemporarily();
   }
 
   function onGamepadDisconnect(e) {
@@ -243,7 +274,6 @@
 
       if (isPressed && !wasPressed) {
         onButtonPress(idx);
-        showHUDTemporarily();
       } else if (!isPressed && wasPressed) {
         onButtonRelease(idx);
       }
@@ -258,7 +288,6 @@
       const timerKey = 'axis_L';
       if (!axisTimers[timerKey]) {
         onStickMove(axLX, axLY);
-        showHUDTemporarily();
         axisTimers[timerKey] = setTimeout(() => {
           delete axisTimers[timerKey];
         }, AXIS_REPEAT_DELAY_MS);
@@ -270,7 +299,6 @@
       const timerKey = 'axis_R';
       if (!axisTimers[timerKey]) {
         onFocusStickMove(axRY);
-        showHUDTemporarily();
         axisTimers[timerKey] = setTimeout(() => {
           delete axisTimers[timerKey];
         }, AXIS_REPEAT_DELAY_MS);
@@ -287,18 +315,19 @@
       } else {
         selectQuickMapButton(btnIdx);
       }
-      return;
+      return false;
     }
 
     const action = activeProfile[btnIdx.toString()];
-    if (!action) return;
+    if (!action || action === 'none') return false;
 
     if (btnIdx === 9 && action === 'open_options') {
       openQuickMap();
-      return;
+      return false;
     }
 
     executeAction(action);
+    return action !== 'quick_map';
   }
 
   function onButtonRelease(btnIdx) {
@@ -333,6 +362,11 @@
   function executeAction(action) {
     console.log('[Remapad CS] Executing action:', action);
 
+    if (action === 'toggle_hud') {
+      toggleHUD();
+      return;
+    }
+
     if (action === 'quick_map') {
       openQuickMap();
       return;
@@ -363,6 +397,11 @@
       } else {
         console.warn('[Remapad CS] Selector not found for hover:', selector);
       }
+      return;
+    }
+
+    if (action.startsWith('dom_action:')) {
+      executeDomAction(action.substring('dom_action:'.length));
       return;
     }
 
@@ -454,15 +493,7 @@
         break;
       }
       case 'fullscreen': {
-        if (video) {
-          if (!document.fullscreenElement) {
-            video.requestFullscreen?.() || video.webkitRequestFullscreen?.();
-          } else {
-            document.exitFullscreen?.() || document.webkitExitFullscreen?.();
-          }
-        } else {
-          dispatchKeyEvent(document.body, 'f', 'KeyF');
-        }
+        toggleFullscreen();
         break;
       }
       case 'scroll_up': {
@@ -591,6 +622,189 @@
     };
     target.dispatchEvent(new KeyboardEvent('keydown', opts));
     target.dispatchEvent(new KeyboardEvent('keyup', opts));
+  }
+
+  function executeDomAction(encodedConfig) {
+    if (encodedConfig.length > MAX_DOM_ACTION_PAYLOAD_LENGTH) {
+      console.warn('[Remapad CS] DOM action configuration is too large.');
+      return;
+    }
+
+    let config;
+    try {
+      config = JSON.parse(decodeURIComponent(encodedConfig));
+    } catch (error) {
+      console.warn('[Remapad CS] Invalid DOM action configuration:', error);
+      return;
+    }
+
+    if (!isValidDomActionConfig(config)) {
+      console.warn('[Remapad CS] Unsupported DOM action configuration:', config);
+      return;
+    }
+
+    const element = safeQuerySelector(config.selector);
+    if (!element) {
+      console.warn('[Remapad CS] Selector not found for DOM action:', config.selector);
+      return;
+    }
+
+    switch (config.operation) {
+      case 'click':
+        element.click();
+        break;
+      case 'focus':
+        focusElement(element);
+        break;
+      case 'scroll':
+        element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        break;
+      case 'set-value':
+        setElementValue(element, config.value);
+        break;
+      case 'toggle-attribute':
+        element.toggleAttribute(config.value);
+        break;
+      case 'toggle-media':
+        toggleMediaElement(element);
+        break;
+    }
+  }
+
+  function isValidDomActionConfig(config) {
+    if (!config || typeof config !== 'object' || Array.isArray(config)) return false;
+    if (!DOM_ACTION_OPERATIONS.has(config.operation)) return false;
+    if (typeof config.selector !== 'string' || !config.selector.trim() || config.selector.length > 2000) return false;
+
+    if (config.operation === 'set-value') {
+      return typeof config.value === 'string' && config.value.length <= 2000;
+    }
+
+    if (config.operation === 'toggle-attribute') {
+      return typeof config.value === 'string' && isToggleableDomAttribute(config.value);
+    }
+
+    return true;
+  }
+
+  function isToggleableDomAttribute(attribute) {
+    return TOGGLEABLE_DOM_ATTRIBUTES.has(attribute) || attribute.startsWith('aria-') || attribute.startsWith('data-');
+  }
+
+  function setElementValue(element, value) {
+    if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement) {
+      const prototype = Object.getPrototypeOf(element);
+      const valueSetter = Object.getOwnPropertyDescriptor(prototype, 'value')?.set;
+      if (valueSetter) valueSetter.call(element, value);
+      else element.value = value;
+    } else if (element.isContentEditable) {
+      element.textContent = value;
+    } else {
+      console.warn('[Remapad CS] DOM set-value target must be a form control or contenteditable element:', element);
+      return;
+    }
+
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  function toggleMediaElement(element) {
+    if (typeof element.play !== 'function' || typeof element.pause !== 'function') {
+      console.warn('[Remapad CS] DOM toggle-media target must be an audio or video element:', element);
+      return;
+    }
+
+    if (element.paused) {
+      try {
+        const playResult = element.play();
+        if (playResult && typeof playResult.catch === 'function') {
+          playResult.catch(error => {
+            console.warn('[Remapad CS] Unable to play media element:', error);
+          });
+        }
+      } catch (error) {
+        console.warn('[Remapad CS] Unable to play media element:', error);
+      }
+    } else {
+      element.pause();
+    }
+  }
+
+  async function toggleFullscreen() {
+    if (getFullscreenElement()) {
+      try {
+        await exitDocumentFullscreen();
+      } catch (error) {
+        console.warn('[Remapad CS] Unable to exit fullscreen:', error);
+      }
+      return;
+    }
+
+    const video = getPrimaryVideo();
+    const target = getFullscreenTarget(video);
+    if (target) {
+      try {
+        await requestElementFullscreen(target);
+        return;
+      } catch (error) {
+        console.warn('[Remapad CS] Direct fullscreen request failed; trying the page control:', error);
+      }
+    }
+
+    const fullscreenControl = getFullscreenControl();
+    if (fullscreenControl) {
+      fullscreenControl.click();
+      return;
+    }
+
+    console.warn('[Remapad CS] No fullscreen target or control found.');
+  }
+
+  function getFullscreenElement() {
+    return document.fullscreenElement || document.webkitFullscreenElement || null;
+  }
+
+  function getPrimaryVideo() {
+    return Array.from(document.querySelectorAll('video'))
+      .filter(isVisibleElement)
+      .sort((first, second) => getElementArea(second) - getElementArea(first))[0] || null;
+  }
+
+  function getFullscreenTarget(video) {
+    if (!video) return null;
+    return video.closest([
+      '[data-uia*="player" i]',
+      '[data-testid*="player" i]',
+      '.html5-video-player',
+      '[class*="player" i]',
+      '[id*="player" i]'
+    ].join(', ')) || video;
+  }
+
+  function getFullscreenControl() {
+    return Array.from(document.querySelectorAll(FULLSCREEN_CONTROL_SELECTOR))
+      .find(element => isVisibleElement(element) && !element.matches(':disabled')) || null;
+  }
+
+  function isVisibleElement(element) {
+    return element.getClientRects().length > 0 && getComputedStyle(element).visibility !== 'hidden';
+  }
+
+  function getElementArea(element) {
+    const rect = element.getBoundingClientRect();
+    return rect.width * rect.height;
+  }
+
+  function requestElementFullscreen(element) {
+    const requestFullscreen = element.requestFullscreen || element.webkitRequestFullscreen;
+    if (!requestFullscreen) return Promise.reject(new Error('Fullscreen API is unavailable for this element.'));
+    return Promise.resolve(requestFullscreen.call(element));
+  }
+
+  function exitDocumentFullscreen() {
+    const exitFullscreen = document.exitFullscreen || document.webkitExitFullscreen;
+    if (!exitFullscreen) return Promise.reject(new Error('Fullscreen API is unavailable for this document.'));
+    return Promise.resolve(exitFullscreen.call(document));
   }
 
   function getScrollableElement() {
@@ -1298,21 +1512,20 @@
       api.runtime.sendMessage({ type: 'OPEN_SITE_MAPPING' }).catch(() => {});
     });
 
-    if (gamepadConnected) {
-      showHUDTemporarily();
-    }
   }
 
-  function showHUDTemporarily() {
-    if (hudPermanentlyHidden || !hudElement) return;
+  function toggleHUD() {
+    if (!hudElement) return;
+    clearTimeout(hudTimeout);
 
+    if (hudVisible) {
+      hideHUD();
+      return;
+    }
+
+    hudPermanentlyHidden = false;
     hudElement.classList.add('visible');
     hudVisible = true;
-
-    clearTimeout(hudTimeout);
-    hudTimeout = setTimeout(() => {
-      hideHUD();
-    }, HUD_AUTO_HIDE_MS);
   }
 
   function hideHUD() {
@@ -1347,9 +1560,27 @@
     if (btnIdx === '9' && action === 'open_options') return 'Quick Map';
     if (action.startsWith('click_element:')) return 'Click element';
     if (action.startsWith('hover_element:')) return 'Hover element';
+    if (action.startsWith('dom_action:')) return formatDomActionLabel(action.substring('dom_action:'.length));
     if (action.startsWith('press_key:')) return `Key: ${action.substring('press_key:'.length)}`;
     if (action.startsWith('focus_element:')) return 'Focus element';
     return ACTION_LABELS[action] || action;
+  }
+
+  function formatDomActionLabel(encodedConfig) {
+    try {
+      const config = JSON.parse(decodeURIComponent(encodedConfig));
+      const labels = {
+        click: 'Click element',
+        focus: 'Focus element',
+        scroll: 'Scroll to element',
+        'set-value': 'Set form value',
+        'toggle-attribute': 'Toggle attribute',
+        'toggle-media': 'Play/Pause media'
+      };
+      return labels[config.operation] || ACTION_LABELS.dom_action;
+    } catch (_) {
+      return ACTION_LABELS.dom_action;
+    }
   }
 
   function escapeHtml(value) {

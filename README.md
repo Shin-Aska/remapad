@@ -12,6 +12,7 @@ With Remapad, you can bind gamepad buttons to perform common browser actions, di
 - **Site-Specific Profiles:** Define and save customized mappings individually per streaming platform (e.g., custom maps specifically for Netflix or Prime Video) while using a unified default profile for other pages.
 - **Interactive Visual Mapping Editor:** Real-time visual controller representation displaying active button presses, battery life, and connected status.
 - **Physical Keyboard Capturer:** Tap any physical key combination on your keyboard (including modifier combinations like `Ctrl+Alt+S`) to record and bind it directly to a controller button.
+- **Direct DOM Actions:** Bind a controller button to click, focus, scroll to, fill, or control a specific page element without relying on a synthetic keyboard event.
 - **Video Controls CSS Selector Helpers:** Easily map buttons to specific site UI elements (such as Play/Pause, Next Episode, Subtitles, Skip Intro, Fullscreen) using pre-populated, tested element selectors.
 - **Icon Layout Switcher:** Toggle glyph layouts between PlayStation (✕/○), Xbox (A/B), and Nintendo (Switch inverted) styles dynamically.
 
@@ -44,7 +45,9 @@ Remapad requires Firefox 128+ or a Chromium-based browser 111+ because it uses M
    - Choose a predefined shortcut, input a selector, or capture a keyboard key.
 4. **Save:** Click **Save Changes** in the top-right to write configuration settings to storage.
 
-Keyboard-key mappings send synthetic page events, so they work with sites that accept scripted shortcuts but cannot bypass sites that require trusted physical keyboard input. Use Quick Map for a visible player control when a keyboard shortcut is ignored.
+The on-page navigation guide is hidden by default. Bind a button to **Toggle Navigation Guide** in the mapping editor when you want to show or hide it.
+
+Keyboard-key mappings send synthetic page events, so they work with sites that accept scripted shortcuts but cannot bypass sites that require trusted physical keyboard input. Prefer **Direct DOM Action...** for a site control: it can click, focus, scroll to, fill, toggle an attribute, or play/pause a selected element without key simulation. Use Quick Map for a fast visible-player-control binding.
 
 ### Quick Map on the Page
 

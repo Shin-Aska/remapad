@@ -83,6 +83,7 @@ const ACTION_OPTIONS = [
   { value: 'scroll_right',  label: 'Scroll Right'       },
   { value: 'focus_next',    label: 'Focus Next Element' },
   { value: 'focus_prev',    label: 'Focus Previous Element' },
+  { value: 'toggle_hud',    label: 'Toggle Navigation Guide' },
   { value: 'volume_up',     label: 'Volume Up'          },
   { value: 'volume_down',   label: 'Volume Down'        },
   { value: 'seek_forward',  label: 'Seek Forward'       },
@@ -95,8 +96,30 @@ const ACTION_OPTIONS = [
   { value: 'click_element', label: 'Click CSS Element...' },
   { value: 'hover_element', label: 'Hover CSS Element...' },
   { value: 'focus_element', label: 'Focus CSS Element...' },
-  { value: 'press_key',     label: 'Press Keyboard Key...' }
+  { value: 'dom_action',    label: 'Direct DOM Action...' },
+  { value: 'press_key',     label: 'Press Keyboard Key... (Legacy)' }
 ];
+
+const DOM_ACTION_LABELS = {
+  click: 'Click',
+  focus: 'Focus',
+  scroll: 'Scroll to',
+  'set-value': 'Set value',
+  'toggle-attribute': 'Toggle attribute',
+  'toggle-media': 'Play/Pause media'
+};
+
+const TOGGLEABLE_DOM_ATTRIBUTES = new Set([
+  'hidden',
+  'disabled',
+  'open',
+  'checked',
+  'selected',
+  'muted',
+  'controls',
+  'loop',
+  'autoplay'
+]);
 
 const BUTTON_NAMES = {
   "0": "Cross (A)", "1": "Circle (B)", "2": "Square (X)", "3": "Triangle (Y)",
@@ -149,8 +172,13 @@ const modalKeyboardSec      = document.getElementById('modal-keyboard-sec');
 const keyboardCaptureBox    = document.getElementById('keyboard-capture-box');
 const detectedKeyDisplay    = document.getElementById('detected-key-display');
 const modalSelectorSec      = document.getElementById('modal-selector-sec');
+const modalDomActionSec     = document.getElementById('modal-dom-action-sec');
 const commonSelectorsSelect = document.getElementById('common-selectors-select');
 const customSelectorInput   = document.getElementById('custom-selector-input');
+const domOperationSelect    = document.getElementById('dom-operation-select');
+const domValueGroup         = document.getElementById('dom-value-group');
+const domValueLabel         = document.getElementById('dom-value-label');
+const domValueInput         = document.getElementById('dom-value-input');
 const modalCancelBtn        = document.getElementById('modal-cancel-btn');
 const modalConfirmBtn       = document.getElementById('modal-confirm-btn');
 const newSiteInput        = document.getElementById('new-site-input');
@@ -439,6 +467,8 @@ function populateVisualLabels() {
         actionLabel = `Key: ${action.substring('press_key:'.length)}`;
       } else if (displayAction.startsWith('focus_element:')) {
         actionLabel = `Focus: ${action.substring('focus_element:'.length)}`;
+      } else if (displayAction.startsWith('dom_action:')) {
+        actionLabel = formatDomActionLabel(displayAction);
       } else {
         actionLabel = ACTION_OPTIONS.find(a => a.value === displayAction)?.label || displayAction;
       }
@@ -486,6 +516,8 @@ document.querySelectorAll('.editor-callout').forEach(callout => {
       actionSelect.value = 'press_key';
     } else if (currentAction.startsWith('focus_element:')) {
       actionSelect.value = 'focus_element';
+    } else if (currentAction.startsWith('dom_action:')) {
+      actionSelect.value = 'dom_action';
     } else {
       actionSelect.value = currentAction;
     }
@@ -531,7 +563,7 @@ actionSelect.addEventListener('change', async () => {
     const val = await openConfigModal('focus', initVal);
     if (val && val.trim()) {
       newAction = `focus_element:${val.trim()}`;
-    } else if (btnKey === '9' && currentAction === 'open_options') {
+    } else if (activeCalloutBtn === '9' && currentVal === 'open_options') {
       actionSelect.value = 'quick_map';
     } else {
       actionSelect.value = currentVal.startsWith('focus_element:') ? 'focus_element' : 'none';
@@ -544,6 +576,14 @@ actionSelect.addEventListener('change', async () => {
       newAction = `press_key:${val.trim()}`;
     } else {
       actionSelect.value = currentVal.startsWith('press_key:') ? 'press_key' : 'none';
+      return;
+    }
+  } else if (newAction === 'dom_action') {
+    const config = await openConfigModal('dom', parseDomAction(currentVal));
+    if (config) {
+      newAction = `dom_action:${encodeURIComponent(JSON.stringify(config))}`;
+    } else {
+      actionSelect.value = currentVal.startsWith('dom_action:') ? 'dom_action' : 'none';
       return;
     }
   }
@@ -811,18 +851,29 @@ function openConfigModal(mode, currentVal = '') {
       modalTitle.textContent = 'Configure Keyboard Key';
       modalKeyboardSec.style.display = 'block';
       modalSelectorSec.style.display = 'none';
+      modalDomActionSec.style.display = 'none';
       
       currentRecordedKey = currentVal || '';
       detectedKeyDisplay.textContent = currentRecordedKey || 'Press any key...';
       
       window.addEventListener('keydown', handleModalKeyDown, true);
     } else {
-      modalTitle.textContent = mode === 'click' ? 'Configure Click Element' : mode === 'hover' ? 'Configure Hover Element' : 'Configure Focus Element';
+      const isDomAction = mode === 'dom';
+      modalTitle.textContent = isDomAction
+        ? 'Configure Direct DOM Action'
+        : mode === 'click' ? 'Configure Click Element' : mode === 'hover' ? 'Configure Hover Element' : 'Configure Focus Element';
       modalKeyboardSec.style.display = 'none';
       modalSelectorSec.style.display = 'block';
-      
-      customSelectorInput.value = currentVal || '';
+      modalDomActionSec.style.display = isDomAction ? 'block' : 'none';
+
+      const config = isDomAction && currentVal ? currentVal : null;
+      customSelectorInput.value = config?.selector || currentVal || '';
       commonSelectorsSelect.value = '';
+      if (isDomAction) {
+        domOperationSelect.value = DOM_ACTION_LABELS[config?.operation] ? config.operation : 'click';
+        domValueInput.value = config?.value || '';
+        updateDomValueField();
+      }
     }
   });
 }
@@ -835,6 +886,8 @@ function closeConfigModal(isConfirmed = false) {
     if (isConfirmed) {
       if (modalKeyboardSec.style.display === 'block') {
         modalResolveFn(currentRecordedKey || null);
+      } else if (modalDomActionSec.style.display === 'block') {
+        modalResolveFn(getDomActionConfig());
       } else {
         modalResolveFn(customSelectorInput.value.trim() || null);
       }
@@ -845,11 +898,61 @@ function closeConfigModal(isConfirmed = false) {
   }
 }
 
+function parseDomAction(action) {
+  if (!action.startsWith('dom_action:')) return null;
+  try {
+    const config = JSON.parse(decodeURIComponent(action.substring('dom_action:'.length)));
+    return isValidDomActionConfig(config) ? config : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function getDomActionConfig() {
+  const operation = domOperationSelect.value;
+  const selector = customSelectorInput.value.trim();
+  const value = domValueInput.value;
+  const config = { operation, selector };
+
+  if (operation === 'set-value' || operation === 'toggle-attribute') {
+    config.value = value;
+  }
+
+  return isValidDomActionConfig(config) ? config : null;
+}
+
+function isValidDomActionConfig(config) {
+  if (!config || !DOM_ACTION_LABELS[config.operation]) return false;
+  if (typeof config.selector !== 'string' || !config.selector || config.selector.length > 2000) return false;
+  if (config.operation === 'set-value') return typeof config.value === 'string' && config.value.length <= 2000;
+  if (config.operation === 'toggle-attribute') return typeof config.value === 'string' && isToggleableDomAttribute(config.value);
+  return true;
+}
+
+function isToggleableDomAttribute(attribute) {
+  return TOGGLEABLE_DOM_ATTRIBUTES.has(attribute) || attribute.startsWith('aria-') || attribute.startsWith('data-');
+}
+
+function updateDomValueField() {
+  const isSetValue = domOperationSelect.value === 'set-value';
+  const isToggleAttribute = domOperationSelect.value === 'toggle-attribute';
+  domValueGroup.style.display = isSetValue || isToggleAttribute ? 'block' : 'none';
+  domValueLabel.textContent = isSetValue ? 'Value to set' : 'Attribute name';
+  domValueInput.placeholder = isSetValue ? 'e.g. Stranger Things' : 'e.g. aria-expanded or hidden';
+}
+
+function formatDomActionLabel(action) {
+  const config = parseDomAction(action);
+  return config ? `${DOM_ACTION_LABELS[config.operation]}: ${config.selector}` : 'Direct DOM Action';
+}
+
 commonSelectorsSelect.addEventListener('change', () => {
   if (commonSelectorsSelect.value) {
     customSelectorInput.value = commonSelectorsSelect.value;
   }
 });
+
+domOperationSelect.addEventListener('change', updateDomValueField);
 
 modalCloseX.addEventListener('click', () => closeConfigModal(false));
 modalCancelBtn.addEventListener('click', () => closeConfigModal(false));

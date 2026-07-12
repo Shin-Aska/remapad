@@ -353,6 +353,28 @@
           <input type="text" id="custom-selector-input" class="form-control" placeholder="e.g. .skip-button, button.play" style="width:100%;box-sizing:border-box;background:rgba(30,30,30,0.8);color:var(--on-surface);border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:8px;font-size:13px;outline:none">
         </div>
       </div>
+
+      <!-- Direct DOM Action Section -->
+      <div id="modal-dom-action-sec" style="display:none">
+        <p class="modal-instruction">Choose a direct DOM operation. It runs against the selected CSS target without simulating a keyboard event.</p>
+
+        <div class="form-group" style="margin-bottom:16px">
+          <label for="dom-operation-select" style="display:block;margin-bottom:6px;font-size:12px;color:var(--on-surface-variant)">Operation</label>
+          <select id="dom-operation-select" class="form-control" style="width:100%;box-sizing:border-box;background:rgba(30,30,30,0.8);color:var(--on-surface);border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:8px;font-size:13px;outline:none">
+            <option value="click">Click target</option>
+            <option value="focus">Focus target</option>
+            <option value="scroll">Scroll target into view</option>
+            <option value="set-value">Set form value</option>
+            <option value="toggle-attribute">Toggle attribute</option>
+            <option value="toggle-media">Play / pause media</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="dom-value-group" style="display:none">
+          <label for="dom-value-input" id="dom-value-label" style="display:block;margin-bottom:6px;font-size:12px;color:var(--on-surface-variant)">Value</label>
+          <input type="text" id="dom-value-input" class="form-control" style="width:100%;box-sizing:border-box;background:rgba(30,30,30,0.8);color:var(--on-surface);border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:8px;font-size:13px;outline:none">
+        </div>
+      </div>
     </div>
 
     <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:12px;margin-top:20px">
