@@ -43,6 +43,8 @@ const DEFAULT_PROFILE = {
   "7": "volume_up",      // R2 Trigger
   "8": "toggle_play",    // Select
   "9": "quick_map",      // Start
+  "10": "none",          // L3 Stick Click
+  "11": "none",          // R3 Stick Click
   "12": "scroll_up",     // D-Pad Up
   "13": "scroll_down",   // D-Pad Down
   "14": "scroll_left",   // D-Pad Left
@@ -130,7 +132,9 @@ const TOGGLEABLE_DOM_ATTRIBUTES = new Set([
 const BUTTON_NAMES = {
   "0": "Cross (A)", "1": "Circle (B)", "2": "Square (X)", "3": "Triangle (Y)",
   "4": "L1 Bumper", "5": "R1 Bumper", "6": "L2 Trigger", "7": "R2 Trigger",
-  "8": "Select Button", "9": "Start Button", "12": "D-Pad Up", "13": "D-Pad Down",
+  "8": "Select Button", "9": "Start Button",
+  "10": "L3 Click", "11": "R3 Click",
+  "12": "D-Pad Up", "13": "D-Pad Down",
   "14": "D-Pad Left", "15": "D-Pad Right"
 };
 

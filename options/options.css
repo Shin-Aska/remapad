@@ -489,6 +489,7 @@ body {
 .callout-dpad-left { left: 10px; top: 240px; }
 .callout-dpad-right { left: 10px; top: 295px; }
 .callout-dpad-down { left: 10px; top: 350px; }
+.callout-l3 { left: 165px; top: 260px; }
 
 .callout-r2 { right: 10px; top: 20px; }
 .callout-r1 { right: 10px; top: 75px; }
@@ -497,6 +498,7 @@ body {
 .callout-square { right: 10px; top: 240px; }
 .callout-circle { right: 10px; top: 295px; }
 .callout-cross { right: 10px; top: 350px; }
+.callout-r3 { right: 165px; top: 260px; }
 
 .callout-dot {
   width: 8px;

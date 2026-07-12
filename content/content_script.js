@@ -30,6 +30,8 @@
     "7": "volume_up",      // R2
     "8": "toggle_play",    // Select
     "9": "quick_map",      // Start
+    "10": "none",          // L3 Click
+    "11": "none",          // R3 Click
     "12": "scroll_up",     // D-Pad Up
     "13": "scroll_down",   // D-Pad Down
     "14": "scroll_left",   // D-Pad Left
@@ -163,6 +165,7 @@
   let hudStyleElement = null;
   let hudTimeout = null;
   let hudVisible = false;
+  let hudHighlightedIndex = -1;
   let hudPermanentlyHidden = false;
   let gamepadConnected = false;
   let controllerFocusedElement = null;
@@ -344,6 +347,48 @@
       return false;
     }
 
+    if (hudVisible) {
+      const standardButtons = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15'];
+      
+      // Initialize highlight if user navigates using D-pad
+      if (hudHighlightedIndex === -1 && (btnIdx === 12 || btnIdx === 13 || btnIdx === 14 || btnIdx === 15)) {
+        hudHighlightedIndex = 0;
+        updateHUDHighlight();
+        return false; // consume button press
+      }
+
+      if (hudHighlightedIndex >= 0) {
+        if (btnIdx === 0) { // Cross / A: execute selected action
+          const targetBtnIdx = standardButtons[hudHighlightedIndex];
+          const action = activeProfile[targetBtnIdx];
+          if (action && action !== 'none') {
+            executeAction(action);
+          }
+          return false; // consume button press
+        }
+        if (btnIdx === 1) { // Circle / B: cancel highlight / hide HUD
+          hudHighlightedIndex = -1;
+          updateHUDHighlight();
+          hideHUD();
+          return false; // consume button press
+        }
+        if (btnIdx === 14) { // D-pad Left
+          hudHighlightedIndex = (hudHighlightedIndex - 1 + standardButtons.length) % standardButtons.length;
+          updateHUDHighlight();
+          return false; // consume
+        }
+        if (btnIdx === 15) { // D-pad Right
+          hudHighlightedIndex = (hudHighlightedIndex + 1) % standardButtons.length;
+          updateHUDHighlight();
+          return false; // consume
+        }
+        if (btnIdx === 12 || btnIdx === 13) {
+          // Consume D-pad up/down to prevent page scrolling while HUD is highlighted
+          return false; 
+        }
+      }
+    }
+
     const action = activeProfile[btnIdx.toString()];
     if (!action || action === 'none') return false;
 
@@ -377,6 +422,20 @@
 
   function onStickMove(x, y) {
     if (quickMapElement) return;
+
+    if (hudVisible) {
+      if (Math.abs(x) > DEADZONE) {
+        if (hudHighlightedIndex === -1) {
+          hudHighlightedIndex = 0;
+          updateHUDHighlight();
+        } else {
+          const direction = x > 0 ? 1 : -1;
+          hudHighlightedIndex = (hudHighlightedIndex + direction + 16) % 16;
+          updateHUDHighlight();
+        }
+      }
+      return; // consume input
+    }
 
     if (Math.abs(y) > Math.abs(x)) {
       executeAction(y < -DEADZONE ? 'scroll_up' : 'scroll_down');
@@ -1496,7 +1555,14 @@
          scrollbar-width: none !important;
        }
        .remapad-hud-row::-webkit-scrollbar { display: none !important; }
-       .remapad-hud-item--unmapped { opacity: 0.4 !important; }
+        .remapad-hud-item--unmapped { opacity: 0.4 !important; }
+        .remapad-hud-item.highlighted {
+          background: rgba(229, 9, 20, 0.25) !important;
+          outline: 2px solid #e50914 !important;
+          outline-offset: 4px !important;
+          border-radius: 4px !important;
+          box-shadow: 0 0 10px rgba(229, 9, 20, 0.5) !important;
+        }
       .remapad-hud-glyph {
         width: 20px !important;
         height: 20px !important;
@@ -1830,13 +1896,14 @@
     const currentGlyphs = GLYPHS[settings.iconStyle] || GLYPHS.playstation;
 
     const standardButtons = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15'];
-    const items = standardButtons.map(btnIdx => {
+    const items = standardButtons.map((btnIdx, arrayIndex) => {
       const action = activeProfile[btnIdx];
       const glyph = escapeHtml(currentGlyphs[btnIdx] || btnIdx);
       const label = escapeHtml(formatActionLabel(action, btnIdx));
       const unmapped = !action || action === 'none';
+      const isHighlighted = arrayIndex === hudHighlightedIndex;
       return `
-        <div class="remapad-hud-item${unmapped ? ' remapad-hud-item--unmapped' : ''}">
+        <div class="remapad-hud-item${unmapped ? ' remapad-hud-item--unmapped' : ''}${isHighlighted ? ' highlighted' : ''}">
           <span class="remapad-hud-glyph">${glyph}</span>
           <span class="remapad-hud-label">${label}</span>
         </div>
@@ -1874,6 +1941,21 @@
 
   }
 
+  function updateHUDHighlight() {
+    if (!hudElement) return;
+    const items = hudElement.querySelectorAll('.remapad-hud-row .remapad-hud-item');
+    items.forEach((item, idx) => {
+      if (idx < 16) { // standardButtons length is 16
+        if (idx === hudHighlightedIndex) {
+          item.classList.add('highlighted');
+          item.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        } else {
+          item.classList.remove('highlighted');
+        }
+      }
+    });
+  }
+
   function toggleHUD() {
     if (!hudElement) return;
     clearTimeout(hudTimeout);
@@ -1883,6 +1965,7 @@
       return;
     }
 
+    hudHighlightedIndex = -1;
     hudPermanentlyHidden = false;
     hudElement.classList.add('visible');
     hudVisible = true;
@@ -1890,6 +1973,8 @@
 
   function hideHUD() {
     if (hudElement && hudVisible) {
+      hudHighlightedIndex = -1;
+      updateHUDHighlight();
       hudElement.classList.remove('visible');
       hudVisible = false;
     }
@@ -1897,6 +1982,7 @@
 
   function removeHUD(stopPolling = true) {
     closeQuickMap();
+    hudHighlightedIndex = -1;
     document.documentElement.removeAttribute('data-remapad-active');
     if (hudElement) {
       hudElement.remove();

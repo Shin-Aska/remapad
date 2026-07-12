@@ -19,6 +19,8 @@ const DEFAULT_PROFILE = {
   "7": "volume_up",
   "8": "toggle_play",
   "9": "quick_map",
+  "10": "none",
+  "11": "none",
   "12": "scroll_up",
   "13": "scroll_down",
   "14": "scroll_left",
