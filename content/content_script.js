@@ -18,6 +18,42 @@
   const POLL_INTERVAL_MS = 50;
   const DEADZONE = 0.3;
   const AXIS_REPEAT_DELAY_MS = 150;
+  const CURSOR_SPEED_PX_PER_SEC = 360;
+
+  const DEFAULT_NAV_SETTINGS = {
+    enabled: true,
+    strategy: 'auto', // 'auto' | 'spatial' | 'collection' | 'dom-order'
+    rightStick: {
+      enabled: true,
+      mode: 'cursor', // 'cursor' | 'navigate' | 'scroll' | 'disabled'
+      deadzone: 0.3,
+      repeatDelayMs: 150,
+      repeatAcceleration: true,
+      directionMode: 'dominant-axis', // 'dominant-axis' | '8-way'
+      cursorSpeed: 360,
+      cursorColor: '#e50914'
+    },
+    leftStick: {
+      enabled: true,
+      mode: 'scroll', // 'scroll' | 'navigate' | 'cursor' | 'disabled'
+      deadzone: 0.3,
+      scrollAmountPx: 150,
+      cursorSpeed: 360,
+      cursorColor: '#00a8e1'
+    },
+    axisMap: {
+      up:    { stick: 'right', direction: 'up',    action: 'nav_up' },
+      down:  { stick: 'right', direction: 'down',  action: 'nav_down' },
+      left:  { stick: 'right', direction: 'left',  action: 'nav_left' },
+      right: { stick: 'right', direction: 'right', action: 'nav_right' }
+    },
+    collectionGrid: {
+      wrapRows: false,
+      wrapItems: false,
+      lateralPenalty: 3,
+      rowOverlapThreshold: 0.5
+    }
+  };
 
   const DEFAULT_PROFILE = {
     "0": "click",          // A / Cross
@@ -82,7 +118,11 @@
     nav_next_collection: "Next Row",
     nav_prev_collection: "Prev Row",
     nav_next_item: "Next Item",
-    nav_prev_item: "Prev Item"
+    nav_prev_item: "Prev Item",
+    nav_up: "Navigate Up",
+    nav_down: "Navigate Down",
+    nav_left: "Navigate Left",
+    nav_right: "Navigate Right"
   };
 
   const DOM_ACTION_OPERATIONS = new Set([
@@ -150,17 +190,21 @@
     defaultMapping: { ...DEFAULT_PROFILE },
     enabledSites: {}, // hostname -> bool (defaults to true)
     globalEnabled: true,
-    siteCollections: { ...SITE_COLLECTIONS_DEFAULT }
+    siteCollections: { ...SITE_COLLECTIONS_DEFAULT },
+    navSettings: structuredClone(DEFAULT_NAV_SETTINGS)
   };
 
   // ─── Collection Navigation State ─────────────────────────────────────────────
   let activeCollectionIndex = -1;
   let activeItemIndex = -1;
   let activeCollectionEl = null;
+  let preferredInlineX = null;
 
   let activeProfile = { ...DEFAULT_PROFILE };
   let prevButtonStates = [];
   let axisTimers = {};
+  let axisRepeatCounts = { left: 0, right: 0 };
+  let axisLastDirections = { left: null, right: null };
   let hudElement = null;
   let hudStyleElement = null;
   let hudTimeout = null;
@@ -176,6 +220,11 @@
   let quickMapSuppressClick = false;
   let quickMapSuppressPointerUp = false;
   let gamepadEventListenersAttached = false;
+  const cursors = {
+    left:  { element: null, target: null, x: 0, y: 0, visible: false },
+    right: { element: null, target: null, x: 0, y: 0, visible: false }
+  };
+  let cursorStyleElement = null;
   let cnavHudElement = null;
   let cnavHudTimeout = null;
   let modalFocusObserver = null;
@@ -191,7 +240,7 @@
   async function init() {
     try {
       const data = await api.storage.local.get([
-        'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'siteCollections'
+        'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'siteCollections', 'navSettings'
       ]);
 
       if (data.iconStyle) settings.iconStyle = data.iconStyle;
@@ -199,6 +248,9 @@
       if (data.globalEnabled !== undefined) settings.globalEnabled = data.globalEnabled;
       if (data.siteCollections && typeof data.siteCollections === 'object') {
         settings.siteCollections = data.siteCollections;
+      }
+      if (data.navSettings && typeof data.navSettings === 'object') {
+        settings.navSettings = mergeNavSettings(data.navSettings);
       }
 
       let isMapped = false;
@@ -316,29 +368,178 @@
       prevButtonStates[idx] = isPressed;
     });
 
-    // Sticks
-    const axLX = gp.axes[0]; // Left stick X
-    const axLY = gp.axes[1]; // Left stick Y
+    const nav = settings.navSettings;
 
-    if (Math.abs(axLX) > DEADZONE || Math.abs(axLY) > DEADZONE) {
-      const timerKey = 'axis_L';
-      if (!axisTimers[timerKey]) {
-        onStickMove(axLX, axLY);
-        axisTimers[timerKey] = setTimeout(() => {
-          delete axisTimers[timerKey];
-        }, AXIS_REPEAT_DELAY_MS);
+    if (nav?.enabled) {
+      const leftMode = nav.leftStick?.mode;
+      const rightMode = nav.rightStick?.mode;
+
+      if (leftMode === 'cursor') {
+        updateCursor('left', gp.axes[0] || 0, gp.axes[1] || 0);
+      } else {
+        hideCursor('left');
+        handleStick(gp.axes[0], gp.axes[1], 'left', nav);
+      }
+
+      if (rightMode === 'cursor') {
+        updateCursor('right', gp.axes[2] || 0, gp.axes[3] || 0);
+      } else {
+        hideCursor('right');
+        handleStick(gp.axes[2], gp.axes[3], 'right', nav);
+      }
+    } else {
+      hideCursor('left');
+      hideCursor('right');
+    }
+  }
+
+  function mergeNavSettings(stored) {
+    const merged = structuredClone(DEFAULT_NAV_SETTINGS);
+    if (!stored || typeof stored !== 'object') return merged;
+
+    if (stored.enabled !== undefined) merged.enabled = stored.enabled;
+    if (stored.strategy) merged.strategy = stored.strategy;
+    if (stored.rightStick && typeof stored.rightStick === 'object') {
+      merged.rightStick = { ...merged.rightStick, ...stored.rightStick };
+    }
+    if (stored.leftStick && typeof stored.leftStick === 'object') {
+      merged.leftStick = { ...merged.leftStick, ...stored.leftStick };
+    }
+    if (stored.axisMap && typeof stored.axisMap === 'object') {
+      for (const dir of ['up', 'down', 'left', 'right']) {
+        if (stored.axisMap[dir] && typeof stored.axisMap[dir] === 'object') {
+          merged.axisMap[dir] = { ...merged.axisMap[dir], ...stored.axisMap[dir] };
+        }
       }
     }
+    if (stored.collectionGrid && typeof stored.collectionGrid === 'object') {
+      merged.collectionGrid = { ...merged.collectionGrid, ...stored.collectionGrid };
+    }
+    return merged;
+  }
 
-    const axRY = gp.axes[3] || 0; // Right stick Y
-    if (Math.abs(axRY) > DEADZONE) {
-      const timerKey = 'axis_R';
-      if (!axisTimers[timerKey]) {
-        onFocusStickMove(axRY);
-        axisTimers[timerKey] = setTimeout(() => {
-          delete axisTimers[timerKey];
-        }, AXIS_REPEAT_DELAY_MS);
+  function handleStick(x, y, stickId, nav) {
+    if (quickMapElement) return;
+    const stickConfig = stickId === 'left' ? nav.leftStick : nav.rightStick;
+    if (!stickConfig?.enabled) return;
+
+    const mode = stickConfig.mode;
+    if (mode === 'disabled') return;
+
+    const deadzone = stickConfig.deadzone ?? DEADZONE;
+    x = x || 0;
+    y = y || 0;
+    if (Math.hypot(x, y) <= deadzone) {
+      const timerKey = `axis_${stickId}`;
+      if (axisTimers[timerKey]) {
+        clearTimeout(axisTimers[timerKey]);
+        delete axisTimers[timerKey];
       }
+      if (axisLastDirections[stickId] !== null) {
+        axisLastDirections[stickId] = null;
+        axisRepeatCounts[stickId] = 0;
+      }
+      return;
+    }
+
+    // HUD mode: keep legacy D-pad/left-stick navigation behaviour while visible
+    if (hudVisible && stickId === 'left') {
+      const timerKey = `axis_${stickId}`;
+      if (!axisTimers[timerKey]) {
+        onStickMove(x, y);
+        axisTimers[timerKey] = setTimeout(() => delete axisTimers[timerKey], AXIS_REPEAT_DELAY_MS);
+      }
+      return;
+    }
+
+    const direction = resolveStickDirection(x, y, stickConfig.directionMode);
+    let action = nav.axisMap?.[direction]?.action;
+    const axisBelongsToStick = nav.axisMap?.[direction]?.stick === stickId;
+
+    if (!axisBelongsToStick || !action || action === 'none') {
+      action = getDefaultStickAction(direction, mode);
+      if (!action || action === 'none') return;
+    }
+
+    const timerKey = `axis_${stickId}`;
+    if (axisTimers[timerKey]) return;
+
+    if (mode === 'navigate' || (mode === 'scroll' && action.startsWith('nav_'))) {
+      executeAction(action);
+    } else if (mode === 'scroll') {
+      executeScrollAction(action, nav.leftStick.scrollAmountPx ?? 150);
+    }
+
+    axisLastDirections[stickId] = direction;
+    axisRepeatCounts[stickId] += 1;
+
+    const baseDelay = stickConfig.repeatDelayMs ?? AXIS_REPEAT_DELAY_MS;
+    const accel = stickConfig.repeatAcceleration;
+    const repeats = axisRepeatCounts[stickId];
+    let delay = baseDelay;
+    if (accel && repeats > 0) {
+      delay = Math.max(80, baseDelay - Math.min(repeats, 5) * ((baseDelay - 80) / 5));
+    }
+
+    axisTimers[timerKey] = setTimeout(() => {
+      delete axisTimers[timerKey];
+    }, delay);
+  }
+
+  function getDefaultStickAction(direction, mode) {
+    if (mode === 'scroll') {
+      return `scroll_${direction}`;
+    }
+    if (mode === 'navigate') {
+      return `nav_${direction}`;
+    }
+    return 'none';
+  }
+
+  function resolveStickDirection(x, y, directionMode) {
+    if (directionMode === '8-way') {
+      const angle = Math.atan2(-y, x);
+      const octant = Math.round((angle + Math.PI) / (Math.PI / 4)) % 8;
+      return ['left', 'up-left', 'up', 'up-right', 'right', 'down-right', 'down', 'down-left'][octant];
+    }
+    // dominant-axis (default)
+    if (Math.abs(y) >= Math.abs(x)) {
+      return y < 0 ? 'up' : 'down';
+    }
+    return x < 0 ? 'left' : 'right';
+  }
+
+  function executeScrollAction(action, scrollAmountPx) {
+    const scrollBy = (el, top, left) => el.scrollBy({ top, left, behavior: 'smooth' });
+    switch (action) {
+      case 'scroll_up':
+        scrollBy(getScrollableElement(), -scrollAmountPx, 0);
+        dispatchKeyEvent(document.activeElement || document.body, 'ArrowUp', 'ArrowUp');
+        break;
+      case 'scroll_down':
+        scrollBy(getScrollableElement(), scrollAmountPx, 0);
+        dispatchKeyEvent(document.activeElement || document.body, 'ArrowDown', 'ArrowDown');
+        break;
+      case 'scroll_left':
+        scrollBy(getScrollableElement(), 0, -scrollAmountPx);
+        dispatchKeyEvent(document.activeElement || document.body, 'ArrowLeft', 'ArrowLeft');
+        break;
+      case 'scroll_right':
+        scrollBy(getScrollableElement(), 0, scrollAmountPx);
+        dispatchKeyEvent(document.activeElement || document.body, 'ArrowRight', 'ArrowRight');
+        break;
+      case 'nav_up':
+        scrollBy(getScrollableElement(), -scrollAmountPx, 0);
+        break;
+      case 'nav_down':
+        scrollBy(getScrollableElement(), scrollAmountPx, 0);
+        break;
+      case 'nav_left':
+        scrollBy(getScrollableElement(), 0, -scrollAmountPx);
+        break;
+      case 'nav_right':
+        scrollBy(getScrollableElement(), 0, scrollAmountPx);
+        break;
     }
   }
 
@@ -451,6 +652,11 @@
     }
   }
 
+  function onFocusStickMove(y) {
+    if (quickMapElement) return;
+    executeAction(y < -DEADZONE ? 'focus_prev' : 'focus_next');
+  }
+
   function executeAction(action) {
     console.log('[Remapad CS] Executing action:', action);
 
@@ -468,6 +674,14 @@
     if (action === 'nav_next_collection' || action === 'nav_prev_collection' ||
         action === 'nav_next_item' || action === 'nav_prev_item') {
       executeCollectionNav(action);
+      return;
+    }
+
+    // Spatial navigation directions
+    if (action === 'nav_up' || action === 'nav_down' ||
+        action === 'nav_left' || action === 'nav_right') {
+      const direction = action.substring('nav_'.length);
+      executeSpatialNav(direction);
       return;
     }
 
@@ -545,13 +759,16 @@
 
     switch (action) {
       case 'click': {
+        if ((cursors.right.visible && cursors.right.target) || (cursors.left.visible && cursors.left.target)) {
+          executeCursorClick();
+          break;
+        }
         const el = document.activeElement;
         if (el && el !== document.body) {
           const modalFocusState = beginModalFocusTracking();
           el.click();
           focusNewModalAfterClick(modalFocusState);
         } else {
-          // Fallback select element
           dispatchKeyEvent(document.body, 'Enter', 'Enter');
         }
         break;
@@ -670,7 +887,20 @@
   }
 
   function executeCollectionNav(action) {
+    const nav = settings.navSettings;
     const config = getCollectionConfig();
+    const useCollection = nav.strategy === 'collection' || (nav.strategy === 'auto' && config);
+
+    if (!useCollection) {
+      // Fall back to DOM-order for the old row/item actions
+      if (action === 'nav_next_collection' || action === 'nav_next_item') {
+        moveFocus(1);
+      } else {
+        moveFocus(-1);
+      }
+      return;
+    }
+
     if (!config) {
       console.warn('[Remapad CS] No collection config for:', currentHostname);
       return;
@@ -683,36 +913,35 @@
       const direction = action === 'nav_next_collection' ? 1 : -1;
 
       if (activeCollectionIndex === -1) {
-        // First press: find container closest to the current viewport center
-        const viewportMid = window.innerHeight / 2;
-        let closestIdx = 0;
-        let closestDist = Infinity;
-        containers.forEach((c, i) => {
-          const rect = c.getBoundingClientRect();
-          const dist = Math.abs(rect.top + rect.height / 2 - viewportMid);
-          if (dist < closestDist) { closestDist = dist; closestIdx = i; }
-        });
-        activeCollectionIndex = closestIdx;
+        activeCollectionIndex = findClosestCollectionIndex(containers);
       } else {
-        activeCollectionIndex = Math.max(0, Math.min(containers.length - 1, activeCollectionIndex + direction));
+        activeCollectionIndex = clampIndex(activeCollectionIndex + direction, 0, containers.length - 1);
       }
 
-      // Reset item index when switching collections
       activeItemIndex = -1;
 
       const activeContainer = containers[activeCollectionIndex];
       setActiveCollectionEl(activeContainer);
       activeContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
 
-    } else if (action === 'nav_next_item' || action === 'nav_prev_item') {
-      // If no collection is active yet, select the closest one first
-      if (activeCollectionIndex === -1 || !activeCollectionEl) {
+      showCNavHUD(
+        activeCollectionIndex,
+        containers.length,
+        -1,
+        getCollectionItems(activeContainer).length,
+        getCollectionLabel(activeContainer)
+      );
+      return;
+    }
+
+    if (action === 'nav_next_item' || action === 'nav_prev_item') {
+      if (activeCollectionIndex === -1 || !isActiveCollectionValid()) {
         executeCollectionNav('nav_next_collection');
         if (activeCollectionIndex === -1) return;
       }
 
       const containers = getCollectionContainers();
-      const container = containers[activeCollectionIndex] || activeCollectionEl;
+      const container = containers[activeCollectionIndex];
       if (!container) return;
 
       const items = getCollectionItems(container);
@@ -723,26 +952,346 @@
       if (activeItemIndex === -1) {
         activeItemIndex = direction > 0 ? 0 : items.length - 1;
       } else {
-        activeItemIndex = Math.max(0, Math.min(items.length - 1, activeItemIndex + direction));
+        activeItemIndex = clampIndex(activeItemIndex + direction, 0, items.length - 1);
       }
 
-      const item = items[activeItemIndex];
-      item.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      activateCollectionItem(container, items, activeItemIndex);
+      return;
+    }
+  }
 
-      // Try to focus the item or its first focusable child
-      const focusTarget = item.matches('a,button,[tabindex]') ? item
-        : item.querySelector('a,button,[tabindex]:not([tabindex="-1"])');
-      if (focusTarget) {
-        focusElement(focusTarget);
+  function executeSpatialNav(direction) {
+    const nav = settings.navSettings;
+    const config = getCollectionConfig();
+    const useCollection = nav.strategy === 'collection' ||
+      (nav.strategy === 'auto' && config) ||
+      (nav.strategy === 'collection' && config);
+
+    if (useCollection && config) {
+      executeCollectionSpatialNav(direction);
+    } else if (nav.strategy === 'dom-order') {
+      moveFocus(direction === 'down' || direction === 'right' ? 1 : -1);
+    } else {
+      executeDomSpatialNav(direction);
+    }
+  }
+
+  function executeCollectionSpatialNav(direction) {
+    const nav = settings.navSettings;
+    const config = getCollectionConfig();
+    if (!config) return;
+
+    let containers = getCollectionContainers();
+    if (!containers.length) return;
+
+    if (activeCollectionIndex === -1 || !isActiveCollectionValid()) {
+      activeCollectionIndex = findClosestCollectionIndex(containers);
+      activeItemIndex = -1;
+    }
+
+    const container = containers[activeCollectionIndex];
+    const items = container ? getCollectionItems(container) : [];
+
+    if (activeItemIndex === -1 || !items[activeItemIndex]) {
+      if (!items.length) return;
+      activeItemIndex = pickInitialItemIndex(items, direction);
+      activateCollectionItem(container, items, activeItemIndex, false);
+      return;
+    }
+
+    const currentItem = items[activeItemIndex];
+    const currentRect = currentItem.getBoundingClientRect();
+
+    if (direction === 'left' || direction === 'right') {
+      const nextIndex = computeNextItemIndex(items, activeItemIndex, direction, nav.collectionGrid.wrapItems);
+      if (nextIndex !== activeItemIndex) {
+        activeItemIndex = nextIndex;
+        activateCollectionItem(container, items, activeItemIndex);
+      }
+      return;
+    }
+
+    if (direction === 'up' || direction === 'down') {
+      const rowDelta = direction === 'down' ? 1 : -1;
+      let targetIndex = activeCollectionIndex + rowDelta;
+      if (nav.collectionGrid.wrapRows) {
+        targetIndex = (targetIndex + containers.length) % containers.length;
+      }
+      if (targetIndex < 0 || targetIndex >= containers.length) return;
+
+      const targetContainer = containers[targetIndex];
+      const targetItems = getCollectionItems(targetContainer);
+      if (!targetItems.length) return;
+
+      const inlineX = preferredInlineX ?? (currentRect.left + currentRect.width / 2);
+      const nextItemIndex = findNearestItemInRow(targetItems, currentRect, inlineX);
+      activeCollectionIndex = targetIndex;
+      activeItemIndex = nextItemIndex;
+      setActiveCollectionEl(targetContainer);
+      activateCollectionItem(targetContainer, targetItems, activeItemIndex);
+    }
+  }
+
+  function pickInitialItemIndex(items, direction) {
+    if (direction === 'left' || direction === 'up') {
+      return items.length - 1;
+    }
+    if (direction === 'right' || direction === 'down') {
+      return 0;
+    }
+    return 0;
+  }
+
+  function executeDomSpatialNav(direction) {
+    const source = controllerFocusedElement || document.activeElement || document.body;
+    const sourceIsBody = source === document.body || source === document.documentElement;
+    const sourceRect = source.getBoundingClientRect();
+    const candidates = getSpatialCandidates(source);
+    if (!candidates.length) return;
+
+    let best;
+    if (sourceIsBody) {
+      best = pickInitialCandidate(sourceRect, candidates, direction);
+    } else {
+      best = pickBestCandidate(sourceRect, candidates, direction, null);
+    }
+    if (!best) return;
+
+    const focusTarget = best.matches('a,button,[tabindex]')
+      ? best
+      : best.querySelector('a,button,[tabindex]:not([tabindex="-1"])');
+    if (focusTarget) {
+      focusElement(focusTarget);
+    } else {
+      controllerFocusedElement?.classList.remove('remapad-controller-focus');
+      dispatchHoverEvents(controllerFocusedElement, false);
+      dispatchHoverEvents(best, true);
+      best.classList.add('remapad-controller-focus');
+      best.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+      controllerFocusedElement = best;
+    }
+  }
+
+  function pickInitialCandidate(sourceRect, candidates, direction) {
+    const viewportMidX = window.innerWidth / 2;
+    const viewportMidY = window.innerHeight / 2;
+    let best = null;
+    let bestScore = Infinity;
+
+    candidates.forEach(candidate => {
+      const rect = candidate.getBoundingClientRect();
+      const center = rectCenter(rect);
+      const dx = center.x - viewportMidX;
+      const dy = center.y - viewportMidY;
+
+      const inRequestedHalf =
+        (direction === 'up' && dy < 0) ||
+        (direction === 'down' && dy > 0) ||
+        (direction === 'left' && dx < 0) ||
+        (direction === 'right' && dx > 0);
+
+      let score = Math.hypot(dx, dy);
+      if (inRequestedHalf) score -= 200;
+
+      if (score < bestScore) {
+        bestScore = score;
+        best = candidate;
+      }
+    });
+
+    return best;
+  }
+
+  function getSpatialCandidates(scopeSource) {
+    const focusables = getFocusableElements();
+    const mediaCards = Array.from(document.querySelectorAll(
+      '[data-testid="card"], [data-testid*="title" i], .title-card, .title-card-container'
+    )).filter(el => isVisibleElement(el) && !el.closest('.remapad-hud-container, .remapad-quick-map'));
+
+    const modal = getOpenModals()[0];
+    let all = [...focusables, ...mediaCards];
+    if (modal) {
+      all = all.filter(el => modal.contains(el) || el === modal);
+    }
+
+    const seen = new Set();
+    const candidates = [];
+    for (const el of all) {
+      if (seen.has(el) || el === scopeSource) continue;
+      seen.add(el);
+      candidates.push(el);
+    }
+    return candidates;
+  }
+
+  function pickBestCandidate(sourceRect, candidates, direction, preferredInline) {
+    const nav = settings.navSettings;
+    const penalty = nav.collectionGrid.lateralPenalty ?? 3;
+    const orthogonalWeight = 2;
+    let best = null;
+    let bestScore = Infinity;
+
+    candidates.forEach(candidate => {
+      const rect = candidate.getBoundingClientRect();
+      if (!isDirectionalMove(direction, sourceRect, rect)) return;
+
+      const inBeam = isInBeam(direction, sourceRect, rect);
+      const primaryGap = primaryEdgeDistance(direction, sourceRect, rect);
+      const orthogonalGap = orthogonalEdgeDistance(direction, sourceRect, rect);
+      const anchorOffset = preferredInline !== null && preferredInline !== undefined
+        ? anchorDistance(direction, rect, preferredInline)
+        : 0;
+      const centerDist = centerDistance(sourceRect, rect);
+
+      let score;
+      if (inBeam) {
+        score = primaryGap * 1000 + anchorOffset * 100 + centerDist;
       } else {
-        // Dispatch hover events to trigger UI on non-focusable cards
-        const hoverOpts = { bubbles: true, cancelable: true, view: window };
-        item.dispatchEvent(new MouseEvent('mouseover', hoverOpts));
-        item.dispatchEvent(new MouseEvent('mouseenter', hoverOpts));
-        item.classList.add('remapad-hover');
+        score = (primaryGap + orthogonalWeight * orthogonalGap) * 1000 + centerDist;
       }
+      score += penalty * orthogonalGap;
 
-      // Show HUD with updated item info
+      if (score < bestScore) {
+        bestScore = score;
+        best = candidate;
+      }
+    });
+
+    return best;
+  }
+
+  function isDirectionalMove(direction, sourceRect, targetRect) {
+    switch (direction) {
+      case 'up':    return targetRect.bottom < sourceRect.top;
+      case 'down':  return targetRect.top > sourceRect.bottom;
+      case 'left':  return targetRect.right < sourceRect.left;
+      case 'right': return targetRect.left > sourceRect.right;
+      default:      return false;
+    }
+  }
+
+  function isInBeam(direction, sourceRect, targetRect) {
+    if (direction === 'up' || direction === 'down') {
+      return targetRect.right > sourceRect.left && targetRect.left < sourceRect.right;
+    }
+    return targetRect.bottom > sourceRect.top && targetRect.top < sourceRect.bottom;
+  }
+
+  function primaryEdgeDistance(direction, sourceRect, targetRect) {
+    switch (direction) {
+      case 'up':    return sourceRect.top - targetRect.bottom;
+      case 'down':  return targetRect.top - sourceRect.bottom;
+      case 'left':  return sourceRect.left - targetRect.right;
+      case 'right': return targetRect.left - sourceRect.right;
+      default:      return Infinity;
+    }
+  }
+
+  function orthogonalEdgeDistance(direction, sourceRect, targetRect) {
+    if (direction === 'up' || direction === 'down') {
+      const overlap = Math.max(0, Math.min(sourceRect.right, targetRect.right) - Math.max(sourceRect.left, targetRect.left));
+      const span = Math.max(sourceRect.width, targetRect.width);
+      return span - overlap;
+    }
+    const overlap = Math.max(0, Math.min(sourceRect.bottom, targetRect.bottom) - Math.max(sourceRect.top, targetRect.top));
+    const span = Math.max(sourceRect.height, targetRect.height);
+    return span - overlap;
+  }
+
+  function anchorDistance(direction, targetRect, preferredInline) {
+    if (direction === 'up' || direction === 'down') {
+      const targetCenter = targetRect.left + targetRect.width / 2;
+      return Math.abs(targetCenter - preferredInline);
+    }
+    const targetCenter = targetRect.top + targetRect.height / 2;
+    return Math.abs(targetCenter - preferredInline);
+  }
+
+  function centerDistance(sourceRect, targetRect) {
+    const sx = sourceRect.left + sourceRect.width / 2;
+    const sy = sourceRect.top + sourceRect.height / 2;
+    const tx = targetRect.left + targetRect.width / 2;
+    const ty = targetRect.top + targetRect.height / 2;
+    return Math.hypot(tx - sx, ty - sy);
+  }
+
+  function rectCenter(rect) {
+    return {
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2
+    };
+  }
+
+  function clampIndex(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  function findClosestCollectionIndex(containers) {
+    const viewportMid = window.innerHeight / 2;
+    let closestIdx = 0;
+    let closestDist = Infinity;
+    containers.forEach((c, i) => {
+      const rect = c.getBoundingClientRect();
+      const dist = Math.abs(rect.top + rect.height / 2 - viewportMid);
+      if (dist < closestDist) { closestDist = dist; closestIdx = i; }
+    });
+    return closestIdx;
+  }
+
+  function isActiveCollectionValid() {
+    if (!activeCollectionEl) return false;
+    const containers = getCollectionContainers();
+    const idx = containers.indexOf(activeCollectionEl);
+    if (idx === -1) return false;
+    activeCollectionIndex = idx;
+    return true;
+  }
+
+  function computeNextItemIndex(items, currentIndex, direction, wrap) {
+    const next = direction === 'right' ? currentIndex + 1 : currentIndex - 1;
+    if (wrap) {
+      return (next + items.length) % items.length;
+    }
+    return clampIndex(next, 0, items.length - 1);
+  }
+
+  function findNearestItemInRow(targetItems, sourceRect, preferredInlineX) {
+    let bestIndex = 0;
+    let bestScore = Infinity;
+
+    targetItems.forEach((item, idx) => {
+      const rect = item.getBoundingClientRect();
+      const center = rectCenter(rect);
+      const score = Math.abs(center.x - preferredInlineX);
+      if (score < bestScore) {
+        bestScore = score;
+        bestIndex = idx;
+      }
+    });
+
+    return bestIndex;
+  }
+
+  function activateCollectionItem(container, items, index, showHud = true) {
+    const item = items[index];
+    if (!item) return;
+
+    const rect = item.getBoundingClientRect();
+    preferredInlineX = rect.left + rect.width / 2;
+
+    clearPrevCollectionHover(items);
+    item.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+
+    const focusTarget = item.matches('a,button,[tabindex]') ? item
+      : item.querySelector('a,button,[tabindex]:not([tabindex="-1"])');
+    if (focusTarget) {
+      focusElement(focusTarget);
+    } else {
+      dispatchHoverEvents(item, true);
+      item.classList.add('remapad-hover');
+    }
+
+    if (showHud) {
       const allContainers = getCollectionContainers();
       showCNavHUD(
         activeCollectionIndex,
@@ -751,29 +1300,35 @@
         items.length,
         getCollectionLabel(container)
       );
-      return; // HUD already shown, skip bottom call
-    }
-
-    // Show HUD for collection-level changes (called after nav_next/prev_collection)
-    if (action === 'nav_next_collection' || action === 'nav_prev_collection') {
-      const allContainers = getCollectionContainers();
-      const container = allContainers[activeCollectionIndex];
-      if (container) {
-        showCNavHUD(
-          activeCollectionIndex,
-          allContainers.length,
-          -1,
-          getCollectionItems(container).length,
-          getCollectionLabel(container)
-        );
-      }
     }
   }
 
+  function clearPrevCollectionHover(items) {
+    items.forEach(item => {
+      item.classList.remove('remapad-hover');
+      dispatchHoverEvents(item, false);
+    });
+  }
+
+  function dispatchHoverEvents(el, enter) {
+    if (!el) return;
+    const eventType = enter ? 'mouseover' : 'mouseout';
+    const leaveType = enter ? 'mouseenter' : 'mouseleave';
+    const opts = { bubbles: true, cancelable: true, view: window };
+    el.dispatchEvent(new MouseEvent(eventType, opts));
+    el.dispatchEvent(new MouseEvent(leaveType, opts));
+  }
+
   function resetCollectionNavState() {
+    const config = getCollectionConfig();
+    if (config && activeCollectionEl) {
+      const items = getCollectionItems(activeCollectionEl);
+      clearPrevCollectionHover(items);
+    }
     setActiveCollectionEl(null);
     activeCollectionIndex = -1;
     activeItemIndex = -1;
+    preferredInlineX = null;
     hideCNavHUD(true);
   }
 
@@ -1346,12 +1901,6 @@
     }
   }
 
-  function onFocusStickMove(y) {
-    if (quickMapElement) return;
-
-    executeAction(y < -DEADZONE ? 'focus_prev' : 'focus_next');
-  }
-
   function focusElement(el) {
     el.focus({ preventScroll: true });
     if (document.activeElement !== el) return false;
@@ -1675,6 +2224,225 @@
       quickMapState = { ...quickMapState, message: 'Unable to save this mapping. Please try again.' };
       renderQuickMap();
     }
+  }
+
+  // ─── Virtual Cursor ─────────────────────────────────────────────────────────
+
+  function initCursor(stickId) {
+    const cursor = cursors[stickId];
+    if (cursor.element) return;
+    injectCursorStyles();
+
+    const el = document.createElement('div');
+    el.className = `remapad-cursor remapad-cursor--${stickId}`;
+    el.setAttribute('aria-hidden', 'true');
+    const label = document.createElement('span');
+    label.className = 'remapad-cursor-label';
+    label.textContent = stickId === 'left' ? 'L' : 'R';
+    el.appendChild(label);
+    document.body.appendChild(el);
+    cursor.element = el;
+
+    if (!cursor.x || !cursor.y) {
+      cursor.x = window.innerWidth / 2;
+      cursor.y = window.innerHeight / 2;
+    }
+  }
+
+  function injectCursorStyles() {
+    if (cursorStyleElement) return;
+    cursorStyleElement = document.createElement('style');
+    cursorStyleElement.textContent = `
+      .remapad-cursor {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 22px;
+        height: 22px;
+        margin-left: -11px;
+        margin-top: -11px;
+        border-radius: 50%;
+        border: 2px solid #fff;
+        box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.5);
+        z-index: 2147483647;
+        pointer-events: none;
+        transition: transform 0.05s linear, opacity 0.2s ease;
+        opacity: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+      }
+      .remapad-cursor.visible {
+        opacity: 1;
+      }
+      .remapad-cursor-label {
+        pointer-events: none;
+        user-select: none;
+      }
+      .remapad-cursor-target {
+        outline: 3px solid var(--remapad-cursor-color, rgba(229, 9, 20, 0.7)) !important;
+        outline-offset: 4px !important;
+      }
+    `;
+    document.head.appendChild(cursorStyleElement);
+  }
+
+  function showCursor(stickId) {
+    initCursor(stickId);
+    const cursor = cursors[stickId];
+    cursor.element?.classList.add('visible');
+    cursor.visible = true;
+  }
+
+  function hideCursor(stickId) {
+    const cursor = cursors[stickId];
+    cursor.element?.classList.remove('visible');
+    cursor.visible = false;
+    clearCursorTarget(stickId);
+  }
+
+  function removeCursors() {
+    hideCursor('left');
+    hideCursor('right');
+    cursors.left.element?.remove();
+    cursors.right.element?.remove();
+    cursors.left.element = null;
+    cursors.right.element = null;
+    cursorStyleElement?.remove();
+    cursorStyleElement = null;
+  }
+
+  function updateCursor(stickId, ax, ay) {
+    if (quickMapElement || !settings.navSettings?.enabled) {
+      hideCursor(stickId);
+      return;
+    }
+    const nav = settings.navSettings;
+    const stickConfig = stickId === 'left' ? nav.leftStick : nav.rightStick;
+    const deadzone = stickConfig?.deadzone ?? DEADZONE;
+    const speed = stickConfig?.cursorSpeed ?? CURSOR_SPEED_PX_PER_SEC;
+    const magnitude = Math.hypot(ax, ay);
+
+    showCursor(stickId);
+    const cursor = cursors[stickId];
+
+    if (magnitude > deadzone) {
+      const dt = POLL_INTERVAL_MS / 1000;
+      const velocity = (magnitude - deadzone) / (1 - deadzone) * speed;
+      const nx = ax / magnitude;
+      const ny = ay / magnitude;
+      cursor.x = clamp(cursor.x + nx * velocity * dt, 0, window.innerWidth);
+      cursor.y = clamp(cursor.y + ny * velocity * dt, 0, window.innerHeight);
+    }
+
+    if (cursor.element) {
+      cursor.element.style.transform = `translate(${cursor.x}px, ${cursor.y}px)`;
+      const color = (stickConfig?.cursorColor || '').trim() || defaultCursorColor(stickId);
+      cursor.element.style.backgroundColor = hexToRgba(color, 0.85);
+      cursor.element.style.boxShadow = `0 0 0 2px ${hexToRgba(color, 0.4)}, 0 4px 16px rgba(0, 0, 0, 0.5)`;
+    }
+
+    updateCursorTarget(stickId);
+  }
+
+  function defaultCursorColor(stickId) {
+    return stickId === 'left' ? '#00a8e1' : '#e50914';
+  }
+
+  function hexToRgba(hex, alpha) {
+    if (!hex) return `rgba(0, 0, 0, ${alpha})`;
+    const short = /^#([a-f\d])([a-f\d])([a-f\d])$/i.exec(hex);
+    if (short) {
+      const r = Number.parseInt(short[1] + short[1], 16);
+      const g = Number.parseInt(short[2] + short[2], 16);
+      const b = Number.parseInt(short[3] + short[3], 16);
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+    const full = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (full) {
+      const r = Number.parseInt(full[1], 16);
+      const g = Number.parseInt(full[2], 16);
+      const b = Number.parseInt(full[3], 16);
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+    return `rgba(0, 0, 0, ${alpha})`;
+  }
+
+  function updateCursorTarget(stickId) {
+    const cursor = cursors[stickId];
+    if (!cursor.element) return;
+    let el = document.elementFromPoint(cursor.x, cursor.y);
+    if (el === cursor.element) el = null;
+    let target = el;
+    while (target && !isClickableCursorTarget(target)) {
+      target = target.parentElement;
+    }
+
+    if (target && target !== cursor.target) {
+      clearCursorTarget(stickId);
+      cursor.target = target;
+      const stickConfig = stickId === 'left' ? settings.navSettings?.leftStick : settings.navSettings?.rightStick;
+      const color = (stickConfig?.cursorColor || '').trim() || defaultCursorColor(stickId);
+      cursor.target.style.setProperty('--remapad-cursor-color', hexToRgba(color, 0.7));
+      cursor.target.classList.add('remapad-cursor-target');
+      dispatchHoverEvents(cursor.target, true);
+    } else if (!target) {
+      clearCursorTarget(stickId);
+    }
+  }
+
+  function isClickableCursorTarget(el) {
+    if (!(el instanceof Element)) return false;
+    if (isRemapadElement(el)) return false;
+    const style = getComputedStyle(el);
+    if (style.pointerEvents === 'none') return false;
+    const tag = el.tagName;
+    return tag === 'A' || tag === 'BUTTON' || tag === 'INPUT' || tag === 'SELECT' ||
+           tag === 'TEXTAREA' || el.matches('[role="button"], [tabindex]:not([tabindex="-1"])') ||
+           el.matches('video, .title-card-container, [data-testid="card"], [class*="card" i]');
+  }
+
+  function clearCursorTarget(stickId) {
+    const cursor = cursors[stickId];
+    if (cursor.target) {
+      dispatchHoverEvents(cursor.target, false);
+      cursor.target.classList.remove('remapad-cursor-target');
+      cursor.target.style.removeProperty('--remapad-cursor-color');
+      cursor.target = null;
+    }
+  }
+
+  function executeCursorClick() {
+    const rightCursor = cursors.right;
+    const leftCursor = cursors.left;
+    const activeCursor = (rightCursor.visible && rightCursor.target) ? rightCursor
+      : (leftCursor.visible && leftCursor.target) ? leftCursor
+      : null;
+
+    if (activeCursor?.target) {
+      const modalFocusState = beginModalFocusTracking();
+      activeCursor.target.click();
+      focusNewModalAfterClick(modalFocusState);
+      return;
+    }
+
+    const fallbackEl = document.elementFromPoint(rightCursor.x, rightCursor.y)
+      || document.elementFromPoint(leftCursor.x, leftCursor.y);
+    if (fallbackEl && !isRemapadElement(fallbackEl)) {
+      const modalFocusState = beginModalFocusTracking();
+      fallbackEl.click();
+      focusNewModalAfterClick(modalFocusState);
+    }
+  }
+
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
   }
 
   // ─── HUD Rendering ──────────────────────────────────────────────────────────
@@ -2185,6 +2953,7 @@
     stopModalFocusObserver();
     hudHighlightedIndex = -1;
     document.documentElement.removeAttribute('data-remapad-active');
+    removeCursors();
     if (hudElement) {
       hudElement.remove();
       hudElement = null;
@@ -2242,6 +3011,13 @@
     closeQuickMap();
     stopModalFocusObserver();
     resetNavigationState();
+  });
+
+  window.addEventListener('resize', () => {
+    cursors.left.x = clamp(cursors.left.x, 0, window.innerWidth);
+    cursors.left.y = clamp(cursors.left.y, 0, window.innerHeight);
+    cursors.right.x = clamp(cursors.right.x, 0, window.innerWidth);
+    cursors.right.y = clamp(cursors.right.y, 0, window.innerHeight);
   });
 
   // Handle COUNT_SELECTORS message from options page "Test Selectors" feature

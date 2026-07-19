@@ -51,6 +51,41 @@ const DEFAULT_PROFILE = {
   "15": "scroll_right"   // D-Pad Right
 };
 
+const DEFAULT_NAV_SETTINGS = {
+  enabled: true,
+  strategy: 'auto',
+  rightStick: {
+    enabled: true,
+    mode: 'cursor',
+    deadzone: 0.3,
+    repeatDelayMs: 150,
+    repeatAcceleration: true,
+    directionMode: 'dominant-axis',
+    cursorSpeed: 360,
+    cursorColor: '#e50914'
+  },
+  leftStick: {
+    enabled: true,
+    mode: 'scroll',
+    deadzone: 0.3,
+    scrollAmountPx: 150,
+    cursorSpeed: 360,
+    cursorColor: '#00a8e1'
+  },
+  axisMap: {
+    up:    { stick: 'right', direction: 'up',    action: 'nav_up' },
+    down:  { stick: 'right', direction: 'down',  action: 'nav_down' },
+    left:  { stick: 'right', direction: 'left',  action: 'nav_left' },
+    right: { stick: 'right', direction: 'right', action: 'nav_right' }
+  },
+  collectionGrid: {
+    wrapRows: false,
+    wrapItems: false,
+    lateralPenalty: 3,
+    rowOverlapThreshold: 0.5
+  }
+};
+
 const ICON_STYLES = [
   {
     id:   'playstation',
@@ -100,6 +135,11 @@ const ACTION_OPTIONS = [
   { value: 'nav_prev_collection',  label: '⬆ Prev Row (Collection Nav)'  },
   { value: 'nav_next_item',        label: '➡ Next Item (Collection Nav)' },
   { value: 'nav_prev_item',        label: '⬅ Prev Item (Collection Nav)' },
+  // Spatial navigation
+  { value: 'nav_up',               label: 'Navigate Up'                },
+  { value: 'nav_down',             label: 'Navigate Down'              },
+  { value: 'nav_left',             label: 'Navigate Left'              },
+  { value: 'nav_right',            label: 'Navigate Right'             },
   // Advanced
   { value: 'click_element',  label: 'Click CSS Element...'              },
   { value: 'hover_element',  label: 'Hover CSS Element...'              },
@@ -158,7 +198,8 @@ let settings = {
       containerSelector: '[data-testid="grid-lockup"], ._1h3rtFr, .wv_A6',
       itemSelector: '[data-testid="card"], ._1t8qyG2, .P2TLe'
     }
-  }
+  },
+  navSettings: structuredClone(DEFAULT_NAV_SETTINGS)
 };
 
 let selectedSiteKey  = 'default';
@@ -205,12 +246,77 @@ const modalConfirmBtn       = document.getElementById('modal-confirm-btn');
 const newSiteInput        = document.getElementById('new-site-input');
 const addSiteBtn          = document.getElementById('add-site-btn');
 
+const navEnabledInput     = document.getElementById('nav-enabled');
+const navStrategyInput    = document.getElementById('nav-strategy');
+const navRightEnabled     = document.getElementById('nav-right-enabled');
+const navRightMode        = document.getElementById('nav-right-mode');
+const navRightDeadzone    = document.getElementById('nav-right-deadzone');
+const navRightDeadzoneVal = document.getElementById('nav-right-deadzone-val');
+const navRightRepeatDelay    = document.getElementById('nav-right-repeat-delay');
+const navRightRepeatDelayVal = document.getElementById('nav-right-repeat-delay-val');
+const navRightCursorSpeed    = document.getElementById('nav-right-cursor-speed');
+const navRightCursorSpeedVal = document.getElementById('nav-right-cursor-speed-val');
+const navRightAccel          = document.getElementById('nav-right-accel');
+const navRightDirectionMode  = document.getElementById('nav-right-direction-mode');
+const navLeftEnabled      = document.getElementById('nav-left-enabled');
+const navLeftMode         = document.getElementById('nav-left-mode');
+const navLeftDeadzone     = document.getElementById('nav-left-deadzone');
+const navLeftDeadzoneVal  = document.getElementById('nav-left-deadzone-val');
+const navLeftScrollAmount = document.getElementById('nav-left-scroll-amount');
+const navLeftScrollAmountVal = document.getElementById('nav-left-scroll-amount-val');
+const navLeftCursorSpeed    = document.getElementById('nav-left-cursor-speed');
+const navLeftCursorSpeedVal = document.getElementById('nav-left-cursor-speed-val');
+const navRightCursorColor   = document.getElementById('nav-right-cursor-color');
+const navLeftCursorColor    = document.getElementById('nav-left-cursor-color');
+const navAxisInputs       = {
+  up:    { stick: document.getElementById('nav-axis-up-stick'),    action: document.getElementById('nav-axis-up-action')    },
+  down:  { stick: document.getElementById('nav-axis-down-stick'),  action: document.getElementById('nav-axis-down-action')  },
+  left:  { stick: document.getElementById('nav-axis-left-stick'),  action: document.getElementById('nav-axis-left-action')  },
+  right: { stick: document.getElementById('nav-axis-right-stick'), action: document.getElementById('nav-axis-right-action') }
+};
+const navWrapRows         = document.getElementById('nav-wrap-rows');
+const navWrapItems        = document.getElementById('nav-wrap-items');
+const navLateralPenalty   = document.getElementById('nav-lateral-penalty');
+const navLateralPenaltyVal= document.getElementById('nav-lateral-penalty-val');
+const navRowOverlap       = document.getElementById('nav-row-overlap');
+const navRowOverlapVal    = document.getElementById('nav-row-overlap-val');
+const navSaveBtn          = document.getElementById('nav-save-btn');
+const navResetBtn         = document.getElementById('nav-reset-btn');
+
+const navStatusName       = document.getElementById('nav-status-name');
+const navStatusBadge      = document.getElementById('nav-status-badge');
+const navStatusDot        = document.getElementById('nav-status-dot');
+const navStatusText       = document.getElementById('nav-status-text');
+
+const leftStickDot        = document.getElementById('left-stick-dot');
+const leftStickDeadzone   = document.getElementById('left-stick-deadzone');
+const leftAxisX           = document.getElementById('left-axis-x');
+const leftAxisY           = document.getElementById('left-axis-y');
+const leftAxisXBottom     = document.getElementById('left-axis-x-bottom');
+const leftAxisYBottom     = document.getElementById('left-axis-y-bottom');
+
+const rightStickDot       = document.getElementById('right-stick-dot');
+const rightStickDeadzone  = document.getElementById('right-stick-deadzone');
+const rightAxisX          = document.getElementById('right-axis-x');
+const rightAxisY          = document.getElementById('right-axis-y');
+const rightAxisXBottom    = document.getElementById('right-axis-x-bottom');
+const rightAxisYBottom    = document.getElementById('right-axis-y-bottom');
+
+const directionMetaEls    = {
+  up:    { assigned: document.getElementById('nav-direction-assigned-up'),    action: document.getElementById('nav-direction-action-up')    },
+  down:  { assigned: document.getElementById('nav-direction-assigned-down'),  action: document.getElementById('nav-direction-action-down')  },
+  left:  { assigned: document.getElementById('nav-direction-assigned-left'),  action: document.getElementById('nav-direction-action-left')  },
+  right: { assigned: document.getElementById('nav-direction-assigned-right'), action: document.getElementById('nav-direction-action-right') }
+};
+
+const ACTION_LABEL_MAP = Object.fromEntries(ACTION_OPTIONS.map(o => [o.value, o.label]));
+
 // ─── Load Settings ────────────────────────────────────────────────────────────
 
 async function loadSettings() {
   try {
     const data = await api.storage.local.get([
-      'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'siteCollections'
+      'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'siteCollections', 'navSettings'
     ]);
 
     if (data.iconStyle) settings.iconStyle = data.iconStyle;
@@ -218,6 +324,9 @@ async function loadSettings() {
     if (data.globalEnabled !== undefined) settings.globalEnabled = data.globalEnabled;
     if (data.siteCollections && typeof data.siteCollections === 'object') {
       settings.siteCollections = data.siteCollections;
+    }
+    if (data.navSettings && typeof data.navSettings === 'object') {
+      settings.navSettings = mergeNavSettings(data.navSettings);
     }
 
     if (data.profiles && Object.keys(data.profiles).length > 0) {
@@ -295,7 +404,8 @@ async function saveSettings() {
       defaultMapping:  settings.defaultMapping,
       enabledSites:    settings.enabledSites,
       globalEnabled:   settings.globalEnabled,
-      siteCollections: settings.siteCollections
+      siteCollections: settings.siteCollections,
+      navSettings:     settings.navSettings
     });
 
     unsavedChanges = false;
@@ -314,6 +424,195 @@ function renderAll() {
   renderIconStyles();
   populateVisualLabels();
   renderCollectionConfig();
+  renderNavConfig();
+}
+
+function mergeNavSettings(stored) {
+  const merged = structuredClone(DEFAULT_NAV_SETTINGS);
+  if (!stored || typeof stored !== 'object') return merged;
+
+  if (stored.enabled !== undefined) merged.enabled = stored.enabled;
+  if (stored.strategy) merged.strategy = stored.strategy;
+  if (stored.rightStick && typeof stored.rightStick === 'object') {
+    merged.rightStick = { ...merged.rightStick, ...stored.rightStick };
+  }
+  if (stored.leftStick && typeof stored.leftStick === 'object') {
+    merged.leftStick = { ...merged.leftStick, ...stored.leftStick };
+  }
+  if (stored.axisMap && typeof stored.axisMap === 'object') {
+    for (const dir of ['up', 'down', 'left', 'right']) {
+      if (stored.axisMap[dir] && typeof stored.axisMap[dir] === 'object') {
+        merged.axisMap[dir] = { ...merged.axisMap[dir], ...stored.axisMap[dir] };
+      }
+    }
+  }
+  if (stored.collectionGrid && typeof stored.collectionGrid === 'object') {
+    merged.collectionGrid = { ...merged.collectionGrid, ...stored.collectionGrid };
+  }
+  return merged;
+}
+
+function renderNavConfig() {
+  const nav = settings.navSettings;
+  if (!nav) return;
+
+  navEnabledInput.checked = nav.enabled;
+  navStrategyInput.value = nav.strategy;
+
+  navRightEnabled.checked = nav.rightStick.enabled;
+  navRightMode.value = nav.rightStick.mode;
+  navRightDeadzone.value = nav.rightStick.deadzone;
+  navRightDeadzoneVal.textContent = nav.rightStick.deadzone;
+  navRightRepeatDelay.value = nav.rightStick.repeatDelayMs;
+  navRightRepeatDelayVal.textContent = nav.rightStick.repeatDelayMs;
+  navRightCursorSpeed.value = nav.rightStick.cursorSpeed ?? DEFAULT_NAV_SETTINGS.rightStick.cursorSpeed;
+  navRightCursorSpeedVal.textContent = nav.rightStick.cursorSpeed ?? DEFAULT_NAV_SETTINGS.rightStick.cursorSpeed;
+  navRightCursorColor.value = nav.rightStick.cursorColor || DEFAULT_NAV_SETTINGS.rightStick.cursorColor;
+  navRightAccel.checked = nav.rightStick.repeatAcceleration;
+  navRightDirectionMode.value = nav.rightStick.directionMode;
+
+  navLeftEnabled.checked = nav.leftStick.enabled;
+  navLeftMode.value = nav.leftStick.mode;
+  navLeftDeadzone.value = nav.leftStick.deadzone;
+  navLeftDeadzoneVal.textContent = nav.leftStick.deadzone;
+  navLeftScrollAmount.value = nav.leftStick.scrollAmountPx;
+  navLeftScrollAmountVal.textContent = nav.leftStick.scrollAmountPx;
+  navLeftCursorSpeed.value = nav.leftStick.cursorSpeed ?? DEFAULT_NAV_SETTINGS.leftStick.cursorSpeed;
+  navLeftCursorSpeedVal.textContent = nav.leftStick.cursorSpeed ?? DEFAULT_NAV_SETTINGS.leftStick.cursorSpeed;
+  navLeftCursorColor.value = nav.leftStick.cursorColor || DEFAULT_NAV_SETTINGS.leftStick.cursorColor;
+
+  for (const dir of ['up', 'down', 'left', 'right']) {
+    const entry = nav.axisMap[dir] || DEFAULT_NAV_SETTINGS.axisMap[dir];
+    const inputs = navAxisInputs[dir];
+    if (inputs) {
+      inputs.stick.value = entry.stick;
+      inputs.action.value = entry.action;
+    }
+    updateDirectionMeta(dir);
+  }
+
+  updateNavDeadzoneRings();
+
+  navWrapRows.checked = nav.collectionGrid.wrapRows;
+  navWrapItems.checked = nav.collectionGrid.wrapItems;
+  navLateralPenalty.value = nav.collectionGrid.lateralPenalty;
+  navLateralPenaltyVal.textContent = nav.collectionGrid.lateralPenalty;
+  navRowOverlap.value = nav.collectionGrid.rowOverlapThreshold;
+  navRowOverlapVal.textContent = nav.collectionGrid.rowOverlapThreshold;
+}
+
+function updateDirectionMeta(dir) {
+  const entry = settings.navSettings.axisMap[dir] || DEFAULT_NAV_SETTINGS.axisMap[dir];
+  const meta = directionMetaEls[dir];
+  if (!meta) return;
+  meta.assigned.textContent = entry.stick === 'left' ? 'Left stick' : 'Right stick';
+  meta.action.textContent = ACTION_LABEL_MAP[entry.action] || entry.action;
+}
+
+function updateNavDeadzoneRings() {
+  if (leftStickDeadzone) {
+    const leftRadius = Math.round((settings.navSettings.leftStick.deadzone || 0.3) * 50);
+    leftStickDeadzone.style.width = `${leftRadius}%`;
+    leftStickDeadzone.style.height = `${leftRadius}%`;
+  }
+  if (rightStickDeadzone) {
+    const rightRadius = Math.round((settings.navSettings.rightStick.deadzone || 0.3) * 50);
+    rightStickDeadzone.style.width = `${rightRadius}%`;
+    rightStickDeadzone.style.height = `${rightRadius}%`;
+  }
+}
+
+function collectNavSettingsFromUI() {
+  return {
+    enabled: navEnabledInput.checked,
+    strategy: navStrategyInput.value,
+    rightStick: {
+      enabled: navRightEnabled.checked,
+      mode: navRightMode.value,
+      deadzone: Number.parseFloat(navRightDeadzone.value),
+      repeatDelayMs: Number.parseInt(navRightRepeatDelay.value, 10),
+      cursorSpeed: Number.parseInt(navRightCursorSpeed.value, 10),
+      cursorColor: navRightCursorColor.value || DEFAULT_NAV_SETTINGS.rightStick.cursorColor,
+      repeatAcceleration: navRightAccel.checked,
+      directionMode: navRightDirectionMode.value
+    },
+    leftStick: {
+      enabled: navLeftEnabled.checked,
+      mode: navLeftMode.value,
+      deadzone: Number.parseFloat(navLeftDeadzone.value),
+      scrollAmountPx: Number.parseInt(navLeftScrollAmount.value, 10),
+      cursorSpeed: Number.parseInt(navLeftCursorSpeed.value, 10),
+      cursorColor: navLeftCursorColor.value || DEFAULT_NAV_SETTINGS.leftStick.cursorColor
+    },
+    axisMap: {
+      up:    { stick: navAxisInputs.up.stick.value,    direction: 'up',    action: navAxisInputs.up.action.value    },
+      down:  { stick: navAxisInputs.down.stick.value,  direction: 'down',  action: navAxisInputs.down.action.value  },
+      left:  { stick: navAxisInputs.left.stick.value,  direction: 'left',  action: navAxisInputs.left.action.value  },
+      right: { stick: navAxisInputs.right.stick.value, direction: 'right', action: navAxisInputs.right.action.value }
+    },
+    collectionGrid: {
+      wrapRows: navWrapRows.checked,
+      wrapItems: navWrapItems.checked,
+      lateralPenalty: Number.parseFloat(navLateralPenalty.value),
+      rowOverlapThreshold: Number.parseFloat(navRowOverlap.value)
+    }
+  };
+}
+
+function bindNavInputs() {
+  const syncSlider = (input, label, onChange) => {
+    input.addEventListener('input', () => {
+      label.textContent = input.value;
+      if (onChange) onChange();
+      else unsavedChanges = true;
+    });
+  };
+
+  syncSlider(navRightDeadzone, navRightDeadzoneVal, syncNavSettingsFromUI);
+  syncSlider(navRightRepeatDelay, navRightRepeatDelayVal, syncNavSettingsFromUI);
+  syncSlider(navRightCursorSpeed, navRightCursorSpeedVal, syncNavSettingsFromUI);
+  syncSlider(navLeftDeadzone, navLeftDeadzoneVal, syncNavSettingsFromUI);
+  syncSlider(navLeftScrollAmount, navLeftScrollAmountVal, syncNavSettingsFromUI);
+  syncSlider(navLeftCursorSpeed, navLeftCursorSpeedVal, syncNavSettingsFromUI);
+  syncSlider(navLateralPenalty, navLateralPenaltyVal, syncNavSettingsFromUI);
+  syncSlider(navRowOverlap, navRowOverlapVal, syncNavSettingsFromUI);
+
+  const inputs = [
+    navEnabledInput,
+    navStrategyInput,
+    navRightEnabled,
+    navRightMode,
+    navRightAccel,
+    navRightDirectionMode,
+    navRightCursorColor,
+    navLeftEnabled,
+    navLeftMode,
+    navLeftCursorColor,
+    navWrapRows,
+    navWrapItems,
+    ...Object.values(navAxisInputs).flatMap(i => [i.stick, i.action])
+  ];
+
+  function syncNavSettingsFromUI() {
+    settings.navSettings = collectNavSettingsFromUI();
+    unsavedChanges = true;
+  }
+
+  inputs.forEach(input => {
+    input.addEventListener('change', syncNavSettingsFromUI);
+  });
+
+  navSaveBtn?.addEventListener('click', saveSettings);
+
+  navResetBtn?.addEventListener('click', () => {
+    if (!confirm('Reset navigation settings to defaults?')) return;
+    settings.navSettings = structuredClone(DEFAULT_NAV_SETTINGS);
+    unsavedChanges = true;
+    renderNavConfig();
+    showToast('Navigation settings reset.');
+  });
+
+  updateNavDeadzoneRings();
 }
 
 function renderEditorSiteSelect() {
@@ -674,9 +973,13 @@ function pollGamepads() {
   if (gp) {
     const rawId = gp.id.split('(')[0].trim() || 'Controller';
     const cleanId = rawId.length > 20 ? rawId.slice(0, 20) + '…' : rawId;
-    
+
     deviceNameEl.textContent = cleanId;
     navControllerNameEl.textContent = cleanId.length > 18 ? cleanId.slice(0, 18) + '…' : cleanId;
+    if (navStatusName) navStatusName.textContent = cleanId;
+    if (navStatusBadge) navStatusBadge.className = 'nav-status-badge connected';
+    if (navStatusDot) navStatusDot.className = 'nav-status-dot pulse';
+    if (navStatusText) navStatusText.textContent = 'CONNECTED';
 
     statusBadgeEl.className = 'status-badge connected';
     statusDotEl.className   = 'status-dot pulse';
@@ -727,6 +1030,8 @@ function pollGamepads() {
       rightStickThumb.setAttribute('cy', (185 + ry * 8).toString());
     }
 
+    updateNavigationStickViz(gp);
+
   } else {
     deviceNameEl.textContent = 'No Controller Detected';
     navControllerNameEl.textContent = 'No Controller';
@@ -734,10 +1039,58 @@ function pollGamepads() {
     statusDotEl.className   = 'status-dot';
     statusTextEl.textContent = 'DISCONNECTED';
     deviceBatteryEl.style.display = 'none';
+    if (navStatusName) navStatusName.textContent = 'No Controller';
+    if (navStatusBadge) navStatusBadge.className = 'nav-status-badge disconnected';
+    if (navStatusDot) navStatusDot.className = 'nav-status-dot';
+    if (navStatusText) navStatusText.textContent = 'DISCONNECTED';
 
-    // Clear highlights
     document.querySelectorAll('.svg-btn').forEach(btn => btn.classList.remove('highlighted'));
+    resetNavigationStickViz();
   }
+}
+
+function updateNavigationStickViz(gp) {
+  const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+  const fmt = (n) => n.toFixed(2);
+
+  const lx = gp.axes[0] || 0;
+  const ly = gp.axes[1] || 0;
+  const rx = gp.axes[2] || 0;
+  const ry = gp.axes[3] || 0;
+
+  const leftX = clamp(lx, -1, 1);
+  const leftY = clamp(ly, -1, 1);
+  const rightX = clamp(rx, -1, 1);
+  const rightY = clamp(ry, -1, 1);
+
+  if (leftStickDot) leftStickDot.style.transform = `translate(${leftX * 40}px, ${leftY * 40}px)`;
+  if (rightStickDot) rightStickDot.style.transform = `translate(${rightX * 40}px, ${rightY * 40}px)`;
+
+  if (leftAxisX) leftAxisX.textContent = fmt(leftX);
+  if (leftAxisY) leftAxisY.textContent = fmt(leftY);
+  if (rightAxisX) rightAxisX.textContent = fmt(rightX);
+  if (rightAxisY) rightAxisY.textContent = fmt(rightY);
+
+  if (leftAxisXBottom) leftAxisXBottom.textContent = fmt(leftX);
+  if (leftAxisYBottom) leftAxisYBottom.textContent = fmt(leftY);
+  if (rightAxisXBottom) rightAxisXBottom.textContent = fmt(rightX);
+  if (rightAxisYBottom) rightAxisYBottom.textContent = fmt(rightY);
+}
+
+function resetNavigationStickViz() {
+  const els = [
+    leftStickDot, rightStickDot,
+    leftAxisX, leftAxisY, rightAxisX, rightAxisY,
+    leftAxisXBottom, leftAxisYBottom, rightAxisXBottom, rightAxisYBottom
+  ];
+  els.forEach(el => {
+    if (!el) return;
+    if (el.classList.contains('stick-dot')) {
+      el.style.transform = '';
+    } else {
+      el.textContent = '0.00';
+    }
+  });
 }
 
 // Test input listener
@@ -1200,9 +1553,11 @@ function initTabs() {
       const panel = document.getElementById(targetPanelId);
       if (panel) {
         panel.hidden = false;
-        // Render collection config when switching to that tab
         if (targetPanelId === 'tab-panel-collection') {
           renderCollectionConfig();
+        }
+        if (targetPanelId === 'tab-panel-navigation') {
+          renderNavConfig();
         }
       }
     });
@@ -1246,5 +1601,6 @@ document.getElementById('cnav-save-all-btn')?.addEventListener('click', () => {
 (async () => {
   await loadSettings();
   initTabs();
+  bindNavInputs();
   startPolling();
 })();

@@ -48,6 +48,10 @@
         <svg viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px;display:block;flex-shrink:0"><path d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-10 7H8v3H6v-3H3v-2h3V8h2v3h3v2zm4.5 3c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm3-3c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
         Controller
       </button>
+      <button class="tab-btn" id="tab-btn-navigation" role="tab" aria-selected="false" aria-controls="tab-panel-navigation">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;flex-shrink:0"><path d="M5.5 21a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11Z"/><path d="M18.5 21a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11Z"/><path d="M5.5 10V3"/><path d="M18.5 10V3"/><path d="M12 3v18"/></svg>
+        Navigation
+      </button>
       <button class="tab-btn" id="tab-btn-collection" role="tab" aria-selected="false" aria-controls="tab-panel-collection">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;flex-shrink:0"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
         Collection Nav
@@ -344,6 +348,327 @@
 
       </div><!-- two-col-grid -->
     </div><!-- tab-panel-controller -->
+
+    <!-- ── Tab Panel: Navigation ────────────────────────────────────────────── -->
+    <div class="tab-panel" id="tab-panel-navigation" role="tabpanel" aria-labelledby="tab-btn-navigation" hidden>
+      <div class="nav-panel">
+
+        <div class="nav-title-row">
+          <div class="nav-title-group">
+            <h2 class="nav-panel-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;display:block"><path d="M5.5 21a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11Z"/><path d="M18.5 21a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11Z"/><path d="M5.5 10V3"/><path d="M18.5 10V3"/><path d="M12 3v18"/></svg>
+              Spatial &amp; Collection Navigation
+            </h2>
+            <p class="nav-panel-subtitle">
+              Customize how the left and right sticks move focus. Right stick defaults to 2D navigation, left stick to scrolling.
+            </p>
+          </div>
+          <div class="nav-status-bar" id="nav-status-bar">
+            <div class="nav-status-device">
+              <svg viewBox="0 0 24 24" fill="var(--primary-container)" style="width:18px;height:18px;display:block"><path d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-10 7H8v3H6v-3H3v-2h3V8h2v3h3v2zm4.5 3c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm3-3c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+              <span id="nav-status-name">No Controller</span>
+            </div>
+            <span class="nav-status-badge disconnected" id="nav-status-badge">
+              <span class="nav-status-dot" id="nav-status-dot"></span>
+              <span id="nav-status-text">DISCONNECTED</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="nav-body">
+            <aside class="nav-sidebar">
+            <section class="card nav-sticks-card">
+              <div class="card-title">Live Sticks</div>
+              <div class="nav-sticks-grid">
+                <div class="nav-stick-col">
+                  <div class="stick-viz" id="left-stick-viz">
+                    <div class="stick-grid"></div>
+                    <div class="stick-deadzone" id="left-stick-deadzone"></div>
+                    <div class="stick-dot" id="left-stick-dot"></div>
+                  </div>
+                  <div class="stick-values">
+                    <span>LX <strong id="left-axis-x">0.00</strong></span>
+                    <span>LY <strong id="left-axis-y">0.00</strong></span>
+                  </div>
+                </div>
+                <div class="nav-stick-col">
+                  <div class="stick-viz" id="right-stick-viz">
+                    <div class="stick-grid"></div>
+                    <div class="stick-deadzone" id="right-stick-deadzone"></div>
+                    <div class="stick-dot" id="right-stick-dot"></div>
+                  </div>
+                  <div class="stick-values">
+                    <span>RX <strong id="right-axis-x">0.00</strong></span>
+                    <span>RY <strong id="right-axis-y">0.00</strong></span>
+                  </div>
+                </div>
+              </div>
+              <div class="nav-axes-table">
+                <div class="nav-axes-row">
+                  <span class="nav-axes-label">LX</span><span id="left-axis-x-bottom">0.00</span>
+                </div>
+                <div class="nav-axes-row">
+                  <span class="nav-axes-label">LY</span><span id="left-axis-y-bottom">0.00</span>
+                </div>
+                <div class="nav-axes-row">
+                  <span class="nav-axes-label">RX</span><span id="right-axis-x-bottom">0.00</span>
+                </div>
+                <div class="nav-axes-row">
+                  <span class="nav-axes-label">RY</span><span id="right-axis-y-bottom">0.00</span>
+                </div>
+              </div>
+            </section>
+
+            <section class="card nav-general-card">
+              <div class="card-title" style="margin-bottom:12px">General</div>
+
+              <div class="nav-control">
+                <label class="nav-field-label" for="nav-enabled">Enable spatial navigation</label>
+                <label class="switch">
+                  <input type="checkbox" id="nav-enabled">
+                  <span class="switch-track"></span>
+                </label>
+              </div>
+
+              <div class="nav-control" style="margin-top:14px">
+                <label class="nav-field-label" for="nav-strategy">Default strategy</label>
+                <select id="nav-strategy" class="nav-select">
+                  <option value="auto">Auto (collection if configured)</option>
+                  <option value="spatial">Spatial DOM</option>
+                  <option value="collection">Collection Grid</option>
+                  <option value="dom-order">DOM Order</option>
+                </select>
+                <p class="nav-hint">Determines what happens when a navigation stick moves.</p>
+              </div>
+            </section>
+          </aside>
+
+          <main class="nav-editor" id="nav-editor-panel">
+            <div class="nav-config-grid">
+
+              <section class="card nav-section-card nav-section-right">
+                <div class="nav-section-header">
+                  <div class="nav-section-title">Right Stick</div>
+                  <label class="switch">
+                    <input type="checkbox" id="nav-right-enabled">
+                    <span class="switch-track"></span>
+                  </label>
+                </div>
+                <div class="nav-control-row">
+                  <div class="nav-control">
+                  <label class="nav-field-label" for="nav-right-mode">Mode</label>
+                  <select id="nav-right-mode" class="nav-select">
+                    <option value="cursor">Virtual Cursor</option>
+                    <option value="navigate">Spatial Navigate</option>
+                    <option value="scroll">Scroll</option>
+                    <option value="disabled">Disabled</option>
+                  </select>
+                  </div>
+                  <div class="nav-control">
+                    <label class="nav-field-label" for="nav-right-direction-mode">Direction mode</label>
+                    <select id="nav-right-direction-mode" class="nav-select">
+                      <option value="dominant-axis">Dominant axis</option>
+                      <option value="8-way">8-way</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="nav-control-row">
+                  <div class="nav-control">
+                    <label class="nav-field-label" for="nav-right-deadzone">Deadzone: <span id="nav-right-deadzone-val">0.3</span></label>
+                    <input type="range" id="nav-right-deadzone" class="nav-slider" min="0.05" max="0.9" step="0.05" value="0.3">
+                  </div>
+                  <div class="nav-control">
+                    <label class="nav-field-label" for="nav-right-cursor-speed">Cursor speed: <span id="nav-right-cursor-speed-val">360</span>px/s</label>
+                    <input type="range" id="nav-right-cursor-speed" class="nav-slider" min="100" max="1200" step="20" value="360">
+                  </div>
+                </div>
+                <div class="nav-control-row">
+                  <div class="nav-control">
+                    <label class="nav-field-label" for="nav-right-cursor-speed">Cursor speed: <span id="nav-right-cursor-speed-val">360</span>px/s</label>
+                    <input type="range" id="nav-right-cursor-speed" class="nav-slider" min="100" max="1200" step="20" value="360">
+                  </div>
+                  <div class="nav-control">
+                    <label class="nav-field-label" for="nav-right-cursor-color">Cursor color</label>
+                    <input type="color" id="nav-right-cursor-color" class="nav-color-input" value="#e50914">
+                  </div>
+                </div>
+                  <div class="nav-control">
+                    <label class="switch-inline" style="margin-top:18px">
+                      <input type="checkbox" id="nav-right-accel">
+                      <span class="switch-track"></span>
+                      <span class="switch-label">Accelerate repeats on sustained hold</span>
+                    </label>
+                  </div>
+                </div>
+              </section>
+
+              <section class="card nav-section-card nav-section-left">
+                <div class="nav-section-header">
+                  <div class="nav-section-title">Left Stick</div>
+                  <label class="switch">
+                    <input type="checkbox" id="nav-left-enabled">
+                    <span class="switch-track"></span>
+                  </label>
+                </div>
+                <div class="nav-control-row">
+                  <div class="nav-control">
+                    <label class="nav-field-label" for="nav-left-mode">Mode</label>
+                    <select id="nav-left-mode" class="nav-select">
+                      <option value="scroll">Scroll</option>
+                      <option value="cursor">Virtual Cursor</option>
+                      <option value="navigate">Spatial Navigate</option>
+                      <option value="disabled">Disabled</option>
+                    </select>
+                  </div>
+                  <div class="nav-control">
+                    <label class="nav-field-label" for="nav-left-deadzone">Deadzone: <span id="nav-left-deadzone-val">0.3</span></label>
+                    <input type="range" id="nav-left-deadzone" class="nav-slider" min="0.05" max="0.9" step="0.05" value="0.3">
+                  </div>
+                </div>
+                <div class="nav-control-row">
+                  <div class="nav-control">
+                    <label class="nav-field-label" for="nav-left-scroll-amount">Scroll amount: <span id="nav-left-scroll-amount-val">150</span>px</label>
+                    <input type="range" id="nav-left-scroll-amount" class="nav-slider" min="50" max="600" step="10" value="150">
+                  </div>
+                  <div class="nav-control">
+                    <label class="nav-field-label" for="nav-left-cursor-speed">Cursor speed: <span id="nav-left-cursor-speed-val">360</span>px/s</label>
+                    <input type="range" id="nav-left-cursor-speed" class="nav-slider" min="100" max="1200" step="20" value="360">
+                  </div>
+                  <div class="nav-control">
+                    <label class="nav-field-label" for="nav-left-cursor-color">Cursor color</label>
+                    <input type="color" id="nav-left-cursor-color" class="nav-color-input" value="#00a8e1">
+                  </div>
+                </div>
+              </section>
+
+              <section class="card nav-section-card nav-direction-card">
+                <div class="nav-section-header">
+                  <div class="nav-section-title">Direction Map</div>
+                </div>
+                <p class="nav-hint" style="margin-bottom:14px">Each direction shows which stick is assigned and what action fires. Edit inline via the selects.</p>
+                <div class="nav-direction-grid">
+                  <div class="nav-direction-tile" data-direction="up">
+                    <div class="nav-direction-icon">↑</div>
+                    <div class="nav-direction-meta">
+                      <span class="nav-direction-name">Up</span>
+                      <span class="nav-direction-assigned" id="nav-direction-assigned-up">Right stick</span>
+                      <span class="nav-direction-action" id="nav-direction-action-up">Navigate Up</span>
+                    </div>
+                    <div class="nav-direction-edit">
+                      <select id="nav-axis-up-stick" class="nav-select nav-select-sm">
+                        <option value="left">Left</option>
+                        <option value="right" selected>Right</option>
+                      </select>
+                      <select id="nav-axis-up-action" class="nav-select nav-select-sm">
+                        <option value="nav_up">Navigate Up</option>
+                        <option value="scroll_up">Scroll Up</option>
+                        <option value="none">None</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="nav-direction-tile" data-direction="down">
+                    <div class="nav-direction-icon">↓</div>
+                    <div class="nav-direction-meta">
+                      <span class="nav-direction-name">Down</span>
+                      <span class="nav-direction-assigned" id="nav-direction-assigned-down">Right stick</span>
+                      <span class="nav-direction-action" id="nav-direction-action-down">Navigate Down</span>
+                    </div>
+                    <div class="nav-direction-edit">
+                      <select id="nav-axis-down-stick" class="nav-select nav-select-sm">
+                        <option value="left">Left</option>
+                        <option value="right" selected>Right</option>
+                      </select>
+                      <select id="nav-axis-down-action" class="nav-select nav-select-sm">
+                        <option value="nav_down">Navigate Down</option>
+                        <option value="scroll_down">Scroll Down</option>
+                        <option value="none">None</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="nav-direction-tile" data-direction="left">
+                    <div class="nav-direction-icon">←</div>
+                    <div class="nav-direction-meta">
+                      <span class="nav-direction-name">Left</span>
+                      <span class="nav-direction-assigned" id="nav-direction-assigned-left">Right stick</span>
+                      <span class="nav-direction-action" id="nav-direction-action-left">Navigate Left</span>
+                    </div>
+                    <div class="nav-direction-edit">
+                      <select id="nav-axis-left-stick" class="nav-select nav-select-sm">
+                        <option value="left">Left</option>
+                        <option value="right" selected>Right</option>
+                      </select>
+                      <select id="nav-axis-left-action" class="nav-select nav-select-sm">
+                        <option value="nav_left">Navigate Left</option>
+                        <option value="scroll_left">Scroll Left</option>
+                        <option value="none">None</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="nav-direction-tile" data-direction="right">
+                    <div class="nav-direction-icon">→</div>
+                    <div class="nav-direction-meta">
+                      <span class="nav-direction-name">Right</span>
+                      <span class="nav-direction-assigned" id="nav-direction-assigned-right">Right stick</span>
+                      <span class="nav-direction-action" id="nav-direction-action-right">Navigate Right</span>
+                    </div>
+                    <div class="nav-direction-edit">
+                      <select id="nav-axis-right-stick" class="nav-select nav-select-sm">
+                        <option value="left">Left</option>
+                        <option value="right" selected>Right</option>
+                      </select>
+                      <select id="nav-axis-right-action" class="nav-select nav-select-sm">
+                        <option value="nav_right">Navigate Right</option>
+                        <option value="scroll_right">Scroll Right</option>
+                        <option value="none">None</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="card nav-section-card nav-collection-card">
+                <div class="nav-section-header">
+                  <div class="nav-section-title">Collection Grid</div>
+                </div>
+                <div class="nav-control-row">
+                  <label class="switch-inline">
+                    <input type="checkbox" id="nav-wrap-rows">
+                    <span class="switch-track"></span>
+                    <span class="switch-label">Wrap rows</span>
+                  </label>
+                  <label class="switch-inline">
+                    <input type="checkbox" id="nav-wrap-items">
+                    <span class="switch-track"></span>
+                    <span class="switch-label">Wrap items within a row</span>
+                  </label>
+                </div>
+                <div class="nav-control-row">
+                  <div class="nav-control">
+                    <label class="nav-field-label" for="nav-lateral-penalty">Lateral penalty: <span id="nav-lateral-penalty-val">3</span></label>
+                    <input type="range" id="nav-lateral-penalty" class="nav-slider" min="0" max="10" step="0.5" value="3">
+                    <p class="nav-hint">Higher values keep horizontal alignment when moving between rows.</p>
+                  </div>
+                  <div class="nav-control">
+                    <label class="nav-field-label" for="nav-row-overlap">Row overlap threshold: <span id="nav-row-overlap-val">0.5</span></label>
+                    <input type="range" id="nav-row-overlap" class="nav-slider" min="0" max="1" step="0.05" value="0.5">
+                    <p class="nav-hint">Minimum vertical overlap to consider items aligned.</p>
+                  </div>
+                </div>
+              </section>
+
+            </div>
+
+            <div class="nav-editor-actions">
+              <button id="nav-reset-btn" class="btn-ghost" style="font-size:13px">Reset to Defaults</button>
+              <button id="nav-save-btn" class="btn-secondary" style="font-size:13px">Save Navigation Settings</button>
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
 
     <!-- ── Tab Panel: Collection Nav ────────────────────────────────────────── -->
     <div class="tab-panel" id="tab-panel-collection" role="tabpanel" aria-labelledby="tab-btn-collection" hidden>
