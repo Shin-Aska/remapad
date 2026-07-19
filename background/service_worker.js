@@ -16,6 +16,13 @@ api.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // Keeps channel open for async response
   }
 
+  if (message && message.type === 'TRUSTED_CLICK') {
+    handleTrustedClick(message, sender)
+      .then(res => sendResponse(res))
+      .catch(err => sendResponse({ error: err.message }));
+    return true;
+  }
+
   if (message && message.type === 'COUNT_SELECTORS') {
     getActiveTab().then(tab => {
       if (!tab?.id) {
@@ -109,4 +116,54 @@ async function handleBrowserAction(action, sender) {
 async function getActiveTab() {
   const tabs = await api.tabs.query({ active: true, currentWindow: true });
   return tabs[0];
+}
+
+async function handleTrustedClick(message, sender) {
+  const tabId = sender.tab?.id;
+  if (!tabId) return { success: false, error: 'No sender tab' };
+
+  const x = Number(message.x);
+  const y = Number(message.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) {
+    return { success: false, error: 'Invalid coordinates' };
+  }
+
+  const target = { tabId };
+  try {
+    await api.debugger.attach(target, '1.2');
+
+    await api.debugger.sendCommand(target, 'Input.dispatchMouseEvent', {
+      type: 'mouseMoved',
+      x,
+      y
+    });
+
+    await sleep(50);
+
+    await api.debugger.sendCommand(target, 'Input.dispatchMouseEvent', {
+      type: 'mousePressed',
+      button: 'left',
+      x,
+      y,
+      clickCount: 1
+    });
+
+    await api.debugger.sendCommand(target, 'Input.dispatchMouseEvent', {
+      type: 'mouseReleased',
+      button: 'left',
+      x,
+      y,
+      clickCount: 1
+    });
+
+    await api.debugger.detach(target);
+    return { success: true };
+  } catch (err) {
+    try { await api.debugger.detach(target); } catch (e) {}
+    return { success: false, error: err.message };
+  }
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }

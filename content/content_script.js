@@ -2427,17 +2427,202 @@
 
     if (activeCursor?.target) {
       const modalFocusState = beginModalFocusTracking();
-      activeCursor.target.click();
+      activateElementAsClick(activeCursor.target, activeCursor.x, activeCursor.y);
       focusNewModalAfterClick(modalFocusState);
       return;
     }
 
     const fallbackEl = document.elementFromPoint(rightCursor.x, rightCursor.y)
       || document.elementFromPoint(leftCursor.x, leftCursor.y);
+    const fallbackCursor = (document.elementFromPoint(rightCursor.x, rightCursor.y) === fallbackEl) ? rightCursor
+      : (document.elementFromPoint(leftCursor.x, leftCursor.y) === fallbackEl) ? leftCursor
+      : rightCursor;
     if (fallbackEl && !isRemapadElement(fallbackEl)) {
       const modalFocusState = beginModalFocusTracking();
-      fallbackEl.click();
+      activateElementAsClick(fallbackEl, fallbackCursor.x, fallbackCursor.y);
       focusNewModalAfterClick(modalFocusState);
+    }
+  }
+
+  function activateElementAsClick(el, x, y) {
+    ensureWindowFocus();
+    simulateClickAt(el, x, y);
+    simulateKeyboardActivate(el);
+    requestTrustedClickFromBackground(x, y);
+    const video = findVideoUnderPoint(x, y);
+    if (video) {
+      checkAutoplayAndWarn(() => toggleVideoPlay(video));
+    }
+  }
+
+  let autoplayCheckPromise = null;
+  let autoplayBlocked = null;
+  let autoplayWarningShown = false;
+
+  function checkAutoplayPolicy() {
+    if (autoplayCheckPromise) return autoplayCheckPromise;
+    autoplayCheckPromise = new Promise(resolve => {
+      try {
+        const video = document.createElement('video');
+        video.setAttribute('muted', '');
+        video.setAttribute('playsinline', '');
+        video.src = 'data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYWNjZG1wMQAAAAAAAAAAAAAA';
+        video.play().then(() => {
+          video.pause();
+          video.remove();
+          resolve(false);
+        }).catch(err => {
+          video.remove();
+          resolve(err?.name === 'NotAllowedError');
+        });
+      } catch (e) {
+        resolve(false);
+      }
+    });
+    return autoplayCheckPromise;
+  }
+
+  async function checkAutoplayAndWarn(playFn) {
+    const blocked = await checkAutoplayPolicy();
+    autoplayBlocked = blocked;
+    if (blocked && !autoplayWarningShown) {
+      autoplayWarningShown = true;
+      showAutoplayWarning();
+      return;
+    }
+    playFn();
+  }
+
+  function showAutoplayWarning() {
+    injectHUDStyles();
+    const id = 'remapad-autoplay-warning';
+    let el = document.getElementById(id);
+    if (el) el.remove();
+
+    el = document.createElement('div');
+    el.id = id;
+    el.className = 'remapad-autoplay-warning';
+    el.setAttribute('role', 'alert');
+    el.innerHTML = `
+      <div class="remapad-autoplay-warning__inner">
+        <svg class="remapad-autoplay-warning__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <div class="remapad-autoplay-warning__text">
+          <strong>Autoplay blocked</strong> — this site requires a real click to play video.
+          Remapad cannot override autoplay permissions. Enable autoplay for this site in your browser settings to use controller playback.
+        </div>
+        <button class="remapad-autoplay-warning__close" aria-label="Dismiss">×</button>
+      </div>
+    `;
+    document.body.appendChild(el);
+
+    el.querySelector('.remapad-autoplay-warning__close').addEventListener('click', () => {
+      el.classList.remove('visible');
+      setTimeout(() => el.remove(), 350);
+    });
+
+    requestAnimationFrame(() => el.classList.add('visible'));
+    setTimeout(() => {
+      if (el.parentElement) {
+        el.classList.remove('visible');
+        setTimeout(() => el.remove(), 350);
+      }
+    }, 7000);
+  }
+
+  function requestTrustedClickFromBackground(x, y) {
+    try {
+      api.runtime.sendMessage({ type: 'TRUSTED_CLICK', x, y }, () => {});
+    } catch (e) {}
+  }
+
+  function ensureWindowFocus() {
+    try {
+      if (typeof window.focus === 'function') window.focus();
+    } catch (e) {}
+  }
+
+  function simulateClickAt(el, x, y) {
+    const opts = {
+      bubbles: true,
+      cancelable: true,
+      view: window,
+      clientX: x,
+      clientY: y,
+      screenX: x + window.screenX,
+      screenY: y + window.screenY,
+      pointerType: 'mouse',
+      button: 0,
+      buttons: 1,
+      isPrimary: true,
+      composed: true
+    };
+
+    if (typeof PointerEvent !== 'undefined') {
+      const pointerOpts = { ...opts, pointerId: 1, width: 1, height: 1, pressure: 0.5 };
+      el.dispatchEvent(new PointerEvent('pointerover', pointerOpts));
+      el.dispatchEvent(new PointerEvent('pointerenter', pointerOpts));
+      el.dispatchEvent(new PointerEvent('pointermove', pointerOpts));
+      el.dispatchEvent(new PointerEvent('pointerdown', { ...pointerOpts, buttons: 1 }));
+      el.dispatchEvent(new MouseEvent('mousedown', opts));
+      el.dispatchEvent(new PointerEvent('pointerup', { ...pointerOpts, buttons: 0 }));
+      el.dispatchEvent(new MouseEvent('mouseup', opts));
+      el.click();
+      el.dispatchEvent(new PointerEvent('pointerout', pointerOpts));
+      el.dispatchEvent(new PointerEvent('pointerleave', pointerOpts));
+    } else {
+      el.dispatchEvent(new MouseEvent('mouseover', opts));
+      el.dispatchEvent(new MouseEvent('mouseenter', opts));
+      el.dispatchEvent(new MouseEvent('mousemove', opts));
+      el.dispatchEvent(new MouseEvent('mousedown', opts));
+      el.dispatchEvent(new MouseEvent('mouseup', opts));
+      el.click();
+      el.dispatchEvent(new MouseEvent('mouseout', opts));
+      el.dispatchEvent(new MouseEvent('mouseleave', opts));
+    }
+  }
+
+  function simulateKeyboardActivate(el) {
+    if (el.focus && typeof el.focus === 'function' && el.tabIndex !== -1) {
+      focusElement(el);
+    }
+    const keyOpts = {
+      bubbles: true,
+      cancelable: true,
+      view: window,
+      key: 'Enter',
+      code: 'Enter',
+      keyCode: 13,
+      which: 13,
+      composed: true
+    };
+    el.dispatchEvent(new KeyboardEvent('keydown', keyOpts));
+    el.dispatchEvent(new KeyboardEvent('keyup', keyOpts));
+  }
+
+  function findVideoUnderPoint(x, y) {
+    let el = document.elementFromPoint(x, y);
+    if (el === cursors.left.element || el === cursors.right.element) el = null;
+    if (el instanceof HTMLVideoElement) return el;
+    for (let i = 0; el && i < 8; i++) {
+      const videos = el.querySelectorAll?.('video');
+      if (videos?.length === 1) return videos[0];
+      el = el.parentElement;
+    }
+    const allVideos = Array.from(document.querySelectorAll('video'));
+    return allVideos.find(v => {
+      const rect = v.getBoundingClientRect();
+      return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+    }) || allVideos[0] || null;
+  }
+
+  function toggleVideoPlay(video) {
+    if (!video) return;
+    if (video.paused || video.ended) {
+      video.play().catch(() => {});
+    } else {
+      video.pause();
     }
   }
 
@@ -2840,11 +3025,78 @@
            color: rgba(255, 255, 255, 0.75) !important;
            white-space: nowrap !important;
          }
-         .remapad-cnav-item--hint {
-           color: rgba(255, 255, 255, 0.35) !important;
-           font-weight: 500 !important;
-         }
-     `;
+      .remapad-cnav-item--hint {
+        color: rgba(255, 255, 255, 0.35) !important;
+        font-weight: 500 !important;
+      }
+      .remapad-autoplay-warning {
+        position: fixed !important;
+        top: 20px !important;
+        left: 50% !important;
+        transform: translateX(-50%) translateY(-120%) !important;
+        z-index: 2147483647 !important;
+        max-width: calc(100vw - 48px) !important;
+        width: 520px !important;
+        box-sizing: border-box !important;
+        transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
+      .remapad-autoplay-warning.visible {
+        transform: translateX(-50%) translateY(0) !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+      }
+      .remapad-autoplay-warning__inner {
+        background: rgba(16, 16, 16, 0.95) !important;
+        backdrop-filter: blur(20px) !important;
+        -webkit-backdrop-filter: blur(20px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        border-left: 4px solid #e50914 !important;
+        border-radius: 12px !important;
+        padding: 16px 18px !important;
+        display: flex !important;
+        align-items: flex-start !important;
+        gap: 14px !important;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7) !important;
+        font-family: 'Geist', 'Inter', -apple-system, sans-serif !important;
+        color: #fff !important;
+      }
+      .remapad-autoplay-warning__icon {
+        width: 22px !important;
+        height: 22px !important;
+        color: #e50914 !important;
+        flex-shrink: 0 !important;
+        margin-top: 1px !important;
+      }
+      .remapad-autoplay-warning__text {
+        font-size: 13px !important;
+        line-height: 1.55 !important;
+        color: rgba(255, 255, 255, 0.92) !important;
+        flex: 1 !important;
+      }
+      .remapad-autoplay-warning__text strong {
+        color: #fff !important;
+        font-weight: 700 !important;
+        display: block !important;
+        margin-bottom: 4px !important;
+      }
+      .remapad-autoplay-warning__close {
+        background: transparent !important;
+        border: 0 !important;
+        color: rgba(255, 255, 255, 0.5) !important;
+        font-size: 20px !important;
+        font-weight: 300 !important;
+        line-height: 1 !important;
+        padding: 0 0 0 8px !important;
+        cursor: pointer !important;
+        flex-shrink: 0 !important;
+        transition: color 0.2s !important;
+      }
+      .remapad-autoplay-warning__close:hover {
+        color: #fff !important;
+      }
+    `;
     document.head.appendChild(hudStyleElement);
   }
 
