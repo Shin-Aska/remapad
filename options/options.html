@@ -52,6 +52,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;flex-shrink:0"><path d="M5.5 21a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11Z"/><path d="M18.5 21a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11Z"/><path d="M5.5 10V3"/><path d="M18.5 10V3"/><path d="M12 3v18"/></svg>
         Navigation
       </button>
+      <button class="tab-btn" id="tab-btn-collection" role="tab" aria-selected="false" aria-controls="tab-panel-collection">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;flex-shrink:0"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Collection Nav
+      </button>
     </div>
 
     <!-- ── Tab Panel: Controller ────────────────────────────────────────────── -->
@@ -429,6 +433,28 @@
               </div>
             </section>
 
+            <section class="card nav-general-card">
+              <div class="card-title" style="margin-bottom:12px">General</div>
+
+              <div class="nav-control">
+                <label class="nav-field-label" for="nav-enabled">Enable spatial navigation</label>
+                <label class="switch">
+                  <input type="checkbox" id="nav-enabled">
+                  <span class="switch-track"></span>
+                </label>
+              </div>
+
+              <div class="nav-control" style="margin-top:14px">
+                <label class="nav-field-label" for="nav-strategy">Default strategy</label>
+                <select id="nav-strategy" class="nav-select">
+                  <option value="auto">Auto (collection if configured)</option>
+                  <option value="spatial">Spatial DOM</option>
+                  <option value="collection">Collection Grid</option>
+                  <option value="dom-order">DOM Order</option>
+                </select>
+                <p class="nav-hint">Determines what happens when a navigation stick moves.</p>
+              </div>
+            </section>
           </aside>
 
           <main class="nav-editor" id="nav-editor-panel">
@@ -447,6 +473,7 @@
                     <label class="nav-field-label" for="nav-right-mode">Mode</label>
                     <select id="nav-right-mode" class="nav-select">
                       <option value="cursor">Virtual Cursor</option>
+                      <option value="navigate">Spatial Navigate</option>
                       <option value="scroll">Scroll</option>
                       <option value="disabled">Disabled</option>
                     </select>
@@ -466,6 +493,30 @@
                   <div class="nav-control">
                     <label class="nav-field-label" for="nav-right-cursor-color">Cursor color</label>
                     <input type="color" id="nav-right-cursor-color" class="nav-color-input" value="#e50914">
+                  </div>
+                </div>
+
+                <!-- Mode Spatial Navigate fields -->
+                <div class="nav-control-row nav-mode-group-right" data-mode="navigate">
+                  <div class="nav-control">
+                    <label class="nav-field-label" for="nav-right-direction-mode">Direction mode</label>
+                    <select id="nav-right-direction-mode" class="nav-select">
+                      <option value="dominant-axis">Dominant axis</option>
+                      <option value="8-way">8-way</option>
+                    </select>
+                  </div>
+                  <div class="nav-control">
+                    <label class="nav-field-label" for="nav-right-repeat-delay">Repeat delay: <span id="nav-right-repeat-delay-val">150</span>ms</label>
+                    <input type="range" id="nav-right-repeat-delay" class="nav-slider" min="50" max="500" step="10" value="150">
+                  </div>
+                </div>
+                <div class="nav-control-row nav-mode-group-right" data-mode="navigate">
+                  <div class="nav-control">
+                    <label class="switch-inline">
+                      <input type="checkbox" id="nav-right-accel">
+                      <span class="switch-track"></span>
+                      <span class="switch-label">Accelerate repeats on sustained hold</span>
+                    </label>
                   </div>
                 </div>
 
@@ -492,6 +543,7 @@
                     <select id="nav-left-mode" class="nav-select">
                       <option value="scroll">Scroll</option>
                       <option value="cursor">Virtual Cursor</option>
+                      <option value="navigate">Spatial Navigate</option>
                       <option value="disabled">Disabled</option>
                     </select>
                   </div>
@@ -520,6 +572,139 @@
                     <input type="color" id="nav-left-cursor-color" class="nav-color-input" value="#00a8e1">
                   </div>
                 </div>
+
+                <!-- Mode Spatial Navigate fields -->
+                <div class="nav-control-row nav-mode-group-left" data-mode="navigate">
+                  <div class="nav-control">
+                    <label class="nav-field-label" for="nav-left-direction-mode">Direction mode</label>
+                    <select id="nav-left-direction-mode" class="nav-select">
+                      <option value="dominant-axis">Dominant axis</option>
+                      <option value="8-way">8-way</option>
+                    </select>
+                  </div>
+                  <div class="nav-control">
+                    <label class="nav-field-label" for="nav-left-repeat-delay">Repeat delay: <span id="nav-left-repeat-delay-val">150</span>ms</label>
+                    <input type="range" id="nav-left-repeat-delay" class="nav-slider" min="50" max="500" step="10" value="150">
+                  </div>
+                </div>
+              </section>
+
+              <section class="card nav-section-card nav-direction-card">
+                <div class="nav-section-header">
+                  <div class="nav-section-title">Direction Map</div>
+                </div>
+                <p class="nav-hint" style="margin-bottom:14px">Each direction shows which stick is assigned and what action fires. Edit inline via the selects.</p>
+                <div class="nav-direction-grid">
+                  <div class="nav-direction-tile" data-direction="up">
+                    <div class="nav-direction-icon">↑</div>
+                    <div class="nav-direction-meta">
+                      <span class="nav-direction-name">Up</span>
+                      <span class="nav-direction-assigned" id="nav-direction-assigned-up">Right stick</span>
+                      <span class="nav-direction-action" id="nav-direction-action-up">Navigate Up</span>
+                    </div>
+                    <div class="nav-direction-edit">
+                      <select id="nav-axis-up-stick" class="nav-select nav-select-sm">
+                        <option value="left">Left</option>
+                        <option value="right" selected>Right</option>
+                      </select>
+                      <select id="nav-axis-up-action" class="nav-select nav-select-sm">
+                        <option value="nav_up">Navigate Up</option>
+                        <option value="scroll_up">Scroll Up</option>
+                        <option value="none">None</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="nav-direction-tile" data-direction="down">
+                    <div class="nav-direction-icon">↓</div>
+                    <div class="nav-direction-meta">
+                      <span class="nav-direction-name">Down</span>
+                      <span class="nav-direction-assigned" id="nav-direction-assigned-down">Right stick</span>
+                      <span class="nav-direction-action" id="nav-direction-action-down">Navigate Down</span>
+                    </div>
+                    <div class="nav-direction-edit">
+                      <select id="nav-axis-down-stick" class="nav-select nav-select-sm">
+                        <option value="left">Left</option>
+                        <option value="right" selected>Right</option>
+                      </select>
+                      <select id="nav-axis-down-action" class="nav-select nav-select-sm">
+                        <option value="nav_down">Navigate Down</option>
+                        <option value="scroll_down">Scroll Down</option>
+                        <option value="none">None</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="nav-direction-tile" data-direction="left">
+                    <div class="nav-direction-icon">←</div>
+                    <div class="nav-direction-meta">
+                      <span class="nav-direction-name">Left</span>
+                      <span class="nav-direction-assigned" id="nav-direction-assigned-left">Right stick</span>
+                      <span class="nav-direction-action" id="nav-direction-action-left">Navigate Left</span>
+                    </div>
+                    <div class="nav-direction-edit">
+                      <select id="nav-axis-left-stick" class="nav-select nav-select-sm">
+                        <option value="left">Left</option>
+                        <option value="right" selected>Right</option>
+                      </select>
+                      <select id="nav-axis-left-action" class="nav-select nav-select-sm">
+                        <option value="nav_left">Navigate Left</option>
+                        <option value="scroll_left">Scroll Left</option>
+                        <option value="none">None</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="nav-direction-tile" data-direction="right">
+                    <div class="nav-direction-icon">→</div>
+                    <div class="nav-direction-meta">
+                      <span class="nav-direction-name">Right</span>
+                      <span class="nav-direction-assigned" id="nav-direction-assigned-right">Right stick</span>
+                      <span class="nav-direction-action" id="nav-direction-action-right">Navigate Right</span>
+                    </div>
+                    <div class="nav-direction-edit">
+                      <select id="nav-axis-right-stick" class="nav-select nav-select-sm">
+                        <option value="left">Left</option>
+                        <option value="right" selected>Right</option>
+                      </select>
+                      <select id="nav-axis-right-action" class="nav-select nav-select-sm">
+                        <option value="nav_right">Navigate Right</option>
+                        <option value="scroll_right">Scroll Right</option>
+                        <option value="none">None</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="card nav-section-card nav-collection-card">
+                <div class="nav-section-header">
+                  <div class="nav-section-title">Collection Grid</div>
+                </div>
+                <div class="nav-control-row">
+                  <label class="switch-inline">
+                    <input type="checkbox" id="nav-wrap-rows">
+                    <span class="switch-track"></span>
+                    <span class="switch-label">Wrap rows</span>
+                  </label>
+                  <label class="switch-inline">
+                    <input type="checkbox" id="nav-wrap-items">
+                    <span class="switch-track"></span>
+                    <span class="switch-label">Wrap items within a row</span>
+                  </label>
+                </div>
+                <div class="nav-control-row">
+                  <div class="nav-control">
+                    <label class="nav-field-label" for="nav-lateral-penalty">Lateral penalty: <span id="nav-lateral-penalty-val">3</span></label>
+                    <input type="range" id="nav-lateral-penalty" class="nav-slider" min="0" max="10" step="0.5" value="3">
+                    <p class="nav-hint">Higher values keep horizontal alignment when moving between rows.</p>
+                  </div>
+                  <div class="nav-control">
+                    <label class="nav-field-label" for="nav-row-overlap">Row overlap threshold: <span id="nav-row-overlap-val">0.5</span></label>
+                    <input type="range" id="nav-row-overlap" class="nav-slider" min="0" max="1" step="0.05" value="0.5">
+                    <p class="nav-hint">Minimum vertical overlap to consider items aligned.</p>
+                  </div>
+                </div>
               </section>
 
             </div>
@@ -531,7 +716,59 @@
           </main>
         </div>
       </div>
-    </div><!-- tab-panel-navigation -->
+    </div>
+
+    <!-- ── Tab Panel: Collection Nav ────────────────────────────────────────── -->
+    <div class="tab-panel" id="tab-panel-collection" role="tabpanel" aria-labelledby="tab-btn-collection" hidden>
+      <div class="cnav-panel">
+
+        <!-- Intro banner -->
+        <div class="cnav-intro card">
+          <div style="display:flex;align-items:flex-start;gap:16px">
+            <div style="flex-shrink:0;width:40px;height:40px;background:rgba(229,9,20,0.12);border:1px solid rgba(229,9,20,0.25);border-radius:10px;display:flex;align-items:center;justify-content:center">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            </div>
+            <div>
+              <div style="font-family:var(--font-headline);font-size:16px;font-weight:700;color:var(--on-surface);margin-bottom:4px">Collection Navigation</div>
+              <p style="font-size:13px;color:var(--on-surface-variant);font-family:var(--font-body);margin:0;line-height:1.6">
+                Map the <strong style="color:var(--on-surface)">⬇ Next Row</strong>, <strong style="color:var(--on-surface)">⬆ Prev Row</strong>, <strong style="color:var(--on-surface)">➡ Next Item</strong>, and <strong style="color:var(--on-surface)">⬅ Prev Item</strong> actions to gamepad buttons in the <em>Controller</em> tab. Then define CSS selectors here so Remapad knows which elements are rows and which are cards on each site. A floating overlay will appear on the page as you navigate.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Two-column config layout -->
+        <div class="cnav-body">
+
+          <!-- Left: site list -->
+          <aside class="cnav-sidebar card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+              <div class="card-title" style="margin-bottom:0">Sites</div>
+              <button id="cnav-save-all-btn" class="btn-secondary" style="font-size:12px;padding:5px 14px">Save All</button>
+            </div>
+            <div id="cnav-sites-list" class="cnav-sites-list">
+              <!-- Filled by JS -->
+            </div>
+            <!-- Add site -->
+            <div style="display:flex;gap:6px;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06)">
+              <input type="text" id="collection-new-site-input" placeholder="e.g. disneyplus.com"
+                style="flex:1;background:var(--surface-container);color:var(--on-surface);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:6px 10px;font-size:12px;outline:none;font-family:var(--font-body)">
+              <button class="btn-ghost" id="collection-add-site-btn" style="padding:6px 12px;font-size:12px;font-weight:600">+ Add</button>
+            </div>
+          </aside>
+
+          <!-- Right: editor -->
+          <main class="cnav-editor card" id="cnav-editor-panel">
+            <!-- Filled by JS renderCollectionConfig() -->
+            <div class="cnav-empty-state">
+              <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:48px;height:48px"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+              <p>Select a site from the list or add one to get started.</p>
+            </div>
+          </main>
+
+        </div>
+      </div>
+    </div><!-- tab-panel-collection -->
 
   </div><!-- options-content -->
 </main>

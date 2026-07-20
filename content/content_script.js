@@ -22,21 +22,36 @@
 
   const DEFAULT_NAV_SETTINGS = {
     enabled: true,
+    strategy: 'auto', // 'auto' | 'spatial' | 'collection' | 'dom-order'
     rightStick: {
       enabled: true,
-      mode: 'cursor', // 'cursor' | 'scroll' | 'disabled'
+      mode: 'cursor', // 'cursor' | 'navigate' | 'scroll' | 'disabled'
       deadzone: 0.3,
+      repeatDelayMs: 150,
+      repeatAcceleration: true,
+      directionMode: 'dominant-axis', // 'dominant-axis' | '8-way'
       cursorSpeed: 360,
-      cursorColor: '#e50914',
-      scrollAmountPx: 150
+      cursorColor: '#e50914'
     },
     leftStick: {
       enabled: true,
-      mode: 'scroll', // 'scroll' | 'cursor' | 'disabled'
+      mode: 'scroll', // 'scroll' | 'navigate' | 'cursor' | 'disabled'
       deadzone: 0.3,
       scrollAmountPx: 150,
       cursorSpeed: 360,
       cursorColor: '#00a8e1'
+    },
+    axisMap: {
+      up:    { stick: 'right', direction: 'up',    action: 'nav_up' },
+      down:  { stick: 'right', direction: 'down',  action: 'nav_down' },
+      left:  { stick: 'right', direction: 'left',  action: 'nav_left' },
+      right: { stick: 'right', direction: 'right', action: 'nav_right' }
+    },
+    collectionGrid: {
+      wrapRows: false,
+      wrapItems: false,
+      lateralPenalty: 3,
+      rowOverlapThreshold: 0.5
     }
   };
 
@@ -98,7 +113,15 @@
     focus_next: "Focus Next",
     focus_prev: "Focus Previous",
     toggle_hud: "Toggle Navigation Guide",
-    dom_action: "DOM Action"
+    dom_action: "DOM Action",
+    nav_next_collection: "Next Row",
+    nav_prev_collection: "Prev Row",
+    nav_next_item: "Next Item",
+    nav_prev_item: "Prev Item",
+    nav_up: "Navigate Up",
+    nav_down: "Navigate Down",
+    nav_left: "Navigate Left",
+    nav_right: "Navigate Right"
   };
 
   const DOM_ACTION_OPERATIONS = new Set([
@@ -134,12 +157,20 @@
 
   const FULLSCREEN_CONTROL_SELECTOR = [
     '[data-uia*="fullscreen" i]',
+    '[data-uia*="control-fullscreen" i]',
     '[data-testid*="fullscreen" i]',
-    '.fullscreen-button',
+    '[data-testid*="full-screen" i]',
+    '[data-a-target*="fullscreen" i]',
     '.ytp-fullscreen-button',
+    '.fullscreen-button',
+    '.button-fullscreen',
     'button.fullscreen',
     '[aria-label*="fullscreen" i]',
-    '[title*="fullscreen" i]'
+    '[aria-label*="full screen" i]',
+    '[title*="fullscreen" i]',
+    '[title*="full screen" i]',
+    '.vjs-fullscreen-control',
+    '.jw-icon-fullscreen'
   ].join(', ');
 
   // ─── State ──────────────────────────────────────────────────────────────────
@@ -388,11 +419,22 @@
     if (!stored || typeof stored !== 'object') return merged;
 
     if (stored.enabled !== undefined) merged.enabled = stored.enabled;
+    if (stored.strategy) merged.strategy = stored.strategy;
     if (stored.rightStick && typeof stored.rightStick === 'object') {
       merged.rightStick = { ...merged.rightStick, ...stored.rightStick };
     }
     if (stored.leftStick && typeof stored.leftStick === 'object') {
       merged.leftStick = { ...merged.leftStick, ...stored.leftStick };
+    }
+    if (stored.axisMap && typeof stored.axisMap === 'object') {
+      for (const dir of ['up', 'down', 'left', 'right']) {
+        if (stored.axisMap[dir] && typeof stored.axisMap[dir] === 'object') {
+          merged.axisMap[dir] = { ...merged.axisMap[dir], ...stored.axisMap[dir] };
+        }
+      }
+    }
+    if (stored.collectionGrid && typeof stored.collectionGrid === 'object') {
+      merged.collectionGrid = { ...merged.collectionGrid, ...stored.collectionGrid };
     }
     return merged;
   }
@@ -403,7 +445,7 @@
     if (!stickConfig?.enabled) return;
 
     const mode = stickConfig.mode;
-    if (mode === 'disabled' || mode === 'cursor') return;
+    if (mode === 'disabled') return;
 
     const deadzone = stickConfig.deadzone ?? DEADZONE;
     x = x || 0;
@@ -414,9 +456,14 @@
         clearTimeout(axisTimers[timerKey]);
         delete axisTimers[timerKey];
       }
+      if (axisLastDirections[stickId] !== null) {
+        axisLastDirections[stickId] = null;
+        axisRepeatCounts[stickId] = 0;
+      }
       return;
     }
 
+    // HUD mode: keep legacy D-pad/left-stick navigation behaviour while visible
     if (hudVisible && stickId === 'left') {
       const timerKey = `axis_${stickId}`;
       if (!axisTimers[timerKey]) {
@@ -426,22 +473,57 @@
       return;
     }
 
-    const direction = resolveStickDirection(x, y);
-    const action = `scroll_${direction}`;
+    const direction = resolveStickDirection(x, y, stickConfig.directionMode);
+    let action = nav.axisMap?.[direction]?.action;
+    const axisBelongsToStick = nav.axisMap?.[direction]?.stick === stickId;
+
+    if (!axisBelongsToStick || !action || action === 'none') {
+      action = getDefaultStickAction(direction, mode);
+      if (!action || action === 'none') return;
+    }
 
     const timerKey = `axis_${stickId}`;
     if (axisTimers[timerKey]) return;
 
-    if (mode === 'scroll') {
-      executeScrollAction(action, stickConfig.scrollAmountPx ?? 150);
+    if (mode === 'navigate' || (mode === 'scroll' && action.startsWith('nav_'))) {
+      executeAction(action);
+    } else if (mode === 'scroll') {
+      executeScrollAction(action, nav.leftStick.scrollAmountPx ?? 150);
+    }
+
+    axisLastDirections[stickId] = direction;
+    axisRepeatCounts[stickId] += 1;
+
+    const baseDelay = stickConfig.repeatDelayMs ?? AXIS_REPEAT_DELAY_MS;
+    const accel = stickConfig.repeatAcceleration;
+    const repeats = axisRepeatCounts[stickId];
+    let delay = baseDelay;
+    if (accel && repeats > 0) {
+      delay = Math.max(80, baseDelay - Math.min(repeats, 5) * ((baseDelay - 80) / 5));
     }
 
     axisTimers[timerKey] = setTimeout(() => {
       delete axisTimers[timerKey];
-    }, AXIS_REPEAT_DELAY_MS);
+    }, delay);
   }
 
-  function resolveStickDirection(x, y) {
+  function getDefaultStickAction(direction, mode) {
+    if (mode === 'scroll') {
+      return `scroll_${direction}`;
+    }
+    if (mode === 'navigate') {
+      return `nav_${direction}`;
+    }
+    return 'none';
+  }
+
+  function resolveStickDirection(x, y, directionMode) {
+    if (directionMode === '8-way') {
+      const angle = Math.atan2(-y, x);
+      const octant = Math.round((angle + Math.PI) / (Math.PI / 4)) % 8;
+      return ['left', 'up-left', 'up', 'up-right', 'right', 'down-right', 'down', 'down-left'][octant];
+    }
+    // dominant-axis (default)
     if (Math.abs(y) >= Math.abs(x)) {
       return y < 0 ? 'up' : 'down';
     }
@@ -466,6 +548,18 @@
       case 'scroll_right':
         scrollBy(getScrollableElement(), 0, scrollAmountPx);
         dispatchKeyEvent(document.activeElement || document.body, 'ArrowRight', 'ArrowRight');
+        break;
+      case 'nav_up':
+        scrollBy(getScrollableElement(), -scrollAmountPx, 0);
+        break;
+      case 'nav_down':
+        scrollBy(getScrollableElement(), scrollAmountPx, 0);
+        break;
+      case 'nav_left':
+        scrollBy(getScrollableElement(), 0, -scrollAmountPx);
+        break;
+      case 'nav_right':
+        scrollBy(getScrollableElement(), 0, scrollAmountPx);
         break;
     }
   }
@@ -589,6 +683,21 @@
 
     if (action === 'toggle_hud') {
       toggleHUD();
+      return;
+    }
+
+    // Collection navigation actions
+    if (action === 'nav_next_collection' || action === 'nav_prev_collection' ||
+        action === 'nav_next_item' || action === 'nav_prev_item') {
+      executeCollectionNav(action);
+      return;
+    }
+
+    // Spatial navigation directions
+    if (action === 'nav_up' || action === 'nav_down' ||
+        action === 'nav_left' || action === 'nav_right') {
+      const direction = action.substring('nav_'.length);
+      executeSpatialNav(direction);
       return;
     }
 
@@ -754,7 +863,567 @@
     }
   }
 
+  // ─── Collection Navigation ───────────────────────────────────────────────────
 
+  function getCollectionConfig() {
+    return settings.siteCollections?.[currentHostname] || null;
+  }
+
+  function getCollectionContainers() {
+    const config = getCollectionConfig();
+    if (!config?.containerSelector) return [];
+    try {
+      return Array.from(document.querySelectorAll(config.containerSelector)).filter(
+        el => !el.closest('.remapad-hud-container, .remapad-quick-map') && isVisibleElement(el)
+      );
+    } catch (e) {
+      console.warn('[Remapad CS] Invalid containerSelector:', config.containerSelector, e);
+      return [];
+    }
+  }
+
+  function getCollectionItems(containerEl) {
+    const config = getCollectionConfig();
+    if (!config?.itemSelector || !containerEl) return [];
+    try {
+      return Array.from(containerEl.querySelectorAll(config.itemSelector)).filter(
+        el => isVisibleElement(el)
+      );
+    } catch (e) {
+      console.warn('[Remapad CS] Invalid itemSelector:', config.itemSelector, e);
+      return [];
+    }
+  }
+
+  function setActiveCollectionEl(el) {
+    if (activeCollectionEl === el) return;
+    activeCollectionEl?.classList.remove('remapad-active-collection');
+    activeCollectionEl = el;
+    activeCollectionEl?.classList.add('remapad-active-collection');
+  }
+
+  function executeCollectionNav(action) {
+    const nav = settings.navSettings;
+    const config = getCollectionConfig();
+    const useCollection = nav.strategy === 'collection' || (nav.strategy === 'auto' && config);
+
+    if (!useCollection) {
+      // Fall back to DOM-order for the old row/item actions
+      if (action === 'nav_next_collection' || action === 'nav_next_item') {
+        moveFocus(1);
+      } else {
+        moveFocus(-1);
+      }
+      return;
+    }
+
+    if (!config) {
+      console.warn('[Remapad CS] No collection config for:', currentHostname);
+      return;
+    }
+
+    if (action === 'nav_next_collection' || action === 'nav_prev_collection') {
+      const containers = getCollectionContainers();
+      if (!containers.length) return;
+
+      const direction = action === 'nav_next_collection' ? 1 : -1;
+
+      if (activeCollectionIndex === -1) {
+        activeCollectionIndex = findClosestCollectionIndex(containers);
+      } else {
+        activeCollectionIndex = clampIndex(activeCollectionIndex + direction, 0, containers.length - 1);
+      }
+
+      activeItemIndex = -1;
+
+      const activeContainer = containers[activeCollectionIndex];
+      setActiveCollectionEl(activeContainer);
+      activeContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+
+      showCNavHUD(
+        activeCollectionIndex,
+        containers.length,
+        -1,
+        getCollectionItems(activeContainer).length,
+        getCollectionLabel(activeContainer)
+      );
+      return;
+    }
+
+    if (action === 'nav_next_item' || action === 'nav_prev_item') {
+      if (activeCollectionIndex === -1 || !isActiveCollectionValid()) {
+        executeCollectionNav('nav_next_collection');
+        if (activeCollectionIndex === -1) return;
+      }
+
+      const containers = getCollectionContainers();
+      const container = containers[activeCollectionIndex];
+      if (!container) return;
+
+      const items = getCollectionItems(container);
+      if (!items.length) return;
+
+      const direction = action === 'nav_next_item' ? 1 : -1;
+
+      if (activeItemIndex === -1) {
+        activeItemIndex = direction > 0 ? 0 : items.length - 1;
+      } else {
+        activeItemIndex = clampIndex(activeItemIndex + direction, 0, items.length - 1);
+      }
+
+      activateCollectionItem(container, items, activeItemIndex);
+      return;
+    }
+  }
+
+  function executeSpatialNav(direction) {
+    const nav = settings.navSettings;
+    const config = getCollectionConfig();
+    const useCollection = nav.strategy === 'collection' ||
+      (nav.strategy === 'auto' && config) ||
+      (nav.strategy === 'collection' && config);
+
+    if (useCollection && config) {
+      executeCollectionSpatialNav(direction);
+    } else if (nav.strategy === 'dom-order') {
+      moveFocus(direction === 'down' || direction === 'right' ? 1 : -1);
+    } else {
+      executeDomSpatialNav(direction);
+    }
+  }
+
+  function executeCollectionSpatialNav(direction) {
+    const nav = settings.navSettings;
+    const config = getCollectionConfig();
+    if (!config) return;
+
+    let containers = getCollectionContainers();
+    if (!containers.length) return;
+
+    if (activeCollectionIndex === -1 || !isActiveCollectionValid()) {
+      activeCollectionIndex = findClosestCollectionIndex(containers);
+      activeItemIndex = -1;
+    }
+
+    const container = containers[activeCollectionIndex];
+    const items = container ? getCollectionItems(container) : [];
+
+    if (activeItemIndex === -1 || !items[activeItemIndex]) {
+      if (!items.length) return;
+      activeItemIndex = pickInitialItemIndex(items, direction);
+      activateCollectionItem(container, items, activeItemIndex, false);
+      return;
+    }
+
+    const currentItem = items[activeItemIndex];
+    const currentRect = currentItem.getBoundingClientRect();
+
+    if (direction === 'left' || direction === 'right') {
+      const nextIndex = computeNextItemIndex(items, activeItemIndex, direction, nav.collectionGrid.wrapItems);
+      if (nextIndex !== activeItemIndex) {
+        activeItemIndex = nextIndex;
+        activateCollectionItem(container, items, activeItemIndex);
+      }
+      return;
+    }
+
+    if (direction === 'up' || direction === 'down') {
+      const rowDelta = direction === 'down' ? 1 : -1;
+      let targetIndex = activeCollectionIndex + rowDelta;
+      if (nav.collectionGrid.wrapRows) {
+        targetIndex = (targetIndex + containers.length) % containers.length;
+      }
+      if (targetIndex < 0 || targetIndex >= containers.length) return;
+
+      const targetContainer = containers[targetIndex];
+      const targetItems = getCollectionItems(targetContainer);
+      if (!targetItems.length) return;
+
+      const inlineX = preferredInlineX ?? (currentRect.left + currentRect.width / 2);
+      const nextItemIndex = findNearestItemInRow(targetItems, currentRect, inlineX);
+      activeCollectionIndex = targetIndex;
+      activeItemIndex = nextItemIndex;
+      setActiveCollectionEl(targetContainer);
+      activateCollectionItem(targetContainer, targetItems, activeItemIndex);
+    }
+  }
+
+  function pickInitialItemIndex(items, direction) {
+    if (direction === 'left' || direction === 'up') {
+      return items.length - 1;
+    }
+    if (direction === 'right' || direction === 'down') {
+      return 0;
+    }
+    return 0;
+  }
+
+  function executeDomSpatialNav(direction) {
+    const source = controllerFocusedElement || document.activeElement || document.body;
+    const sourceIsBody = source === document.body || source === document.documentElement;
+    const sourceRect = source.getBoundingClientRect();
+    const candidates = getSpatialCandidates(source);
+    if (!candidates.length) return;
+
+    let best;
+    if (sourceIsBody) {
+      best = pickInitialCandidate(sourceRect, candidates, direction);
+    } else {
+      best = pickBestCandidate(sourceRect, candidates, direction, null);
+    }
+    if (!best) return;
+
+    const focusTarget = best.matches('a,button,[tabindex]')
+      ? best
+      : best.querySelector('a,button,[tabindex]:not([tabindex="-1"])');
+    if (focusTarget) {
+      focusElement(focusTarget);
+    } else {
+      controllerFocusedElement?.classList.remove('remapad-controller-focus');
+      dispatchHoverEvents(controllerFocusedElement, false);
+      dispatchHoverEvents(best, true);
+      best.classList.add('remapad-controller-focus');
+      best.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+      controllerFocusedElement = best;
+    }
+  }
+
+  function pickInitialCandidate(sourceRect, candidates, direction) {
+    const viewportMidX = window.innerWidth / 2;
+    const viewportMidY = window.innerHeight / 2;
+    let best = null;
+    let bestScore = Infinity;
+
+    candidates.forEach(candidate => {
+      const rect = candidate.getBoundingClientRect();
+      const center = rectCenter(rect);
+      const dx = center.x - viewportMidX;
+      const dy = center.y - viewportMidY;
+
+      const inRequestedHalf =
+        (direction === 'up' && dy < 0) ||
+        (direction === 'down' && dy > 0) ||
+        (direction === 'left' && dx < 0) ||
+        (direction === 'right' && dx > 0);
+
+      let score = Math.hypot(dx, dy);
+      if (inRequestedHalf) score -= 200;
+
+      if (score < bestScore) {
+        bestScore = score;
+        best = candidate;
+      }
+    });
+
+    return best;
+  }
+
+  function getSpatialCandidates(scopeSource) {
+    const focusables = getFocusableElements();
+    const mediaCards = Array.from(document.querySelectorAll(
+      '[data-testid="card"], [data-testid*="title" i], .title-card, .title-card-container'
+    )).filter(el => isVisibleElement(el) && !el.closest('.remapad-hud-container, .remapad-quick-map'));
+
+    const modal = getOpenModals()[0];
+    let all = [...focusables, ...mediaCards];
+    if (modal) {
+      all = all.filter(el => modal.contains(el) || el === modal);
+    }
+
+    const seen = new Set();
+    const candidates = [];
+    for (const el of all) {
+      if (seen.has(el) || el === scopeSource) continue;
+      seen.add(el);
+      candidates.push(el);
+    }
+    return candidates;
+  }
+
+  function pickBestCandidate(sourceRect, candidates, direction, preferredInline) {
+    const nav = settings.navSettings;
+    const penalty = nav.collectionGrid.lateralPenalty ?? 3;
+    const orthogonalWeight = 2;
+    let best = null;
+    let bestScore = Infinity;
+
+    candidates.forEach(candidate => {
+      const rect = candidate.getBoundingClientRect();
+      if (!isDirectionalMove(direction, sourceRect, rect)) return;
+
+      const inBeam = isInBeam(direction, sourceRect, rect);
+      const primaryGap = primaryEdgeDistance(direction, sourceRect, rect);
+      const orthogonalGap = orthogonalEdgeDistance(direction, sourceRect, rect);
+      const anchorOffset = preferredInline !== null && preferredInline !== undefined
+        ? anchorDistance(direction, rect, preferredInline)
+        : 0;
+      const centerDist = centerDistance(sourceRect, rect);
+
+      let score;
+      if (inBeam) {
+        score = primaryGap * 1000 + anchorOffset * 100 + centerDist;
+      } else {
+        score = (primaryGap + orthogonalWeight * orthogonalGap) * 1000 + centerDist;
+      }
+      score += penalty * orthogonalGap;
+
+      if (score < bestScore) {
+        bestScore = score;
+        best = candidate;
+      }
+    });
+
+    return best;
+  }
+
+  function isDirectionalMove(direction, sourceRect, targetRect) {
+    switch (direction) {
+      case 'up':    return targetRect.bottom < sourceRect.top;
+      case 'down':  return targetRect.top > sourceRect.bottom;
+      case 'left':  return targetRect.right < sourceRect.left;
+      case 'right': return targetRect.left > sourceRect.right;
+      default:      return false;
+    }
+  }
+
+  function isInBeam(direction, sourceRect, targetRect) {
+    if (direction === 'up' || direction === 'down') {
+      return targetRect.right > sourceRect.left && targetRect.left < sourceRect.right;
+    }
+    return targetRect.bottom > sourceRect.top && targetRect.top < sourceRect.bottom;
+  }
+
+  function primaryEdgeDistance(direction, sourceRect, targetRect) {
+    switch (direction) {
+      case 'up':    return sourceRect.top - targetRect.bottom;
+      case 'down':  return targetRect.top - sourceRect.bottom;
+      case 'left':  return sourceRect.left - targetRect.right;
+      case 'right': return targetRect.left - sourceRect.right;
+      default:      return Infinity;
+    }
+  }
+
+  function orthogonalEdgeDistance(direction, sourceRect, targetRect) {
+    if (direction === 'up' || direction === 'down') {
+      const overlap = Math.max(0, Math.min(sourceRect.right, targetRect.right) - Math.max(sourceRect.left, targetRect.left));
+      const span = Math.max(sourceRect.width, targetRect.width);
+      return span - overlap;
+    }
+    const overlap = Math.max(0, Math.min(sourceRect.bottom, targetRect.bottom) - Math.max(sourceRect.top, targetRect.top));
+    const span = Math.max(sourceRect.height, targetRect.height);
+    return span - overlap;
+  }
+
+  function anchorDistance(direction, targetRect, preferredInline) {
+    if (direction === 'up' || direction === 'down') {
+      const targetCenter = targetRect.left + targetRect.width / 2;
+      return Math.abs(targetCenter - preferredInline);
+    }
+    const targetCenter = targetRect.top + targetRect.height / 2;
+    return Math.abs(targetCenter - preferredInline);
+  }
+
+  function centerDistance(sourceRect, targetRect) {
+    const sx = sourceRect.left + sourceRect.width / 2;
+    const sy = sourceRect.top + sourceRect.height / 2;
+    const tx = targetRect.left + targetRect.width / 2;
+    const ty = targetRect.top + targetRect.height / 2;
+    return Math.hypot(tx - sx, ty - sy);
+  }
+
+  function rectCenter(rect) {
+    return {
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2
+    };
+  }
+
+  function clampIndex(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  function findClosestCollectionIndex(containers) {
+    const viewportMid = window.innerHeight / 2;
+    let closestIdx = 0;
+    let closestDist = Infinity;
+    containers.forEach((c, i) => {
+      const rect = c.getBoundingClientRect();
+      const dist = Math.abs(rect.top + rect.height / 2 - viewportMid);
+      if (dist < closestDist) { closestDist = dist; closestIdx = i; }
+    });
+    return closestIdx;
+  }
+
+  function isActiveCollectionValid() {
+    if (!activeCollectionEl) return false;
+    const containers = getCollectionContainers();
+    const idx = containers.indexOf(activeCollectionEl);
+    if (idx === -1) return false;
+    activeCollectionIndex = idx;
+    return true;
+  }
+
+  function computeNextItemIndex(items, currentIndex, direction, wrap) {
+    const next = direction === 'right' ? currentIndex + 1 : currentIndex - 1;
+    if (wrap) {
+      return (next + items.length) % items.length;
+    }
+    return clampIndex(next, 0, items.length - 1);
+  }
+
+  function findNearestItemInRow(targetItems, sourceRect, preferredInlineX) {
+    let bestIndex = 0;
+    let bestScore = Infinity;
+
+    targetItems.forEach((item, idx) => {
+      const rect = item.getBoundingClientRect();
+      const center = rectCenter(rect);
+      const score = Math.abs(center.x - preferredInlineX);
+      if (score < bestScore) {
+        bestScore = score;
+        bestIndex = idx;
+      }
+    });
+
+    return bestIndex;
+  }
+
+  function activateCollectionItem(container, items, index, showHud = true) {
+    const item = items[index];
+    if (!item) return;
+
+    const rect = item.getBoundingClientRect();
+    preferredInlineX = rect.left + rect.width / 2;
+
+    clearPrevCollectionHover(items);
+    item.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+
+    const focusTarget = item.matches('a,button,[tabindex]') ? item
+      : item.querySelector('a,button,[tabindex]:not([tabindex="-1"])');
+    if (focusTarget) {
+      focusElement(focusTarget);
+    } else {
+      dispatchHoverEvents(item, true);
+      item.classList.add('remapad-hover');
+    }
+
+    if (showHud) {
+      const allContainers = getCollectionContainers();
+      showCNavHUD(
+        activeCollectionIndex,
+        allContainers.length,
+        activeItemIndex,
+        items.length,
+        getCollectionLabel(container)
+      );
+    }
+  }
+
+  function clearPrevCollectionHover(items) {
+    items.forEach(item => {
+      item.classList.remove('remapad-hover');
+      dispatchHoverEvents(item, false);
+    });
+  }
+
+  function dispatchHoverEvents(el, enter) {
+    if (!el) return;
+    const eventType = enter ? 'mouseover' : 'mouseout';
+    const leaveType = enter ? 'mouseenter' : 'mouseleave';
+    const opts = { bubbles: true, cancelable: true, view: window };
+    el.dispatchEvent(new MouseEvent(eventType, opts));
+    el.dispatchEvent(new MouseEvent(leaveType, opts));
+  }
+
+  function resetCollectionNavState() {
+    const config = getCollectionConfig();
+    if (config && activeCollectionEl) {
+      const items = getCollectionItems(activeCollectionEl);
+      clearPrevCollectionHover(items);
+    }
+    setActiveCollectionEl(null);
+    activeCollectionIndex = -1;
+    activeItemIndex = -1;
+    preferredInlineX = null;
+    hideCNavHUD(true);
+  }
+
+  // ─── Collection Nav HUD ──────────────────────────────────────────────────────
+
+  function getCollectionLabel(containerEl) {
+    if (!containerEl) return '';
+    // Try common heading/label attributes within the container
+    const labelEl = containerEl.querySelector(
+      '[aria-label], h2, h3, h4, [data-title], .row-header, .lolomoRowHeader, .title'
+    );
+    const text = (labelEl?.getAttribute('aria-label') || labelEl?.textContent || '').trim();
+    return text.length > 40 ? text.slice(0, 40) + '…' : text;
+  }
+
+  function showCNavHUD(collectionIndex, collectionCount, itemIndex, itemCount, collectionLabel) {
+    injectHUDStyles();
+
+    if (!cnavHudElement) {
+      cnavHudElement = document.createElement('div');
+      cnavHudElement.className = 'remapad-cnav-hud';
+      cnavHudElement.setAttribute('role', 'status');
+      cnavHudElement.setAttribute('aria-live', 'polite');
+      document.body.appendChild(cnavHudElement);
+      // Trigger entrance animation on next frame
+      requestAnimationFrame(() => cnavHudElement?.classList.add('visible'));
+    }
+
+    // Build dot-progress for items
+    const MAX_DOTS = 12;
+    let dotsHtml = '';
+    if (itemCount > 0 && itemIndex >= 0) {
+      const dotCount = Math.min(itemCount, MAX_DOTS);
+      const dotActive = itemCount <= MAX_DOTS
+        ? itemIndex
+        : Math.round((itemIndex / (itemCount - 1)) * (MAX_DOTS - 1));
+      for (let i = 0; i < dotCount; i++) {
+        dotsHtml += `<span class="remapad-cnav-dot${i === dotActive ? ' active' : ''}"></span>`;
+      }
+    }
+
+    const rowLabel = collectionLabel ? `<span class="remapad-cnav-label">${escapeHtml(collectionLabel)}</span>` : '';
+    const rowPos = `<span class="remapad-cnav-pos">Row ${collectionIndex + 1} <span class="remapad-cnav-of">of</span> ${collectionCount}</span>`;
+    const itemPos = itemIndex >= 0 && itemCount > 0
+      ? `<span class="remapad-cnav-item">Item ${itemIndex + 1} <span class="remapad-cnav-of">of</span> ${itemCount}</span>`
+      : (itemCount > 0 ? `<span class="remapad-cnav-item remapad-cnav-item--hint">${itemCount} item${itemCount !== 1 ? 's' : ''}</span>` : '');
+
+    cnavHudElement.innerHTML = `
+      <div class="remapad-cnav-left">
+        <svg class="remapad-cnav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        ${rowPos}
+        ${rowLabel}
+      </div>
+      <div class="remapad-cnav-right">
+        ${dotsHtml ? `<div class="remapad-cnav-dots">${dotsHtml}</div>` : ''}
+        ${itemPos}
+      </div>
+    `;
+
+    // Auto-dismiss after 2.5s of no input
+    clearTimeout(cnavHudTimeout);
+    cnavHudTimeout = setTimeout(() => hideCNavHUD(), 2500);
+  }
+
+  function hideCNavHUD(immediate = false) {
+    clearTimeout(cnavHudTimeout);
+    cnavHudTimeout = null;
+    if (!cnavHudElement) return;
+    if (immediate) {
+      cnavHudElement.remove();
+      cnavHudElement = null;
+      return;
+    }
+    cnavHudElement.classList.remove('visible');
+    const el = cnavHudElement;
+    cnavHudElement = null;
+    // Remove from DOM after transition
+    setTimeout(() => el.remove(), 400);
+  }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -956,33 +1625,41 @@
   }
 
   async function toggleFullscreen() {
+    // 1. If currently in fullscreen, attempt exit via page control or browser API
     if (getFullscreenElement()) {
+      const fullscreenControl = getFullscreenControl();
+      if (fullscreenControl) {
+        fullscreenControl.click();
+        return;
+      }
       try {
         await exitDocumentFullscreen();
       } catch (error) {
-        console.warn('[Remapad CS] Unable to exit fullscreen:', error);
+        dispatchKeyEvent(document.activeElement || document.body, 'f', 'KeyF');
       }
       return;
     }
 
-    const video = getPrimaryVideo();
-    const target = getFullscreenTarget(video);
-    if (target) {
-      try {
-        await requestElementFullscreen(target);
-        return;
-      } catch (error) {
-        console.warn('[Remapad CS] Direct fullscreen request failed; trying the page control:', error);
-      }
-    }
-
+    // 2. Try clicking the page's native fullscreen button
     const fullscreenControl = getFullscreenControl();
     if (fullscreenControl) {
       fullscreenControl.click();
       return;
     }
 
-    console.warn('[Remapad CS] No fullscreen target or control found.');
+    // 3. Dispatch standard 'f' key shortcut used by YouTube, Netflix, Twitch, Prime Video, etc.
+    dispatchKeyEvent(document.activeElement || document.body, 'f', 'KeyF');
+
+    // 4. Fallback to direct Element.requestFullscreen()
+    const video = getPrimaryVideo();
+    const target = getFullscreenTarget(video);
+    if (target) {
+      try {
+        await requestElementFullscreen(target);
+      } catch (error) {
+        console.warn('[Remapad CS] Direct fullscreen request failed:', error);
+      }
+    }
   }
 
   function getFullscreenElement() {
@@ -2437,7 +3114,109 @@
           outline-offset: 3px !important;
           box-shadow: 0 0 12px rgba(0, 167, 223, 0.7) !important;
         }
-
+        .remapad-active-collection {
+          outline: 2px solid rgba(229, 9, 20, 0.7) !important;
+          outline-offset: 4px !important;
+          box-shadow: 0 0 0 4px rgba(229, 9, 20, 0.12), 0 0 20px rgba(229, 9, 20, 0.25) !important;
+          border-radius: 4px !important;
+          transition: outline 0.2s ease, box-shadow 0.2s ease !important;
+        }
+         .remapad-cnav-hud {
+           position: fixed !important;
+           top: 20px !important;
+           left: 50% !important;
+           transform: translateX(-50%) translateY(-110%) !important;
+           z-index: 2147483647 !important;
+           background: rgba(16, 16, 16, 0.92) !important;
+           backdrop-filter: blur(20px) !important;
+           -webkit-backdrop-filter: blur(20px) !important;
+           border: 1px solid rgba(255, 255, 255, 0.1) !important;
+           border-radius: 9999px !important;
+           padding: 10px 20px !important;
+           display: flex !important;
+           align-items: center !important;
+           justify-content: space-between !important;
+           gap: 20px !important;
+           min-width: 280px !important;
+           max-width: calc(100vw - 48px) !important;
+           box-sizing: border-box !important;
+           box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(229, 9, 20, 0.15) !important;
+           font-family: 'Geist', 'Inter', -apple-system, sans-serif !important;
+           transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease !important;
+           opacity: 0 !important;
+           pointer-events: none !important;
+           user-select: none !important;
+         }
+         .remapad-cnav-hud.visible {
+           transform: translateX(-50%) translateY(0) !important;
+           opacity: 1 !important;
+         }
+         .remapad-cnav-left {
+           display: flex !important;
+           align-items: center !important;
+           gap: 10px !important;
+           overflow: hidden !important;
+           min-width: 0 !important;
+         }
+         .remapad-cnav-right {
+           display: flex !important;
+           align-items: center !important;
+           gap: 10px !important;
+           flex-shrink: 0 !important;
+         }
+         .remapad-cnav-icon {
+           width: 14px !important;
+           height: 14px !important;
+           color: rgba(229, 9, 20, 0.9) !important;
+           flex-shrink: 0 !important;
+         }
+         .remapad-cnav-pos {
+           font-size: 13px !important;
+           font-weight: 700 !important;
+           color: #fff !important;
+           white-space: nowrap !important;
+           flex-shrink: 0 !important;
+         }
+         .remapad-cnav-label {
+           font-size: 12px !important;
+           font-weight: 500 !important;
+           color: rgba(255, 255, 255, 0.5) !important;
+           white-space: nowrap !important;
+           overflow: hidden !important;
+           text-overflow: ellipsis !important;
+         }
+         .remapad-cnav-of {
+           font-weight: 400 !important;
+           opacity: 0.55 !important;
+           font-size: 11px !important;
+         }
+         .remapad-cnav-dots {
+           display: flex !important;
+           align-items: center !important;
+           gap: 4px !important;
+         }
+         .remapad-cnav-dot {
+           width: 5px !important;
+           height: 5px !important;
+           border-radius: 50% !important;
+           background: rgba(255, 255, 255, 0.2) !important;
+           transition: background 0.2s, transform 0.2s !important;
+           display: block !important;
+         }
+         .remapad-cnav-dot.active {
+           background: #e50914 !important;
+           transform: scale(1.4) !important;
+         }
+         .remapad-cnav-item {
+           font-size: 12px !important;
+           font-weight: 600 !important;
+           color: rgba(255, 255, 255, 0.75) !important;
+           white-space: nowrap !important;
+         }
+      .remapad-cnav-item--hint {
+        color: rgba(255, 255, 255, 0.35) !important;
+        font-weight: 500 !important;
+      }
       .remapad-autoplay-warning {
         position: fixed !important;
         top: 20px !important;
