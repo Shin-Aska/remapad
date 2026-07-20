@@ -30,7 +30,7 @@
       repeatDelayMs: 150,
       repeatAcceleration: true,
       directionMode: 'dominant-axis', // 'dominant-axis' | '8-way'
-      cursorSpeed: 360,
+      cursorSpeed: 800,
       cursorColor: '#e50914'
     },
     leftStick: {
@@ -38,7 +38,7 @@
       mode: 'scroll', // 'scroll' | 'navigate' | 'cursor' | 'disabled'
       deadzone: 0.3,
       scrollAmountPx: 150,
-      cursorSpeed: 360,
+      cursorSpeed: 800,
       cursorColor: '#00a8e1'
     },
     axisMap: {
@@ -2357,12 +2357,18 @@
     const cursor = cursors[stickId];
 
     if (magnitude > deadzone) {
-      const dt = POLL_INTERVAL_MS / 1000;
-      const velocity = (magnitude - deadzone) / (1 - deadzone) * speed;
+      const now = performance.now();
+      const dt = cursor.lastTime ? Math.min(0.1, (now - cursor.lastTime) / 1000) : (POLL_INTERVAL_MS / 1000);
+      cursor.lastTime = now;
+
+      const normMag = (magnitude - deadzone) / (1 - deadzone);
+      const velocity = Math.pow(normMag, 1.2) * speed;
       const nx = ax / magnitude;
       const ny = ay / magnitude;
       cursor.x = clamp(cursor.x + nx * velocity * dt, 0, window.innerWidth);
       cursor.y = clamp(cursor.y + ny * velocity * dt, 0, window.innerHeight);
+    } else {
+      cursor.lastTime = null;
     }
 
     if (cursor.element) {

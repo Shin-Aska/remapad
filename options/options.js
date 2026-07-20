@@ -61,7 +61,7 @@ const DEFAULT_NAV_SETTINGS = {
     repeatDelayMs: 150,
     repeatAcceleration: true,
     directionMode: 'dominant-axis',
-    cursorSpeed: 360,
+    cursorSpeed: 800,
     cursorColor: '#e50914'
   },
   leftStick: {
@@ -69,7 +69,7 @@ const DEFAULT_NAV_SETTINGS = {
     mode: 'scroll',
     deadzone: 0.3,
     scrollAmountPx: 150,
-    cursorSpeed: 360,
+    cursorSpeed: 800,
     cursorColor: '#00a8e1'
   },
   axisMap: {
@@ -642,6 +642,7 @@ function bindNavInputs() {
   function syncNavSettingsFromUI() {
     settings.navSettings = collectNavSettingsFromUI();
     unsavedChanges = true;
+    api.storage.local.set({ navSettings: settings.navSettings });
   }
 
   inputs.forEach(input => {
