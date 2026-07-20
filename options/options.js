@@ -609,7 +609,7 @@ function renderWebsiteMappings() {
     row.className = 'mapping-row' + (isSelected ? ' selected-site' : '');
     row.innerHTML = `
       <div class="mapping-row-left" style="display:flex;align-items:center;gap:8px;flex:1;overflow:hidden">
-        <img class="site-favicon-img" src="https://www.google.com/s2/favicons?sz=32&domain=${domain}" style="width:16px;height:16px;border-radius:2px;display:block;flex-shrink:0" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
+        <img class="site-favicon-img" src="https://www.google.com/s2/favicons?sz=32&domain=${domain}" style="width:16px;height:16px;border-radius:2px;display:block;flex-shrink:0">
         <svg class="fallback-globe-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:none;color:var(--on-surface-variant);flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
         <span class="mapping-row-label" style="font-family:var(--font-body);font-size:13px;color:var(--on-surface);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${friendlyName} (${domain})">${friendlyName} <span style="font-size:11px;color:var(--on-surface-variant);margin-left:4px">(${domain})</span></span>
       </div>
@@ -619,6 +619,15 @@ function renderWebsiteMappings() {
         </button>
       </div>
     `;
+
+    const faviconImg = row.querySelector('.site-favicon-img');
+    const fallbackSvg = row.querySelector('.fallback-globe-svg');
+    if (faviconImg && fallbackSvg) {
+      faviconImg.addEventListener('error', () => {
+        faviconImg.style.display = 'none';
+        fallbackSvg.style.display = 'block';
+      });
+    }
 
     const rowLeft = row.querySelector('.mapping-row-left');
     rowLeft.addEventListener('click', () => {
