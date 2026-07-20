@@ -42,7 +42,7 @@ const DEFAULT_PROFILE = {
   "6": "volume_down",    // L2 Trigger
   "7": "volume_up",      // R2 Trigger
   "8": "toggle_play",    // Select
-  "9": "quick_map",      // Start
+  "9": "toggle_hud",     // Start
   "10": "none",          // L3 Stick Click
   "11": "none",          // R3 Stick Click
   "12": "scroll_up",     // D-Pad Up
@@ -128,7 +128,6 @@ const ACTION_OPTIONS = [
   { value: 'next_tab',             label: 'Next Tab'                     },
   { value: 'prev_tab',             label: 'Previous Tab'                 },
   { value: 'close_tab',            label: 'Close Active Tab'             },
-  { value: 'quick_map',            label: 'Quick Map on Page'            },
   { value: 'open_options',         label: 'Open Options Editor'          },
   // Collection navigation
   { value: 'nav_next_collection',  label: '⬇ Next Row (Collection Nav)'  },
@@ -256,6 +255,8 @@ const navRightRepeatDelay    = document.getElementById('nav-right-repeat-delay')
 const navRightRepeatDelayVal = document.getElementById('nav-right-repeat-delay-val');
 const navRightCursorSpeed    = document.getElementById('nav-right-cursor-speed');
 const navRightCursorSpeedVal = document.getElementById('nav-right-cursor-speed-val');
+const navRightScrollAmount   = document.getElementById('nav-right-scroll-amount');
+const navRightScrollAmountVal= document.getElementById('nav-right-scroll-amount-val');
 const navRightAccel          = document.getElementById('nav-right-accel');
 const navRightDirectionMode  = document.getElementById('nav-right-direction-mode');
 const navLeftEnabled      = document.getElementById('nav-left-enabled');
@@ -266,6 +267,9 @@ const navLeftScrollAmount = document.getElementById('nav-left-scroll-amount');
 const navLeftScrollAmountVal = document.getElementById('nav-left-scroll-amount-val');
 const navLeftCursorSpeed    = document.getElementById('nav-left-cursor-speed');
 const navLeftCursorSpeedVal = document.getElementById('nav-left-cursor-speed-val');
+const navLeftRepeatDelay    = document.getElementById('nav-left-repeat-delay');
+const navLeftRepeatDelayVal = document.getElementById('nav-left-repeat-delay-val');
+const navLeftDirectionMode  = document.getElementById('nav-left-direction-mode');
 const navRightCursorColor   = document.getElementById('nav-right-cursor-color');
 const navLeftCursorColor    = document.getElementById('nav-left-cursor-color');
 const navAxisInputs       = {
@@ -452,6 +456,18 @@ function mergeNavSettings(stored) {
   return merged;
 }
 
+function updateStickModeVisibility() {
+  const rightMode = navRightMode ? navRightMode.value : 'cursor';
+  document.querySelectorAll('.nav-mode-group-right').forEach(el => {
+    el.style.display = (el.dataset.mode === rightMode) ? 'flex' : 'none';
+  });
+
+  const leftMode = navLeftMode ? navLeftMode.value : 'scroll';
+  document.querySelectorAll('.nav-mode-group-left').forEach(el => {
+    el.style.display = (el.dataset.mode === leftMode) ? 'flex' : 'none';
+  });
+}
+
 function renderNavConfig() {
   const nav = settings.navSettings;
   if (!nav) return;
@@ -463,11 +479,17 @@ function renderNavConfig() {
   navRightMode.value = nav.rightStick.mode;
   navRightDeadzone.value = nav.rightStick.deadzone;
   navRightDeadzoneVal.textContent = nav.rightStick.deadzone;
-  navRightRepeatDelay.value = nav.rightStick.repeatDelayMs;
-  navRightRepeatDelayVal.textContent = nav.rightStick.repeatDelayMs;
+  if (navRightRepeatDelay) {
+    navRightRepeatDelay.value = nav.rightStick.repeatDelayMs ?? 150;
+    if (navRightRepeatDelayVal) navRightRepeatDelayVal.textContent = navRightRepeatDelay.value;
+  }
   navRightCursorSpeed.value = nav.rightStick.cursorSpeed ?? DEFAULT_NAV_SETTINGS.rightStick.cursorSpeed;
-  navRightCursorSpeedVal.textContent = nav.rightStick.cursorSpeed ?? DEFAULT_NAV_SETTINGS.rightStick.cursorSpeed;
+  navRightCursorSpeedVal.textContent = navRightCursorSpeed.value;
   navRightCursorColor.value = nav.rightStick.cursorColor || DEFAULT_NAV_SETTINGS.rightStick.cursorColor;
+  if (navRightScrollAmount) {
+    navRightScrollAmount.value = nav.rightStick.scrollAmountPx ?? 150;
+    if (navRightScrollAmountVal) navRightScrollAmountVal.textContent = navRightScrollAmount.value;
+  }
   navRightAccel.checked = nav.rightStick.repeatAcceleration;
   navRightDirectionMode.value = nav.rightStick.directionMode;
 
@@ -478,7 +500,7 @@ function renderNavConfig() {
   navLeftScrollAmount.value = nav.leftStick.scrollAmountPx;
   navLeftScrollAmountVal.textContent = nav.leftStick.scrollAmountPx;
   navLeftCursorSpeed.value = nav.leftStick.cursorSpeed ?? DEFAULT_NAV_SETTINGS.leftStick.cursorSpeed;
-  navLeftCursorSpeedVal.textContent = nav.leftStick.cursorSpeed ?? DEFAULT_NAV_SETTINGS.leftStick.cursorSpeed;
+  navLeftCursorSpeedVal.textContent = navLeftCursorSpeed.value;
   navLeftCursorColor.value = nav.leftStick.cursorColor || DEFAULT_NAV_SETTINGS.leftStick.cursorColor;
 
   for (const dir of ['up', 'down', 'left', 'right']) {
@@ -492,6 +514,7 @@ function renderNavConfig() {
   }
 
   updateNavDeadzoneRings();
+  updateStickModeVisibility();
 
   navWrapRows.checked = nav.collectionGrid.wrapRows;
   navWrapItems.checked = nav.collectionGrid.wrapItems;
@@ -530,9 +553,10 @@ function collectNavSettingsFromUI() {
       enabled: navRightEnabled.checked,
       mode: navRightMode.value,
       deadzone: Number.parseFloat(navRightDeadzone.value),
-      repeatDelayMs: Number.parseInt(navRightRepeatDelay.value, 10),
+      repeatDelayMs: navRightRepeatDelay ? Number.parseInt(navRightRepeatDelay.value, 10) : 150,
       cursorSpeed: Number.parseInt(navRightCursorSpeed.value, 10),
       cursorColor: navRightCursorColor.value || DEFAULT_NAV_SETTINGS.rightStick.cursorColor,
+      scrollAmountPx: navRightScrollAmount ? Number.parseInt(navRightScrollAmount.value, 10) : 150,
       repeatAcceleration: navRightAccel.checked,
       directionMode: navRightDirectionMode.value
     },
@@ -561,8 +585,9 @@ function collectNavSettingsFromUI() {
 
 function bindNavInputs() {
   const syncSlider = (input, label, onChange) => {
+    if (!input) return;
     input.addEventListener('input', () => {
-      label.textContent = input.value;
+      if (label) label.textContent = input.value;
       if (onChange) onChange();
       else unsavedChanges = true;
     });
@@ -571,11 +596,22 @@ function bindNavInputs() {
   syncSlider(navRightDeadzone, navRightDeadzoneVal, syncNavSettingsFromUI);
   syncSlider(navRightRepeatDelay, navRightRepeatDelayVal, syncNavSettingsFromUI);
   syncSlider(navRightCursorSpeed, navRightCursorSpeedVal, syncNavSettingsFromUI);
+  syncSlider(navRightScrollAmount, navRightScrollAmountVal, syncNavSettingsFromUI);
   syncSlider(navLeftDeadzone, navLeftDeadzoneVal, syncNavSettingsFromUI);
   syncSlider(navLeftScrollAmount, navLeftScrollAmountVal, syncNavSettingsFromUI);
   syncSlider(navLeftCursorSpeed, navLeftCursorSpeedVal, syncNavSettingsFromUI);
+  syncSlider(navLeftRepeatDelay, navLeftRepeatDelayVal, syncNavSettingsFromUI);
   syncSlider(navLateralPenalty, navLateralPenaltyVal, syncNavSettingsFromUI);
   syncSlider(navRowOverlap, navRowOverlapVal, syncNavSettingsFromUI);
+
+  navRightMode?.addEventListener('change', () => {
+    updateStickModeVisibility();
+    syncNavSettingsFromUI();
+  });
+  navLeftMode?.addEventListener('change', () => {
+    updateStickModeVisibility();
+    syncNavSettingsFromUI();
+  });
 
   const inputs = [
     navEnabledInput,
@@ -591,7 +627,7 @@ function bindNavInputs() {
     navWrapRows,
     navWrapItems,
     ...Object.values(navAxisInputs).flatMap(i => [i.stick, i.action])
-  ];
+  ].filter(Boolean);
 
   function syncNavSettingsFromUI() {
     settings.navSettings = collectNavSettingsFromUI();
@@ -613,6 +649,7 @@ function bindNavInputs() {
   });
 
   updateNavDeadzoneRings();
+  updateStickModeVisibility();
 }
 
 function renderEditorSiteSelect() {
@@ -790,7 +827,7 @@ function populateVisualLabels() {
     const labelEl = document.getElementById(`label-btn-${btnKey}`);
     if (labelEl) {
       const action = mapping[btnKey] || 'none';
-      const displayAction = btnKey === '9' && action === 'open_options' ? 'quick_map' : action;
+      const displayAction = action;
       let actionLabel = '';
       if (displayAction.startsWith('click_element:')) {
         actionLabel = `Click: ${action.substring('click_element:'.length)}`;
@@ -896,8 +933,6 @@ actionSelect.addEventListener('change', async () => {
     const val = await openConfigModal('focus', initVal);
     if (val && val.trim()) {
       newAction = `focus_element:${val.trim()}`;
-    } else if (activeCalloutBtn === '9' && currentVal === 'open_options') {
-      actionSelect.value = 'quick_map';
     } else {
       actionSelect.value = currentVal.startsWith('focus_element:') ? 'focus_element' : 'none';
       return;

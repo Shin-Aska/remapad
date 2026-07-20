@@ -329,7 +329,7 @@
                   <div class="callout-dot"></div>
                   <div class="callout-meta">
                     <span class="callout-btn-name">Start</span>
-                    <span class="callout-action-label" id="label-btn-9">Options</span>
+                    <span class="callout-action-label" id="label-btn-9">Toggle Navigation Guide</span>
                   </div>
                 </div>
 
@@ -456,33 +456,22 @@
                 </div>
                 <div class="nav-control-row">
                   <div class="nav-control">
-                  <label class="nav-field-label" for="nav-right-mode">Mode</label>
-                  <select id="nav-right-mode" class="nav-select">
-                    <option value="cursor">Virtual Cursor</option>
-                    <option value="navigate">Spatial Navigate</option>
-                    <option value="scroll">Scroll</option>
-                    <option value="disabled">Disabled</option>
-                  </select>
-                  </div>
-                  <div class="nav-control">
-                    <label class="nav-field-label" for="nav-right-direction-mode">Direction mode</label>
-                    <select id="nav-right-direction-mode" class="nav-select">
-                      <option value="dominant-axis">Dominant axis</option>
-                      <option value="8-way">8-way</option>
+                    <label class="nav-field-label" for="nav-right-mode">Mode</label>
+                    <select id="nav-right-mode" class="nav-select">
+                      <option value="cursor">Virtual Cursor</option>
+                      <option value="navigate">Spatial Navigate</option>
+                      <option value="scroll">Scroll</option>
+                      <option value="disabled">Disabled</option>
                     </select>
                   </div>
-                </div>
-                <div class="nav-control-row">
                   <div class="nav-control">
                     <label class="nav-field-label" for="nav-right-deadzone">Deadzone: <span id="nav-right-deadzone-val">0.3</span></label>
                     <input type="range" id="nav-right-deadzone" class="nav-slider" min="0.05" max="0.9" step="0.05" value="0.3">
                   </div>
-                  <div class="nav-control">
-                    <label class="nav-field-label" for="nav-right-cursor-speed">Cursor speed: <span id="nav-right-cursor-speed-val">360</span>px/s</label>
-                    <input type="range" id="nav-right-cursor-speed" class="nav-slider" min="100" max="1200" step="20" value="360">
-                  </div>
                 </div>
-                <div class="nav-control-row">
+
+                <!-- Mode Virtual Cursor fields -->
+                <div class="nav-control-row nav-mode-group-right" data-mode="cursor">
                   <div class="nav-control">
                     <label class="nav-field-label" for="nav-right-cursor-speed">Cursor speed: <span id="nav-right-cursor-speed-val">360</span>px/s</label>
                     <input type="range" id="nav-right-cursor-speed" class="nav-slider" min="100" max="1200" step="20" value="360">
@@ -492,12 +481,36 @@
                     <input type="color" id="nav-right-cursor-color" class="nav-color-input" value="#e50914">
                   </div>
                 </div>
+
+                <!-- Mode Spatial Navigate fields -->
+                <div class="nav-control-row nav-mode-group-right" data-mode="navigate">
                   <div class="nav-control">
-                    <label class="switch-inline" style="margin-top:18px">
+                    <label class="nav-field-label" for="nav-right-direction-mode">Direction mode</label>
+                    <select id="nav-right-direction-mode" class="nav-select">
+                      <option value="dominant-axis">Dominant axis</option>
+                      <option value="8-way">8-way</option>
+                    </select>
+                  </div>
+                  <div class="nav-control">
+                    <label class="nav-field-label" for="nav-right-repeat-delay">Repeat delay: <span id="nav-right-repeat-delay-val">150</span>ms</label>
+                    <input type="range" id="nav-right-repeat-delay" class="nav-slider" min="50" max="500" step="10" value="150">
+                  </div>
+                </div>
+                <div class="nav-control-row nav-mode-group-right" data-mode="navigate">
+                  <div class="nav-control">
+                    <label class="switch-inline">
                       <input type="checkbox" id="nav-right-accel">
                       <span class="switch-track"></span>
                       <span class="switch-label">Accelerate repeats on sustained hold</span>
                     </label>
+                  </div>
+                </div>
+
+                <!-- Mode Scroll fields -->
+                <div class="nav-control-row nav-mode-group-right" data-mode="scroll">
+                  <div class="nav-control">
+                    <label class="nav-field-label" for="nav-right-scroll-amount">Scroll amount: <span id="nav-right-scroll-amount-val">150</span>px</label>
+                    <input type="range" id="nav-right-scroll-amount" class="nav-slider" min="50" max="600" step="10" value="150">
                   </div>
                 </div>
               </section>
@@ -525,11 +538,17 @@
                     <input type="range" id="nav-left-deadzone" class="nav-slider" min="0.05" max="0.9" step="0.05" value="0.3">
                   </div>
                 </div>
-                <div class="nav-control-row">
+
+                <!-- Mode Scroll fields -->
+                <div class="nav-control-row nav-mode-group-left" data-mode="scroll">
                   <div class="nav-control">
                     <label class="nav-field-label" for="nav-left-scroll-amount">Scroll amount: <span id="nav-left-scroll-amount-val">150</span>px</label>
                     <input type="range" id="nav-left-scroll-amount" class="nav-slider" min="50" max="600" step="10" value="150">
                   </div>
+                </div>
+
+                <!-- Mode Virtual Cursor fields -->
+                <div class="nav-control-row nav-mode-group-left" data-mode="cursor">
                   <div class="nav-control">
                     <label class="nav-field-label" for="nav-left-cursor-speed">Cursor speed: <span id="nav-left-cursor-speed-val">360</span>px/s</label>
                     <input type="range" id="nav-left-cursor-speed" class="nav-slider" min="100" max="1200" step="20" value="360">
@@ -537,6 +556,21 @@
                   <div class="nav-control">
                     <label class="nav-field-label" for="nav-left-cursor-color">Cursor color</label>
                     <input type="color" id="nav-left-cursor-color" class="nav-color-input" value="#00a8e1">
+                  </div>
+                </div>
+
+                <!-- Mode Spatial Navigate fields -->
+                <div class="nav-control-row nav-mode-group-left" data-mode="navigate">
+                  <div class="nav-control">
+                    <label class="nav-field-label" for="nav-left-direction-mode">Direction mode</label>
+                    <select id="nav-left-direction-mode" class="nav-select">
+                      <option value="dominant-axis">Dominant axis</option>
+                      <option value="8-way">8-way</option>
+                    </select>
+                  </div>
+                  <div class="nav-control">
+                    <label class="nav-field-label" for="nav-left-repeat-delay">Repeat delay: <span id="nav-left-repeat-delay-val">150</span>ms</label>
+                    <input type="range" id="nav-left-repeat-delay" class="nav-slider" min="50" max="500" step="10" value="150">
                   </div>
                 </div>
               </section>

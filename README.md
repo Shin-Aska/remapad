@@ -47,8 +47,8 @@ Remapad requires Firefox 128+ or a Chromium-based browser 111+ because it uses M
 
 The on-page navigation guide is hidden by default. Bind a button to **Toggle Navigation Guide** in the mapping editor when you want to show or hide it.
 
-Keyboard-key mappings send synthetic page events, so they work with sites that accept scripted shortcuts but cannot bypass sites that require trusted physical keyboard input. Prefer **Direct DOM Action...** for a site control: it can click, focus, scroll to, fill, toggle an attribute, or play/pause a selected element without key simulation. Use Quick Map for a fast visible-player-control binding.
+Keyboard-key mappings send synthetic page events, so they work with sites that accept scripted shortcuts but cannot bypass sites that require trusted physical keyboard input. Prefer **Direct DOM Action...** for a site control: it can click, focus, scroll to, fill, toggle an attribute, or play/pause a selected element without key simulation.
 
-### Quick Map on the Page
+### Navigation Guide & On-Screen Overlay
 
-Press **Start** while Remapad is enabled to map a live page control without leaving the site. Press the controller button to bind, choose **Click**, **Focus**, or **Hover**, select the page control, then save the generated selector. Press **Start** again or **Esc** to cancel. This is useful for player controls that ignore synthetic keyboard shortcuts.
+Press **Start** (or your mapped button) while Remapad is enabled to toggle the on-screen **Navigation Guide** overlay. It displays current gamepad bindings and active navigation modes directly over the webpage.

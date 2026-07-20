@@ -65,7 +65,7 @@
     "6": "volume_down",    // L2
     "7": "volume_up",      // R2
     "8": "toggle_play",    // Select
-    "9": "quick_map",      // Start
+    "9": "toggle_hud",     // Start
     "10": "none",          // L3 Click
     "11": "none",          // R3 Click
     "12": "scroll_up",     // D-Pad Up
@@ -112,7 +112,6 @@
     close_tab: "Close Tab",
     focus_next: "Focus Next",
     focus_prev: "Focus Previous",
-    quick_map: "Quick Map",
     toggle_hud: "Toggle Navigation Guide",
     dom_action: "DOM Action",
     nav_next_collection: "Next Row",
@@ -619,7 +618,7 @@
     }
 
     executeAction(action);
-    return action !== 'quick_map';
+    return true;
   }
 
   function onButtonRelease(btnIdx) {
@@ -675,11 +674,6 @@
 
     if (action === 'toggle_hud') {
       toggleHUD();
-      return;
-    }
-
-    if (action === 'quick_map') {
-      openQuickMap();
       return;
     }
 
@@ -3398,7 +3392,6 @@
 
   function formatActionLabel(action, btnIdx = null) {
     if (!action || action === 'none') return 'Unmapped';
-    if (btnIdx === '9' && action === 'open_options') return 'Quick Map';
     if (action.startsWith('click_element:')) return 'Click element';
     if (action.startsWith('hover_element:')) return 'Hover element';
     if (action.startsWith('dom_action:')) return formatDomActionLabel(action.substring('dom_action:'.length));
