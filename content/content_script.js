@@ -216,12 +216,13 @@
   async function init() {
     try {
       const data = await api.storage.local.get([
-        'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'siteCollections', 'navSettings'
+        'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'siteCollections', 'navSettings', 'muteActivation'
       ]);
 
       if (data.iconStyle) settings.iconStyle = data.iconStyle;
       if (data.enabledSites) settings.enabledSites = data.enabledSites;
       if (data.globalEnabled !== undefined) settings.globalEnabled = data.globalEnabled;
+      if (data.muteActivation !== undefined) settings.muteActivation = data.muteActivation;
       if (data.siteCollections && typeof data.siteCollections === 'object') {
         settings.siteCollections = data.siteCollections;
       }
@@ -1839,9 +1840,10 @@
     return new Promise(resolve => {
       try {
         const audio = document.createElement('audio');
+        const isMuted = !!settings.muteActivation;
         audio.muted = false;
-        audio.volume = 1.0;
-        audio.src = createWavProbeDataUrl();
+        audio.volume = isMuted ? 0.001 : 1.0;
+        audio.src = createWavProbeDataUrl(isMuted);
 
         let settled = false;
         const cleanup = () => {
@@ -1879,9 +1881,10 @@
       try {
         const video = document.createElement('video');
         video.setAttribute('playsinline', '');
+        const isMuted = !!settings.muteActivation;
         video.muted = false;
-        video.volume = 1.0;
-        video.src = createWavProbeDataUrl();
+        video.volume = isMuted ? 0.001 : 1.0;
+        video.src = createWavProbeDataUrl(isMuted);
 
         let settled = false;
         const cleanup = () => {
@@ -1914,7 +1917,7 @@
     });
   }
 
-  function createWavProbeDataUrl() {
+  function createWavProbeDataUrl(muted = false) {
     const sampleRate = 22050;
     const duration = 0.35;
     const numSamples = Math.floor(sampleRate * duration);
@@ -1938,10 +1941,12 @@
     writeString(36, 'data');
     view.setUint32(40, numSamples * 2, true);
 
+    const ampMult = muted ? 0.0001 : 1.0;
+
     const notes = [
-      { freq: 523.25, start: 0.00, decay: 18, amp: 0.25 }, // C5
-      { freq: 659.25, start: 0.07, decay: 18, amp: 0.25 }, // E5
-      { freq: 1046.50, start: 0.14, decay: 10, amp: 0.35 }  // C6
+      { freq: 523.25, start: 0.00, decay: 18, amp: 0.25 * ampMult }, // C5
+      { freq: 659.25, start: 0.07, decay: 18, amp: 0.25 * ampMult }, // E5
+      { freq: 1046.50, start: 0.14, decay: 10, amp: 0.35 * ampMult }  // C6
     ];
 
     let offset = 44;

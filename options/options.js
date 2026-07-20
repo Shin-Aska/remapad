@@ -173,7 +173,8 @@ let settings = {
       itemSelector: '[data-testid="card"], ._1t8qyG2, .P2TLe'
     }
   },
-  navSettings: structuredClone(DEFAULT_NAV_SETTINGS)
+  navSettings: structuredClone(DEFAULT_NAV_SETTINGS),
+  muteActivation: false
 };
 
 let selectedSiteKey  = 'default';
@@ -183,6 +184,7 @@ let unsavedChanges   = false;
 
 // ─── DOM Elements ─────────────────────────────────────────────────────────────
 
+const muteActivationToggle = document.getElementById('mute-activation-toggle');
 const editorSiteSelect    = document.getElementById('editor-site-select');
 const mappingsListEl      = document.getElementById('website-mappings-list');
 const iconStyleListEl     = document.getElementById('icon-style-list');
@@ -295,12 +297,13 @@ const ACTION_LABEL_MAP = Object.fromEntries(ACTION_OPTIONS.map(o => [o.value, o.
 async function loadSettings() {
   try {
     const data = await api.storage.local.get([
-      'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'siteCollections', 'navSettings'
+      'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'siteCollections', 'navSettings', 'muteActivation'
     ]);
 
     if (data.iconStyle) settings.iconStyle = data.iconStyle;
     if (data.enabledSites) settings.enabledSites = data.enabledSites;
     if (data.globalEnabled !== undefined) settings.globalEnabled = data.globalEnabled;
+    if (data.muteActivation !== undefined) settings.muteActivation = data.muteActivation;
     if (data.siteCollections && typeof data.siteCollections === 'object') {
       settings.siteCollections = data.siteCollections;
     }
@@ -377,6 +380,9 @@ function mergeProfileWithDefaults(profile) {
 
 async function saveSettings() {
   try {
+    if (muteActivationToggle) {
+      settings.muteActivation = muteActivationToggle.checked;
+    }
     await api.storage.local.set({
       iconStyle:       settings.iconStyle,
       websiteMappings: settings.websiteMappings,
@@ -384,7 +390,8 @@ async function saveSettings() {
       enabledSites:    settings.enabledSites,
       globalEnabled:   settings.globalEnabled,
       siteCollections: settings.siteCollections,
-      navSettings:     settings.navSettings
+      navSettings:     settings.navSettings,
+      muteActivation:  settings.muteActivation
     });
 
     unsavedChanges = false;
@@ -398,6 +405,9 @@ async function saveSettings() {
 // ─── Render All Components ────────────────────────────────────────────────────
 
 function renderAll() {
+  if (muteActivationToggle) {
+    muteActivationToggle.checked = !!settings.muteActivation;
+  }
   renderEditorSiteSelect();
   renderWebsiteMappings();
   renderIconStyles();
@@ -1333,6 +1343,11 @@ function initTabs() {
 
 window.addEventListener('gamepadconnected', () => startPolling());
 window.addEventListener('gamepaddisconnected', () => pollGamepads());
+
+muteActivationToggle?.addEventListener('change', () => {
+  settings.muteActivation = muteActivationToggle.checked;
+  saveSettings();
+});
 
 (async () => {
   await loadSettings();
