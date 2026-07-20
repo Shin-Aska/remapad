@@ -2511,11 +2511,20 @@
         audio.src = createWavProbeDataUrl();
 
         let settled = false;
+        const cleanup = () => {
+          try { audio.pause(); } catch (_) {}
+          try { audio.remove(); } catch (_) {}
+        };
+
         const finish = (state) => {
           if (settled) return;
           settled = true;
-          try { audio.pause(); } catch (_) {}
-          try { audio.remove(); } catch (_) {}
+          if (state !== 'allowed') {
+            cleanup();
+          } else {
+            audio.addEventListener('ended', cleanup, { once: true });
+            setTimeout(cleanup, 600);
+          }
           resolve(state);
         };
 
@@ -2525,7 +2534,7 @@
         } else {
           finish('allowed');
         }
-        setTimeout(() => finish('allowed'), 500);
+        setTimeout(() => finish('allowed'), 600);
       } catch (e) {
         resolve('unknown');
       }
@@ -2542,11 +2551,20 @@
         video.src = createWavProbeDataUrl();
 
         let settled = false;
+        const cleanup = () => {
+          try { video.pause(); } catch (_) {}
+          try { video.remove(); } catch (_) {}
+        };
+
         const finish = (state) => {
           if (settled) return;
           settled = true;
-          try { video.pause(); } catch (_) {}
-          try { video.remove(); } catch (_) {}
+          if (state !== 'allowed') {
+            cleanup();
+          } else {
+            video.addEventListener('ended', cleanup, { once: true });
+            setTimeout(cleanup, 600);
+          }
           resolve(state);
         };
 
@@ -2556,7 +2574,7 @@
         } else {
           finish('allowed');
         }
-        setTimeout(() => finish('allowed'), 500);
+        setTimeout(() => finish('allowed'), 600);
       } catch (e) {
         resolve('unknown');
       }
@@ -2564,8 +2582,8 @@
   }
 
   function createWavProbeDataUrl() {
-    const sampleRate = 8000;
-    const duration = 0.05;
+    const sampleRate = 22050;
+    const duration = 0.35;
     const numSamples = Math.floor(sampleRate * duration);
     const headerSize = 44;
     const buffer = new ArrayBuffer(headerSize + numSamples * 2);
@@ -2586,15 +2604,38 @@
     view.setUint16(34, 16, true);
     writeString(36, 'data');
     view.setUint32(40, numSamples * 2, true);
+
+    const notes = [
+      { freq: 523.25, start: 0.00, decay: 18, amp: 0.25 }, // C5
+      { freq: 659.25, start: 0.07, decay: 18, amp: 0.25 }, // E5
+      { freq: 1046.50, start: 0.14, decay: 10, amp: 0.35 }  // C6
+    ];
+
     let offset = 44;
     for (let i = 0; i < numSamples; i++) {
-      const sample = Math.sin((i / sampleRate) * 440 * Math.PI * 2) * 0.1;
-      view.setInt16(offset, sample * 32767, true);
+      const t = i / sampleRate;
+      let sampleVal = 0;
+      for (let n = 0; n < notes.length; n++) {
+        const note = notes[n];
+        if (t >= note.start) {
+          const dt = t - note.start;
+          const attack = Math.min(1.0, dt / 0.005);
+          const env = attack * Math.exp(-dt * note.decay);
+          const rad = 2 * Math.PI * note.freq * dt;
+          const wave = Math.sin(rad) + 0.25 * Math.sin(2 * rad) + 0.1 * Math.sin(3 * rad);
+          sampleVal += wave * env * note.amp;
+        }
+      }
+      sampleVal = Math.max(-1, Math.min(1, sampleVal));
+      view.setInt16(offset, sampleVal * 32767, true);
       offset += 2;
     }
     const bytes = new Uint8Array(buffer);
     let binary = '';
-    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    const chunkSize = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+    }
     return 'data:audio/wav;base64,' + btoa(binary);
   }
 
