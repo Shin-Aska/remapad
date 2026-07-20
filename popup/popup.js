@@ -49,6 +49,7 @@ let settings = {
 const globalToggle        = document.getElementById('global-toggle');
 const siteToggle          = document.getElementById('site-toggle');
 const mappingStatusBadge  = document.getElementById('mapping-status-badge');
+const autoplayStatusBadge = document.getElementById('autoplay-status-badge');
 const customizeSiteBtn    = document.getElementById('customize-site-btn');
 const siteDomainEl        = document.getElementById('site-domain');
 const controllerNameEl    = document.getElementById('controller-name');
@@ -104,8 +105,53 @@ async function init() {
     }
 
     updateActiveIndicators();
+    loadAutoplayStatus();
   } catch (e) {
     console.error('[Remapad Popup] Init error:', e);
+  }
+}
+
+async function loadAutoplayStatus() {
+  try {
+    const response = await new Promise(resolve => {
+      api.runtime.sendMessage({ type: 'GET_AUTOPLAY_STATUS' }, resolve);
+    });
+    if (!response || response.error || !response.status) {
+      renderAutoplayStatus(null);
+      return;
+    }
+    renderAutoplayStatus(response.status);
+  } catch (e) {
+    console.error('[Remapad Popup] Autoplay status error:', e);
+    renderAutoplayStatus(null);
+  }
+}
+
+function renderAutoplayStatus(status) {
+  if (!status) {
+    autoplayStatusBadge.textContent = 'Unavailable';
+    autoplayStatusBadge.style.background = 'rgba(255,255,255,0.06)';
+    autoplayStatusBadge.style.color = 'var(--on-surface-variant)';
+    return;
+  }
+
+  const audioBlocked = status.audio === 'blocked' || status.mediaelement === 'disallowed';
+  const videoBlocked = status.video === 'blocked' || status.mediaelement === 'disallowed';
+  const anyBlocked = audioBlocked || videoBlocked;
+  const mutedOnly = status.mediaelement === 'allowed-muted' && !anyBlocked;
+
+  if (anyBlocked) {
+    autoplayStatusBadge.textContent = audioBlocked && videoBlocked ? 'Audio + Video blocked' : audioBlocked ? 'Audio blocked' : 'Video blocked';
+    autoplayStatusBadge.style.background = 'rgba(229, 9, 20, 0.15)';
+    autoplayStatusBadge.style.color = '#e50914';
+  } else if (mutedOnly) {
+    autoplayStatusBadge.textContent = 'Muted only';
+    autoplayStatusBadge.style.background = 'rgba(255, 193, 7, 0.15)';
+    autoplayStatusBadge.style.color = '#ffc107';
+  } else {
+    autoplayStatusBadge.textContent = 'Allowed';
+    autoplayStatusBadge.style.background = 'rgba(76, 175, 80, 0.15)';
+    autoplayStatusBadge.style.color = '#4caf50';
   }
 }
 

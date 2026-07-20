@@ -299,8 +299,21 @@
         document.documentElement.removeAttribute('data-remapad-active');
         removeHUD(!quickMapAvailable);
       }
+
+      showAutoplayWarningIfBlocked();
     } catch (e) {
       console.warn('[Remapad CS] Init failed:', e);
+    }
+  }
+
+  async function showAutoplayWarningIfBlocked() {
+    if (!settings.globalEnabled || settings.enabledSites[currentHostname] === false) return;
+    const isMapped = settings.websiteMappings[currentHostname] !== undefined;
+    if (!isMapped) return;
+    const status = await checkAutoplayPolicy();
+    if (status.mediaelement !== 'allowed' && !autoplayWarningShown) {
+      autoplayWarningShown = true;
+      showAutoplayWarning(formatAutoplayWarning(status));
     }
   }
 
@@ -2456,44 +2469,164 @@
   }
 
   let autoplayCheckPromise = null;
-  let autoplayBlocked = null;
+  let autoplayStatus = { supported: false, mediaelement: 'unknown', audiocontext: 'unknown', audio: 'unknown', video: 'unknown', timestamp: 0 };
   let autoplayWarningShown = false;
 
-  function checkAutoplayPolicy() {
+  async function checkAutoplayPolicy() {
     if (autoplayCheckPromise) return autoplayCheckPromise;
-    autoplayCheckPromise = new Promise(resolve => {
-      try {
-        const video = document.createElement('video');
-        video.setAttribute('muted', '');
-        video.setAttribute('playsinline', '');
-        video.src = 'data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYWNjZG1wMQAAAAAAAAAAAAAA';
-        video.play().then(() => {
-          video.pause();
-          video.remove();
-          resolve(false);
-        }).catch(err => {
-          video.remove();
-          resolve(err?.name === 'NotAllowedError');
-        });
-      } catch (e) {
-        resolve(false);
+    autoplayCheckPromise = (async () => {
+      const result = { supported: false, mediaelement: 'unknown', audiocontext: 'unknown', audio: 'unknown', video: 'unknown', timestamp: Date.now() };
+
+      if (typeof navigator.getAutoplayPolicy === 'function') {
+        try {
+          result.supported = true;
+          result.mediaelement = navigator.getAutoplayPolicy('mediaelement');
+          result.audiocontext = navigator.getAutoplayPolicy('audiocontext');
+        } catch (e) {
+          result.supported = false;
+        }
       }
-    });
+
+      result.audio = await probeAudioAutoplay();
+      result.video = await probeVideoAutoplay();
+      if (result.mediaelement === 'unknown') {
+        if (result.audio === 'blocked' || result.video === 'blocked') result.mediaelement = 'disallowed';
+        else if (result.audio === 'allowed-muted' || result.video === 'allowed-muted') result.mediaelement = 'allowed-muted';
+        else if (result.audio === 'allowed' && result.video === 'allowed') result.mediaelement = 'allowed';
+      }
+
+      autoplayStatus = result;
+      console.log('[Remapad] Autoplay status:', result);
+      return result;
+    })();
     return autoplayCheckPromise;
   }
 
+  function probeAudioAutoplay() {
+    return new Promise(resolve => {
+      try {
+        const audio = document.createElement('audio');
+        audio.muted = false;
+        audio.volume = 1.0;
+        audio.src = createWavProbeDataUrl();
+
+        let settled = false;
+        const finish = (state) => {
+          if (settled) return;
+          settled = true;
+          try { audio.pause(); } catch (_) {}
+          try { audio.remove(); } catch (_) {}
+          resolve(state);
+        };
+
+        const promise = audio.play();
+        if (promise !== undefined) {
+          promise.then(() => finish('allowed')).catch(err => finish(err?.name === 'NotAllowedError' ? 'blocked' : 'allowed'));
+        } else {
+          finish('allowed');
+        }
+        setTimeout(() => finish('allowed'), 500);
+      } catch (e) {
+        resolve('unknown');
+      }
+    });
+  }
+
+  function probeVideoAutoplay() {
+    return new Promise(resolve => {
+      try {
+        const video = document.createElement('video');
+        video.setAttribute('playsinline', '');
+        video.muted = false;
+        video.volume = 1.0;
+        video.src = createWavProbeDataUrl();
+
+        let settled = false;
+        const finish = (state) => {
+          if (settled) return;
+          settled = true;
+          try { video.pause(); } catch (_) {}
+          try { video.remove(); } catch (_) {}
+          resolve(state);
+        };
+
+        const promise = video.play();
+        if (promise !== undefined) {
+          promise.then(() => finish('allowed')).catch(err => finish(err?.name === 'NotAllowedError' ? 'blocked' : 'allowed'));
+        } else {
+          finish('allowed');
+        }
+        setTimeout(() => finish('allowed'), 500);
+      } catch (e) {
+        resolve('unknown');
+      }
+    });
+  }
+
+  function createWavProbeDataUrl() {
+    const sampleRate = 8000;
+    const duration = 0.05;
+    const numSamples = Math.floor(sampleRate * duration);
+    const headerSize = 44;
+    const buffer = new ArrayBuffer(headerSize + numSamples * 2);
+    const view = new DataView(buffer);
+    const writeString = (offset, str) => {
+      for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+    };
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + numSamples * 2, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeString(36, 'data');
+    view.setUint32(40, numSamples * 2, true);
+    let offset = 44;
+    for (let i = 0; i < numSamples; i++) {
+      const sample = Math.sin((i / sampleRate) * 440 * Math.PI * 2) * 0.1;
+      view.setInt16(offset, sample * 32767, true);
+      offset += 2;
+    }
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    return 'data:audio/wav;base64,' + btoa(binary);
+  }
+
   async function checkAutoplayAndWarn(playFn) {
-    const blocked = await checkAutoplayPolicy();
-    autoplayBlocked = blocked;
+    const status = await checkAutoplayPolicy();
+    const blocked = status.mediaelement !== 'allowed';
+    console.log('[Remapad] checkAutoplayAndWarn blocked:', blocked, status);
     if (blocked && !autoplayWarningShown) {
       autoplayWarningShown = true;
-      showAutoplayWarning();
+      showAutoplayWarning(formatAutoplayWarning(status));
       return;
     }
     playFn();
   }
 
-  function showAutoplayWarning() {
+  function formatAutoplayWarning(status) {
+    if (status.audio === 'blocked' && status.video === 'blocked') {
+      return { title: 'Autoplay blocked', message: 'Audio and video autoplay are blocked on this site. Remapad cannot override autoplay permissions. Enable autoplay for this site in your browser settings to use controller playback.' };
+    }
+    if (status.audio === 'blocked') {
+      return { title: 'Audio autoplay blocked', message: 'Audio autoplay is blocked on this site. Remapad cannot override autoplay permissions. Enable audio autoplay for this site in your browser settings to use controller playback.' };
+    }
+    if (status.video === 'blocked') {
+      return { title: 'Video autoplay blocked', message: 'Video autoplay is blocked on this site. Remapad cannot override autoplay permissions. Enable video autoplay for this site in your browser settings to use controller playback.' };
+    }
+    if (status.mediaelement === 'allowed-muted') {
+      return { title: 'Muted autoplay only', message: 'This site only allows muted autoplay. Video with audio requires a real click. Remapad cannot override autoplay permissions. Enable audio autoplay for this site in your browser settings to use controller playback with sound.' };
+    }
+    return { title: 'Autoplay restricted', message: 'Autoplay is restricted on this site. Some video controls may require a real click. Remapad cannot override autoplay permissions. Enable autoplay for this site in your browser settings for full controller playback.' };
+  }
+
+  function showAutoplayWarning({ title, message }) {
     injectHUDStyles();
     const id = 'remapad-autoplay-warning';
     let el = document.getElementById(id);
@@ -2509,8 +2642,7 @@
           <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
         </svg>
         <div class="remapad-autoplay-warning__text">
-          <strong>Autoplay blocked</strong> — this site requires a real click to play video.
-          Remapad cannot override autoplay permissions. Enable autoplay for this site in your browser settings to use controller playback.
+          <strong>${escapeHtml(title)}</strong> — ${escapeHtml(message)}
         </div>
         <button class="remapad-autoplay-warning__close" aria-label="Dismiss">×</button>
       </div>
@@ -3272,7 +3404,7 @@
     cursors.right.y = clamp(cursors.right.y, 0, window.innerHeight);
   });
 
-  // Handle COUNT_SELECTORS message from options page "Test Selectors" feature
+  // Handle messages from options page / popup
   api.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (msg?.type === 'COUNT_SELECTORS') {
       const { containerSelector, itemSelector } = msg;
@@ -3291,6 +3423,13 @@
         error = e.message;
       }
       sendResponse({ containerCount, itemCount, error });
+      return true;
+    }
+
+    if (msg?.type === 'GET_AUTOPLAY_STATUS') {
+      checkAutoplayPolicy().then(status => {
+        sendResponse({ status });
+      });
       return true;
     }
   });
