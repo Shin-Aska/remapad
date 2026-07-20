@@ -53,16 +53,13 @@ const DEFAULT_PROFILE = {
 
 const DEFAULT_NAV_SETTINGS = {
   enabled: true,
-  strategy: 'auto',
   rightStick: {
     enabled: true,
     mode: 'cursor',
     deadzone: 0.3,
-    repeatDelayMs: 150,
-    repeatAcceleration: true,
-    directionMode: 'dominant-axis',
     cursorSpeed: 360,
-    cursorColor: '#e50914'
+    cursorColor: '#e50914',
+    scrollAmountPx: 150
   },
   leftStick: {
     enabled: true,
@@ -71,18 +68,6 @@ const DEFAULT_NAV_SETTINGS = {
     scrollAmountPx: 150,
     cursorSpeed: 360,
     cursorColor: '#00a8e1'
-  },
-  axisMap: {
-    up:    { stick: 'right', direction: 'up',    action: 'nav_up' },
-    down:  { stick: 'right', direction: 'down',  action: 'nav_down' },
-    left:  { stick: 'right', direction: 'left',  action: 'nav_left' },
-    right: { stick: 'right', direction: 'right', action: 'nav_right' }
-  },
-  collectionGrid: {
-    wrapRows: false,
-    wrapItems: false,
-    lateralPenalty: 3,
-    rowOverlapThreshold: 0.5
   }
 };
 
@@ -129,16 +114,6 @@ const ACTION_OPTIONS = [
   { value: 'prev_tab',             label: 'Previous Tab'                 },
   { value: 'close_tab',            label: 'Close Active Tab'             },
   { value: 'open_options',         label: 'Open Options Editor'          },
-  // Collection navigation
-  { value: 'nav_next_collection',  label: '⬇ Next Row (Collection Nav)'  },
-  { value: 'nav_prev_collection',  label: '⬆ Prev Row (Collection Nav)'  },
-  { value: 'nav_next_item',        label: '➡ Next Item (Collection Nav)' },
-  { value: 'nav_prev_item',        label: '⬅ Prev Item (Collection Nav)' },
-  // Spatial navigation
-  { value: 'nav_up',               label: 'Navigate Up'                },
-  { value: 'nav_down',             label: 'Navigate Down'              },
-  { value: 'nav_left',             label: 'Navigate Left'              },
-  { value: 'nav_right',            label: 'Navigate Right'             },
   // Advanced
   { value: 'click_element',  label: 'Click CSS Element...'              },
   { value: 'hover_element',  label: 'Hover CSS Element...'              },
@@ -427,7 +402,6 @@ function renderAll() {
   renderWebsiteMappings();
   renderIconStyles();
   populateVisualLabels();
-  renderCollectionConfig();
   renderNavConfig();
 }
 
@@ -436,22 +410,11 @@ function mergeNavSettings(stored) {
   if (!stored || typeof stored !== 'object') return merged;
 
   if (stored.enabled !== undefined) merged.enabled = stored.enabled;
-  if (stored.strategy) merged.strategy = stored.strategy;
   if (stored.rightStick && typeof stored.rightStick === 'object') {
     merged.rightStick = { ...merged.rightStick, ...stored.rightStick };
   }
   if (stored.leftStick && typeof stored.leftStick === 'object') {
     merged.leftStick = { ...merged.leftStick, ...stored.leftStick };
-  }
-  if (stored.axisMap && typeof stored.axisMap === 'object') {
-    for (const dir of ['up', 'down', 'left', 'right']) {
-      if (stored.axisMap[dir] && typeof stored.axisMap[dir] === 'object') {
-        merged.axisMap[dir] = { ...merged.axisMap[dir], ...stored.axisMap[dir] };
-      }
-    }
-  }
-  if (stored.collectionGrid && typeof stored.collectionGrid === 'object') {
-    merged.collectionGrid = { ...merged.collectionGrid, ...stored.collectionGrid };
   }
   return merged;
 }
@@ -472,64 +435,40 @@ function renderNavConfig() {
   const nav = settings.navSettings;
   if (!nav) return;
 
-  navEnabledInput.checked = nav.enabled;
-  navStrategyInput.value = nav.strategy;
-
-  navRightEnabled.checked = nav.rightStick.enabled;
-  navRightMode.value = nav.rightStick.mode;
-  navRightDeadzone.value = nav.rightStick.deadzone;
-  navRightDeadzoneVal.textContent = nav.rightStick.deadzone;
-  if (navRightRepeatDelay) {
-    navRightRepeatDelay.value = nav.rightStick.repeatDelayMs ?? 150;
-    if (navRightRepeatDelayVal) navRightRepeatDelayVal.textContent = navRightRepeatDelay.value;
+  if (navRightEnabled) navRightEnabled.checked = nav.rightStick.enabled;
+  if (navRightMode) navRightMode.value = nav.rightStick.mode;
+  if (navRightDeadzone) {
+    navRightDeadzone.value = nav.rightStick.deadzone;
+    if (navRightDeadzoneVal) navRightDeadzoneVal.textContent = nav.rightStick.deadzone;
   }
-  navRightCursorSpeed.value = nav.rightStick.cursorSpeed ?? DEFAULT_NAV_SETTINGS.rightStick.cursorSpeed;
-  navRightCursorSpeedVal.textContent = navRightCursorSpeed.value;
-  navRightCursorColor.value = nav.rightStick.cursorColor || DEFAULT_NAV_SETTINGS.rightStick.cursorColor;
+  if (navRightCursorSpeed) {
+    navRightCursorSpeed.value = nav.rightStick.cursorSpeed ?? DEFAULT_NAV_SETTINGS.rightStick.cursorSpeed;
+    if (navRightCursorSpeedVal) navRightCursorSpeedVal.textContent = navRightCursorSpeed.value;
+  }
+  if (navRightCursorColor) navRightCursorColor.value = nav.rightStick.cursorColor || DEFAULT_NAV_SETTINGS.rightStick.cursorColor;
   if (navRightScrollAmount) {
     navRightScrollAmount.value = nav.rightStick.scrollAmountPx ?? 150;
     if (navRightScrollAmountVal) navRightScrollAmountVal.textContent = navRightScrollAmount.value;
   }
-  navRightAccel.checked = nav.rightStick.repeatAcceleration;
-  navRightDirectionMode.value = nav.rightStick.directionMode;
 
-  navLeftEnabled.checked = nav.leftStick.enabled;
-  navLeftMode.value = nav.leftStick.mode;
-  navLeftDeadzone.value = nav.leftStick.deadzone;
-  navLeftDeadzoneVal.textContent = nav.leftStick.deadzone;
-  navLeftScrollAmount.value = nav.leftStick.scrollAmountPx;
-  navLeftScrollAmountVal.textContent = nav.leftStick.scrollAmountPx;
-  navLeftCursorSpeed.value = nav.leftStick.cursorSpeed ?? DEFAULT_NAV_SETTINGS.leftStick.cursorSpeed;
-  navLeftCursorSpeedVal.textContent = navLeftCursorSpeed.value;
-  navLeftCursorColor.value = nav.leftStick.cursorColor || DEFAULT_NAV_SETTINGS.leftStick.cursorColor;
-
-  for (const dir of ['up', 'down', 'left', 'right']) {
-    const entry = nav.axisMap[dir] || DEFAULT_NAV_SETTINGS.axisMap[dir];
-    const inputs = navAxisInputs[dir];
-    if (inputs) {
-      inputs.stick.value = entry.stick;
-      inputs.action.value = entry.action;
-    }
-    updateDirectionMeta(dir);
+  if (navLeftEnabled) navLeftEnabled.checked = nav.leftStick.enabled;
+  if (navLeftMode) navLeftMode.value = nav.leftStick.mode;
+  if (navLeftDeadzone) {
+    navLeftDeadzone.value = nav.leftStick.deadzone;
+    if (navLeftDeadzoneVal) navLeftDeadzoneVal.textContent = nav.leftStick.deadzone;
   }
+  if (navLeftScrollAmount) {
+    navLeftScrollAmount.value = nav.leftStick.scrollAmountPx;
+    if (navLeftScrollAmountVal) navLeftScrollAmountVal.textContent = nav.leftStick.scrollAmountPx;
+  }
+  if (navLeftCursorSpeed) {
+    navLeftCursorSpeed.value = nav.leftStick.cursorSpeed ?? DEFAULT_NAV_SETTINGS.leftStick.cursorSpeed;
+    if (navLeftCursorSpeedVal) navLeftCursorSpeedVal.textContent = navLeftCursorSpeed.value;
+  }
+  if (navLeftCursorColor) navLeftCursorColor.value = nav.leftStick.cursorColor || DEFAULT_NAV_SETTINGS.leftStick.cursorColor;
 
   updateNavDeadzoneRings();
   updateStickModeVisibility();
-
-  navWrapRows.checked = nav.collectionGrid.wrapRows;
-  navWrapItems.checked = nav.collectionGrid.wrapItems;
-  navLateralPenalty.value = nav.collectionGrid.lateralPenalty;
-  navLateralPenaltyVal.textContent = nav.collectionGrid.lateralPenalty;
-  navRowOverlap.value = nav.collectionGrid.rowOverlapThreshold;
-  navRowOverlapVal.textContent = nav.collectionGrid.rowOverlapThreshold;
-}
-
-function updateDirectionMeta(dir) {
-  const entry = settings.navSettings.axisMap[dir] || DEFAULT_NAV_SETTINGS.axisMap[dir];
-  const meta = directionMetaEls[dir];
-  if (!meta) return;
-  meta.assigned.textContent = entry.stick === 'left' ? 'Left stick' : 'Right stick';
-  meta.action.textContent = ACTION_LABEL_MAP[entry.action] || entry.action;
 }
 
 function updateNavDeadzoneRings() {
@@ -547,38 +486,22 @@ function updateNavDeadzoneRings() {
 
 function collectNavSettingsFromUI() {
   return {
-    enabled: navEnabledInput.checked,
-    strategy: navStrategyInput.value,
+    enabled: true,
     rightStick: {
-      enabled: navRightEnabled.checked,
-      mode: navRightMode.value,
-      deadzone: Number.parseFloat(navRightDeadzone.value),
-      repeatDelayMs: navRightRepeatDelay ? Number.parseInt(navRightRepeatDelay.value, 10) : 150,
-      cursorSpeed: Number.parseInt(navRightCursorSpeed.value, 10),
-      cursorColor: navRightCursorColor.value || DEFAULT_NAV_SETTINGS.rightStick.cursorColor,
-      scrollAmountPx: navRightScrollAmount ? Number.parseInt(navRightScrollAmount.value, 10) : 150,
-      repeatAcceleration: navRightAccel.checked,
-      directionMode: navRightDirectionMode.value
+      enabled: navRightEnabled ? navRightEnabled.checked : true,
+      mode: navRightMode ? navRightMode.value : 'cursor',
+      deadzone: navRightDeadzone ? Number.parseFloat(navRightDeadzone.value) : 0.3,
+      cursorSpeed: navRightCursorSpeed ? Number.parseInt(navRightCursorSpeed.value, 10) : 360,
+      cursorColor: navRightCursorColor ? navRightCursorColor.value : DEFAULT_NAV_SETTINGS.rightStick.cursorColor,
+      scrollAmountPx: navRightScrollAmount ? Number.parseInt(navRightScrollAmount.value, 10) : 150
     },
     leftStick: {
-      enabled: navLeftEnabled.checked,
-      mode: navLeftMode.value,
-      deadzone: Number.parseFloat(navLeftDeadzone.value),
-      scrollAmountPx: Number.parseInt(navLeftScrollAmount.value, 10),
-      cursorSpeed: Number.parseInt(navLeftCursorSpeed.value, 10),
-      cursorColor: navLeftCursorColor.value || DEFAULT_NAV_SETTINGS.leftStick.cursorColor
-    },
-    axisMap: {
-      up:    { stick: navAxisInputs.up.stick.value,    direction: 'up',    action: navAxisInputs.up.action.value    },
-      down:  { stick: navAxisInputs.down.stick.value,  direction: 'down',  action: navAxisInputs.down.action.value  },
-      left:  { stick: navAxisInputs.left.stick.value,  direction: 'left',  action: navAxisInputs.left.action.value  },
-      right: { stick: navAxisInputs.right.stick.value, direction: 'right', action: navAxisInputs.right.action.value }
-    },
-    collectionGrid: {
-      wrapRows: navWrapRows.checked,
-      wrapItems: navWrapItems.checked,
-      lateralPenalty: Number.parseFloat(navLateralPenalty.value),
-      rowOverlapThreshold: Number.parseFloat(navRowOverlap.value)
+      enabled: navLeftEnabled ? navLeftEnabled.checked : true,
+      mode: navLeftMode ? navLeftMode.value : 'scroll',
+      deadzone: navLeftDeadzone ? Number.parseFloat(navLeftDeadzone.value) : 0.3,
+      scrollAmountPx: navLeftScrollAmount ? Number.parseInt(navLeftScrollAmount.value, 10) : 150,
+      cursorSpeed: navLeftCursorSpeed ? Number.parseInt(navLeftCursorSpeed.value, 10) : 360,
+      cursorColor: navLeftCursorColor ? navLeftCursorColor.value : DEFAULT_NAV_SETTINGS.leftStick.cursorColor
     }
   };
 }
@@ -594,15 +517,11 @@ function bindNavInputs() {
   };
 
   syncSlider(navRightDeadzone, navRightDeadzoneVal, syncNavSettingsFromUI);
-  syncSlider(navRightRepeatDelay, navRightRepeatDelayVal, syncNavSettingsFromUI);
   syncSlider(navRightCursorSpeed, navRightCursorSpeedVal, syncNavSettingsFromUI);
   syncSlider(navRightScrollAmount, navRightScrollAmountVal, syncNavSettingsFromUI);
   syncSlider(navLeftDeadzone, navLeftDeadzoneVal, syncNavSettingsFromUI);
   syncSlider(navLeftScrollAmount, navLeftScrollAmountVal, syncNavSettingsFromUI);
   syncSlider(navLeftCursorSpeed, navLeftCursorSpeedVal, syncNavSettingsFromUI);
-  syncSlider(navLeftRepeatDelay, navLeftRepeatDelayVal, syncNavSettingsFromUI);
-  syncSlider(navLateralPenalty, navLateralPenaltyVal, syncNavSettingsFromUI);
-  syncSlider(navRowOverlap, navRowOverlapVal, syncNavSettingsFromUI);
 
   navRightMode?.addEventListener('change', () => {
     updateStickModeVisibility();
@@ -614,19 +533,12 @@ function bindNavInputs() {
   });
 
   const inputs = [
-    navEnabledInput,
-    navStrategyInput,
     navRightEnabled,
     navRightMode,
-    navRightAccel,
-    navRightDirectionMode,
     navRightCursorColor,
     navLeftEnabled,
     navLeftMode,
-    navLeftCursorColor,
-    navWrapRows,
-    navWrapItems,
-    ...Object.values(navAxisInputs).flatMap(i => [i.stick, i.action])
+    navLeftCursorColor
   ].filter(Boolean);
 
   function syncNavSettingsFromUI() {
@@ -1382,194 +1294,6 @@ modalConfirmBtn.addEventListener('click', () => closeConfigModal(true));
 
 // ─── Collection Navigation Config ─────────────────────────────────────────────
 
-function renderCollectionConfig() {
-  renderCNavSitesList();
-  renderCNavEditor();
-}
-
-function renderCNavSitesList() {
-  const listEl = document.getElementById('cnav-sites-list');
-  if (!listEl) return;
-
-  const sites = Object.keys(settings.siteCollections);
-  if (!selectedCollectionSite || !sites.includes(selectedCollectionSite)) {
-    selectedCollectionSite = sites[0] || '';
-  }
-
-  if (sites.length === 0) {
-    listEl.innerHTML = `<p style="font-size:12px;color:var(--on-surface-variant);font-family:var(--font-body);text-align:center;padding:16px 0">No sites configured yet.<br>Add one below.</p>`;
-    return;
-  }
-
-  listEl.innerHTML = sites.map(site => {
-    const cfg = settings.siteCollections[site];
-    const isConfigured = !!(cfg?.containerSelector && cfg?.itemSelector);
-    const isActive = site === selectedCollectionSite;
-    return `
-      <button class="cnav-site-item${isActive ? ' active' : ''}" data-site="${escHtml(site)}">
-        <span class="cnav-site-status${isConfigured ? ' configured' : ''}" title="${isConfigured ? 'Configured' : 'Empty — needs selectors'}"></span>
-        <span class="cnav-site-label">
-          <span class="cnav-site-name">${escHtml(getFriendlyLabel(site))}</span>
-          <span class="cnav-site-domain">${escHtml(site)}</span>
-        </span>
-        <button class="btn-ghost cnav-site-delete" data-site="${escHtml(site)}" title="Remove" style="padding:2px 6px;font-size:14px;color:var(--on-surface-variant);flex-shrink:0;border:0;background:transparent;cursor:pointer;line-height:1">✕</button>
-      </button>
-    `;
-  }).join('');
-
-  // Wire site selection
-  listEl.querySelectorAll('.cnav-site-item').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      if (e.target.closest('.cnav-site-delete')) return; // handled below
-      selectedCollectionSite = btn.dataset.site;
-      renderCNavSitesList();
-      renderCNavEditor();
-    });
-  });
-
-  // Wire delete buttons
-  listEl.querySelectorAll('.cnav-site-delete').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const site = btn.dataset.site;
-      if (!confirm(`Remove collection config for ${site}?`)) return;
-      delete settings.siteCollections[site];
-      selectedCollectionSite = Object.keys(settings.siteCollections)[0] || '';
-      unsavedChanges = true;
-      renderCNavSitesList();
-      renderCNavEditor();
-    });
-  });
-}
-
-function renderCNavEditor() {
-  const editorEl = document.getElementById('cnav-editor-panel');
-  if (!editorEl) return;
-
-  if (!selectedCollectionSite) {
-    editorEl.innerHTML = `
-      <div class="cnav-empty-state">
-        <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:48px;height:48px"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-        <p>Select a site from the list or add one to get started.</p>
-      </div>`;
-    return;
-  }
-
-  const cfg = settings.siteCollections[selectedCollectionSite] || { containerSelector: '', itemSelector: '' };
-
-  editorEl.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
-      <div>
-        <div style="font-family:var(--font-headline);font-size:17px;font-weight:700;color:var(--on-surface)">${escHtml(getFriendlyLabel(selectedCollectionSite))}</div>
-        <div style="font-size:12px;color:var(--on-surface-variant);font-family:var(--font-body);margin-top:1px">${escHtml(selectedCollectionSite)}</div>
-      </div>
-      <button id="cnav-delete-btn" class="btn-ghost" style="color:var(--error);font-size:12px">Remove Site</button>
-    </div>
-
-    <div style="margin-bottom:16px">
-      <label class="cnav-field-label" for="cnav-container-input">Container Selector <span style="opacity:0.5;font-weight:400;text-transform:none">(rows / shelves)</span></label>
-      <input type="text" id="cnav-container-input" class="cnav-input"
-        placeholder="e.g. .lolomoRow, [data-testid=&quot;row&quot;]"
-        value="${escHtml(cfg.containerSelector || '')}">
-      <p style="font-size:11px;color:var(--on-surface-variant);font-family:var(--font-body);margin:4px 0 0;line-height:1.4">
-        Matches each horizontal shelf or group of items.
-      </p>
-    </div>
-
-    <div style="margin-bottom:16px">
-      <label class="cnav-field-label" for="cnav-item-input">Item Selector <span style="opacity:0.5;font-weight:400;text-transform:none">(cards within a row)</span></label>
-      <input type="text" id="cnav-item-input" class="cnav-input"
-        placeholder="e.g. .title-card-container, [data-testid=&quot;card&quot;]"
-        value="${escHtml(cfg.itemSelector || '')}">
-      <p style="font-size:11px;color:var(--on-surface-variant);font-family:var(--font-body);margin:4px 0 0;line-height:1.4">
-        Matches individual cards scoped inside a matched container.
-      </p>
-    </div>
-
-    <div class="cnav-test-result" id="cnav-test-result"></div>
-
-    <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06)">
-      <button id="cnav-test-btn" class="btn-ghost" style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        Test on Active Tab
-      </button>
-      <button id="cnav-save-btn" class="btn-primary" style="font-size:13px">Save</button>
-    </div>
-  `;
-
-  // Delete
-  document.getElementById('cnav-delete-btn')?.addEventListener('click', () => {
-    if (!confirm(`Remove collection config for ${selectedCollectionSite}?`)) return;
-    delete settings.siteCollections[selectedCollectionSite];
-    selectedCollectionSite = Object.keys(settings.siteCollections)[0] || '';
-    unsavedChanges = true;
-    renderCNavSitesList();
-    renderCNavEditor();
-  });
-
-  // Save (single site)
-  document.getElementById('cnav-save-btn')?.addEventListener('click', () => {
-    const containerSel = document.getElementById('cnav-container-input')?.value.trim() || '';
-    const itemSel = document.getElementById('cnav-item-input')?.value.trim() || '';
-    settings.siteCollections[selectedCollectionSite] = { containerSelector: containerSel, itemSelector: itemSel };
-    unsavedChanges = true;
-    saveSettings();
-    renderCNavSitesList(); // refresh status dot
-  });
-
-  // Test selectors
-  document.getElementById('cnav-test-btn')?.addEventListener('click', async () => {
-    const containerSel = document.getElementById('cnav-container-input')?.value.trim() || '';
-    const itemSel = document.getElementById('cnav-item-input')?.value.trim() || '';
-    const resultEl = document.getElementById('cnav-test-result');
-    if (!resultEl) return;
-
-    resultEl.style.display = 'block';
-    resultEl.style.background = 'rgba(255,255,255,0.04)';
-    resultEl.style.color = 'var(--on-surface-variant)';
-    resultEl.style.border = '1px solid rgba(255,255,255,0.06)';
-    resultEl.textContent = 'Testing selectors on active tab…';
-
-    try {
-      const res = await api.runtime.sendMessage({
-        type: 'COUNT_SELECTORS',
-        containerSelector: containerSel,
-        itemSelector: itemSel
-      });
-      if (res?.error) {
-        resultEl.style.background = 'rgba(229,9,20,0.1)';
-        resultEl.style.color = '#ffb4ab';
-        resultEl.style.border = '1px solid rgba(229,9,20,0.2)';
-        resultEl.textContent = `⚠ Error: ${res.error}`;
-      } else {
-        const { containerCount = 0, itemCount = 0 } = res || {};
-        const ok = containerCount > 0;
-        resultEl.style.background = ok ? 'rgba(74,222,128,0.08)' : 'rgba(250,204,21,0.08)';
-        resultEl.style.color = ok ? '#4ade80' : '#facc15';
-        resultEl.style.border = `1px solid ${ok ? 'rgba(74,222,128,0.2)' : 'rgba(250,204,21,0.2)'}`;
-        resultEl.textContent = ok
-          ? `✓ Found ${containerCount} row${containerCount !== 1 ? 's' : ''} with ${itemCount} total item${itemCount !== 1 ? 's' : ''} — looking good!`
-          : `⚠ No rows matched. Make sure the page is loaded and you have a website tab open.`;
-      }
-    } catch (e) {
-      resultEl.style.background = 'rgba(229,9,20,0.1)';
-      resultEl.style.color = '#ffb4ab';
-      resultEl.style.border = '1px solid rgba(229,9,20,0.2)';
-      resultEl.textContent = `⚠ Could not reach active tab. Open the target site first.`;
-    }
-  });
-}
-
-function parseDomain(rawInput) {
-  let domain = rawInput.trim().toLowerCase();
-  try {
-    domain = new URL(domain.includes('://') ? domain : 'https://' + domain).hostname;
-  } catch (e) {
-    domain = domain.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
-  }
-  return domain.replace(/^www\./, '');
-}
-
 // ─── Tab Switching ─────────────────────────────────────────────────────────────
 
 function initTabs() {
@@ -1588,9 +1312,6 @@ function initTabs() {
       const panel = document.getElementById(targetPanelId);
       if (panel) {
         panel.hidden = false;
-        if (targetPanelId === 'tab-panel-collection') {
-          renderCollectionConfig();
-        }
         if (targetPanelId === 'tab-panel-navigation') {
           renderNavConfig();
         }
@@ -1603,35 +1324,6 @@ function initTabs() {
 
 window.addEventListener('gamepadconnected', () => startPolling());
 window.addEventListener('gamepaddisconnected', () => pollGamepads());
-
-// Add-site button (Collection Nav tab)
-document.getElementById('collection-add-site-btn')?.addEventListener('click', () => {
-  const rawInput = document.getElementById('collection-new-site-input')?.value || '';
-  const domain = parseDomain(rawInput);
-
-  if (!domain || !domain.includes('.')) {
-    alert('Please enter a valid website domain (e.g. disneyplus.com).');
-    return;
-  }
-
-  if (!settings.siteCollections[domain]) {
-    settings.siteCollections[domain] = { containerSelector: '', itemSelector: '' };
-  }
-  selectedCollectionSite = domain;
-  unsavedChanges = true;
-
-  const input = document.getElementById('collection-new-site-input');
-  if (input) input.value = '';
-
-  renderCNavSitesList();
-  renderCNavEditor();
-  showToast(`Added ${domain} — fill in the selectors and save.`, 'success');
-});
-
-// Save All button
-document.getElementById('cnav-save-all-btn')?.addEventListener('click', () => {
-  saveSettings();
-});
 
 (async () => {
   await loadSettings();
