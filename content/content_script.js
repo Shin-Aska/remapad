@@ -156,21 +156,27 @@
   };
 
   const FULLSCREEN_CONTROL_SELECTOR = [
+    '[data-uia="control-fullscreen-enter"]',
+    '[data-uia="control-fullscreen-exit"]',
     '[data-uia*="fullscreen" i]',
-    '[data-uia*="control-fullscreen" i]',
+    '[data-testid="player-fullscreen-button"]',
     '[data-testid*="fullscreen" i]',
     '[data-testid*="full-screen" i]',
+    '[data-a-target="player-fullscreen-button"]',
     '[data-a-target*="fullscreen" i]',
     '.ytp-fullscreen-button',
+    '.ff-fullscreen-button',
     '.fullscreen-button',
     '.button-fullscreen',
     'button.fullscreen',
     '[aria-label*="fullscreen" i]',
     '[aria-label*="full screen" i]',
+    '[aria-label*="Full screen" i]',
     '[title*="fullscreen" i]',
     '[title*="full screen" i]',
     '.vjs-fullscreen-control',
-    '.jw-icon-fullscreen'
+    '.jw-icon-fullscreen',
+    '.media-control-input[data-fullscreen]'
   ].join(', ');
 
   // ─── State ──────────────────────────────────────────────────────────────────
@@ -1625,39 +1631,55 @@
   }
 
   async function toggleFullscreen() {
-    // 1. If currently in fullscreen, attempt exit via page control or browser API
-    if (getFullscreenElement()) {
-      const fullscreenControl = getFullscreenControl();
-      if (fullscreenControl) {
-        fullscreenControl.click();
-        return;
-      }
+    const isFS = !!getFullscreenElement();
+
+    // 1. Try clicking native button controls on the page (both visible and player bar controls)
+    const allControls = Array.from(document.querySelectorAll(FULLSCREEN_CONTROL_SELECTOR));
+    const control = allControls.find(el => isVisibleElement(el)) || allControls[0];
+    if (control) {
+      try {
+        control.click();
+        control.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+      } catch (_) {}
+    }
+
+    // 2. Dispatch 'f' and 'F' key events across video, player container, activeElement, body, document, and window
+    const video = getPrimaryVideo();
+    const playerTarget = video ? getFullscreenTarget(video) : null;
+    const keyTargets = [
+      document.activeElement,
+      video,
+      playerTarget,
+      document.body,
+      document,
+      window
+    ].filter(Boolean);
+
+    for (const target of keyTargets) {
+      dispatchKeyEvent(target, 'f', 'KeyF');
+      dispatchKeyEvent(target, 'F', 'KeyF');
+    }
+
+    // 3. Trigger browser F11 window fullscreen toggle via extension background worker
+    try {
+      api.runtime.sendMessage({ type: 'BROWSER_ACTION', action: 'toggle_window_fullscreen' });
+    } catch (_) {}
+
+    // 4. Fallback: Browser Fullscreen API Exit or Request
+    if (isFS) {
       try {
         await exitDocumentFullscreen();
       } catch (error) {
-        dispatchKeyEvent(document.activeElement || document.body, 'f', 'KeyF');
+        console.warn('[Remapad CS] Exit fullscreen fallback:', error);
       }
-      return;
-    }
-
-    // 2. Try clicking the page's native fullscreen button
-    const fullscreenControl = getFullscreenControl();
-    if (fullscreenControl) {
-      fullscreenControl.click();
-      return;
-    }
-
-    // 3. Dispatch standard 'f' key shortcut used by YouTube, Netflix, Twitch, Prime Video, etc.
-    dispatchKeyEvent(document.activeElement || document.body, 'f', 'KeyF');
-
-    // 4. Fallback to direct Element.requestFullscreen()
-    const video = getPrimaryVideo();
-    const target = getFullscreenTarget(video);
-    if (target) {
-      try {
-        await requestElementFullscreen(target);
-      } catch (error) {
-        console.warn('[Remapad CS] Direct fullscreen request failed:', error);
+    } else {
+      const targetElement = playerTarget || video;
+      if (targetElement) {
+        try {
+          await requestElementFullscreen(targetElement);
+        } catch (error) {
+          console.warn('[Remapad CS] Direct requestFullscreen fallback:', error);
+        }
       }
     }
   }

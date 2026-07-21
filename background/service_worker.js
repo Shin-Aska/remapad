@@ -118,6 +118,14 @@ async function handleBrowserAction(action, sender) {
       return { success: true };
     }
 
+    case 'toggle_window_fullscreen': {
+      const windowId = sender.tab?.windowId || (await getActiveTab())?.windowId || api.windows.WINDOW_ID_CURRENT;
+      const currentWindow = await api.windows.get(windowId);
+      const nextState = currentWindow.state === 'fullscreen' ? 'normal' : 'fullscreen';
+      await api.windows.update(windowId, { state: nextState });
+      return { success: true };
+    }
+
     default:
       return { error: 'Unknown browser action: ' + action };
   }
