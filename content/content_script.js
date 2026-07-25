@@ -2699,13 +2699,22 @@
     }, true);
   }
 
+  function resolveNavigatorLayout() {
+    const raw = (navigator.language || '').toLowerCase().trim();
+    if (!raw) return null;
+    const base = raw.split(/[-_]/)[0];
+    return RemapadLanguageDetector?.LANG_TO_LAYOUT?.[raw]
+      || RemapadLanguageDetector?.LANG_TO_LAYOUT?.[base]
+      || null;
+  }
+
   async function resolveKeyboardLayout() {
     const siteLayout = settings.siteKeyboardLayouts?.[currentHostname];
     if (siteLayout && siteLayout !== 'auto') return siteLayout;
 
-    if (settings.keyboardAutoDetect && typeof RemapadLanguageDetector !== 'undefined') {
-      const result = await RemapadLanguageDetector.detectPageLanguage(500);
-      if (result.layout) return result.layout;
+    if (settings.keyboardAutoDetect) {
+      const layout = resolveNavigatorLayout();
+      if (layout) return layout;
     }
 
     return settings.keyboardLayout || 'qwerty';

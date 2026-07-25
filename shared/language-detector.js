@@ -95,6 +95,7 @@
 
   global.RemapadLanguageDetector = {
     detectPageLanguage,
-    getHtmlLangHint
+    getHtmlLangHint,
+    LANG_TO_LAYOUT
   };
 })(typeof window !== 'undefined' ? window : globalThis);
