@@ -67,6 +67,7 @@
   const sitePolicy = CS.SitePolicy?.create({ constants: CS.Constants, hostname: currentHostname });
   const domSimulator = CS.DomSimulator?.create({ utils: CS.Utils, constants: CS.Constants, messagingClient });
   const autoplayService = CS.AutoplayService?.create({ utils: CS.Utils, getSettings: () => settings });
+  const modalFocusManager = CS.ModalFocusManager?.create({ utils: CS.Utils });
 
   // ─── State ──────────────────────────────────────────────────────────────────
 
@@ -111,12 +112,6 @@
   let cursorStyleElement = null;
   let cnavHudElement = null;
   let cnavHudTimeout = null;
-  let modalFocusObserver = null;
-  let modalFocusTimeout = null;
-  let modalFocusAnimationFrame = null;
-  let modalFocusGeneration = 0;
-  const modalOpeners = new WeakMap();
-
   function resolveIconStyle() {
     return controllerStyle.resolve(settings.iconStyle);
   }
@@ -1042,7 +1037,7 @@
       '[data-testid="card"], [data-testid*="title" i], .title-card, .title-card-container'
     )).filter(el => isVisibleElement(el) && !el.closest('.remapad-hud-container, .remapad-quick-map'));
 
-    const modal = getOpenModals()[0];
+    const modal = modalFocusManager.getOpenModals()[0];
     let all = [...focusables, ...mediaCards];
     if (modal) {
       all = all.filter(el => modal.contains(el) || el === modal);
@@ -1273,159 +1268,23 @@
   function performBackAction() {
     if (sitePolicy.navigateNetflixHome()) return;
 
-    const modal = getOpenModals()[0];
-    if (modal && closeModal(modal)) return;
+    const modal = modalFocusManager.getOpenModals()[0];
+    if (modal && modalFocusManager.closeModal(modal, { getControllerFocusedElement: () => controllerFocusedElement, focusElement, resetNavigationState })) return;
 
     resetNavigationState();
     history.back();
   }
 
-  function getOpenModals() {
-    const selector = [
-      '[role="dialog"]',
-      '[aria-modal="true"]',
-      '[data-uia*="modal" i]',
-      '[data-testid*="modal" i]',
-      '[class*="modal" i]'
-    ].join(', ');
-
-    return Array.from(document.querySelectorAll(selector))
-      .filter(element => !isRemapadElement(element) && isVisibleElement(element))
-      .sort((first, second) => {
-        const firstZIndex = Number.parseInt(getComputedStyle(first).zIndex, 10) || 0;
-        const secondZIndex = Number.parseInt(getComputedStyle(second).zIndex, 10) || 0;
-        if (firstZIndex !== secondZIndex) return secondZIndex - firstZIndex;
-        return first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING ? 1 : -1;
-      });
-  }
-
-  function closeModal(modal) {
-    const previousFocus = modalOpeners.get(modal) || controllerFocusedElement;
-    const closeControl = Array.from(modal.querySelectorAll('button, [role="button"], a[href]')).find(
-      element => isVisibleElement(element) && !element.matches(':disabled') && isDismissControl(element)
-    );
-
-    if (closeControl) {
-      closeControl.click();
-      restoreFocusAfterModalClose(previousFocus, modal);
-      return true;
-    }
-
-    if (typeof modal.close === 'function') {
-      modal.close();
-      restoreFocusAfterModalClose(previousFocus, modal);
-      return true;
-    }
-
-    return false;
-  }
-
-  function isDismissControl(element) {
-    if (element.matches('button.close, button.close-button, [role="button"].close-button, button[class~="close" i], [role="button"][class~="close" i]')) {
-      return true;
-    }
-
-    const hasDismissIdentifier = value => /(?:^|[-_\s])(?:close|dismiss|cancel)(?:$|[-_\s])/i.test(value || '');
-    if (hasDismissIdentifier(element.getAttribute('data-uia')) || hasDismissIdentifier(element.getAttribute('data-testid'))) {
-      return true;
-    }
-
-    const isDismissLabel = value => /^(?:close|dismiss|cancel)(?:\s+(?:dialog|modal|menu|panel|overlay|player|preview))?$/i.test((value || '').trim());
-    return isDismissLabel(element.getAttribute('aria-label')) || isDismissLabel(element.getAttribute('title'));
-  }
-
-  function restoreFocusAfterModalClose(previousFocus, modal) {
-    stopModalFocusObserver();
-    resetNavigationState();
-    const generation = modalFocusGeneration;
-    const restoreFocus = () => {
-      if (generation !== modalFocusGeneration) return true;
-      if (modal.isConnected && isVisibleElement(modal)) return false;
-      stopModalFocusObserver();
-      if (previousFocus?.isConnected && isVisibleElement(previousFocus)) {
-        focusElement(previousFocus);
-      }
-      return true;
-    };
-
-    modalFocusAnimationFrame = requestAnimationFrame(() => {
-      modalFocusAnimationFrame = null;
-      if (generation !== modalFocusGeneration) return;
-      if (restoreFocus()) return;
-      modalFocusObserver = new MutationObserver(restoreFocus);
-      modalFocusObserver.observe(document.body, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ['aria-hidden', 'class', 'open', 'style']
-      });
-      modalFocusTimeout = setTimeout(stopModalFocusObserver, 1200);
-    });
-  }
-
   function beginModalFocusTracking() {
-    stopModalFocusObserver();
-    return {
-      existingModals: new Set(getOpenModals()),
-      opener: controllerFocusedElement,
-      initialUrl: location.href,
-      generation: modalFocusGeneration
-    };
+    return modalFocusManager.beginTracking({ getControllerFocusedElement: () => controllerFocusedElement });
   }
 
-  function focusNewModalAfterClick({ existingModals, opener, initialUrl, generation }) {
-
-    const focusNewModal = () => {
-      if (generation !== modalFocusGeneration) return true;
-      const modal = getOpenModals().find(element => !existingModals.has(element));
-      if (!modal) return false;
-
-      if (opener?.isConnected) modalOpeners.set(modal, opener);
-      resetNavigationState();
-      const focusTarget = getModalFocusTarget(modal);
-      if (focusTarget) focusElement(focusTarget);
-      stopModalFocusObserver();
-      return true;
-    };
-
-    if (focusNewModal()) return;
-
-    modalFocusObserver = new MutationObserver(focusNewModal);
-    modalFocusObserver.observe(document.body, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['aria-hidden', 'class', 'open', 'style']
-    });
-    modalFocusTimeout = setTimeout(() => {
-      if (generation !== modalFocusGeneration) return;
-      if (location.href !== initialUrl) resetNavigationState();
-      stopModalFocusObserver();
-    }, 1200);
+  function focusNewModalAfterClick(state) {
+    modalFocusManager.focusNewModalAfterClick(state, { focusElement, resetNavigationState });
   }
 
   function stopModalFocusObserver() {
-    modalFocusGeneration += 1;
-    modalFocusObserver?.disconnect();
-    modalFocusObserver = null;
-    clearTimeout(modalFocusTimeout);
-    modalFocusTimeout = null;
-    if (modalFocusAnimationFrame !== null) cancelAnimationFrame(modalFocusAnimationFrame);
-    modalFocusAnimationFrame = null;
-  }
-
-  function getModalFocusTarget(modal) {
-    const selector = [
-      '[autofocus]',
-      '[data-uia*="close" i]',
-      '[data-testid*="close" i]',
-      '[aria-label*="close" i]',
-      'button:not([disabled])',
-      'a[href]',
-      '[tabindex]:not([tabindex="-1"])'
-    ].join(', ');
-
-    return Array.from(modal.querySelectorAll(selector)).find(isVisibleElement) || null;
+    modalFocusManager.stopObserver();
   }
 
   function resetNavigationState() {
