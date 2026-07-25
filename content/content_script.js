@@ -15,187 +15,57 @@
 
   // ─── Constants & Settings ──────────────────────────────────────────────────
 
-  const POLL_INTERVAL_MS = 50;
-  const DEADZONE = 0.3;
-  const AXIS_REPEAT_DELAY_MS = 150;
-  const CURSOR_SPEED_PX_PER_SEC = 360;
+  const CS = window.RemapadCS || {};
 
-  const DEFAULT_NAV_SETTINGS = {
-    enabled: true,
-    strategy: 'auto', // 'auto' | 'spatial' | 'collection' | 'dom-order'
-    rightStick: {
-      enabled: true,
-      mode: 'cursor', // 'cursor' | 'navigate' | 'scroll' | 'disabled'
-      deadzone: 0.3,
-      repeatDelayMs: 150,
-      repeatAcceleration: true,
-      directionMode: 'dominant-axis', // 'dominant-axis' | '8-way'
-      cursorSpeed: 800,
-      cursorColor: '#e50914'
-    },
-    leftStick: {
-      enabled: true,
-      mode: 'scroll', // 'scroll' | 'navigate' | 'cursor' | 'disabled'
-      deadzone: 0.3,
-      scrollAmountPx: 150,
-      cursorSpeed: 800,
-      cursorColor: '#00a8e1'
-    },
-    axisMap: {
-      up:    { stick: 'right', direction: 'up',    action: 'nav_up' },
-      down:  { stick: 'right', direction: 'down',  action: 'nav_down' },
-      left:  { stick: 'right', direction: 'left',  action: 'nav_left' },
-      right: { stick: 'right', direction: 'right', action: 'nav_right' }
-    },
-    collectionGrid: {
-      wrapRows: false,
-      wrapItems: false,
-      lateralPenalty: 3,
-      rowOverlapThreshold: 0.5
-    }
-  };
+  const {
+    POLL_INTERVAL_MS,
+    DEADZONE,
+    AXIS_REPEAT_DELAY_MS,
+    CURSOR_SPEED_PX_PER_SEC,
+    MAX_DOM_ACTION_PAYLOAD_LENGTH,
+    DEFAULT_NAV_SETTINGS,
+    DEFAULT_PROFILE,
+    GLYPHS,
+    ACTION_LABELS,
+    DOM_ACTION_OPERATIONS,
+    TOGGLEABLE_DOM_ATTRIBUTES,
+    SITE_SEARCH_SELECTORS,
+    FULLSCREEN_CONTROL_SELECTOR,
+    WEBSITE_MAPPINGS_DEFAULT,
+    SITE_COLLECTIONS_DEFAULT,
+    CONTROLLER_STYLE_PATTERNS
+  } = CS.Constants || {};
 
-  const DEFAULT_PROFILE = {
-    "0": "click",          // A / Cross
-    "1": "back",           // B / Circle
-    "2": "fullscreen",     // X / Square
-    "3": "search",         // Y / Triangle
-    "4": "seek_backward",  // L1
-    "5": "seek_forward",   // R1
-    "6": "volume_down",    // L2
-    "7": "volume_up",      // R2
-    "8": "toggle_play",    // Select
-    "9": "toggle_hud",     // Start
-    "10": "none",          // L3 Click
-    "11": "none",          // R3 Click
-    "12": "scroll_up",     // D-Pad Up
-    "13": "scroll_down",   // D-Pad Down
-    "14": "scroll_left",   // D-Pad Left
-    "15": "scroll_right"   // D-Pad Right
-  };
+  const {
+    clamp,
+    clampIndex,
+    escapeHtml,
+    escapeCssIdentifier,
+    escapeCssString,
+    hexToRgba,
+    isVisibleElement,
+    getElementArea,
+    safeQuerySelector,
+    isRemapadElement,
+    getKeyboardCode,
+    getLegacyKeyCode,
+    dispatchKeyEvent,
+    rectCenter,
+    centerDistance,
+    isDirectionalMove,
+    isInBeam,
+    primaryEdgeDistance,
+    orthogonalEdgeDistance,
+    anchorDistance,
+    createWavProbeDataUrl
+  } = CS.Utils || {};
 
-  const GLYPHS = {
-    playstation: {
-      "0": "✕", "1": "○", "2": "□", "3": "△",
-      "4": "L1", "5": "R1", "6": "L2", "7": "R2",
-      "8": "Share", "9": "☰", "10": "L3", "11": "R3", "12": "↑", "13": "↓", "14": "←", "15": "→"
-    },
-    xbox: {
-      "0": "A", "1": "B", "2": "X", "3": "Y",
-      "4": "LB", "5": "RB", "6": "LT", "7": "RT",
-      "8": "View", "9": "☰", "10": "L3", "11": "R3", "12": "↑", "13": "↓", "14": "←", "15": "→"
-    },
-    nintendo: {
-      "0": "B", "1": "A", "2": "Y", "3": "X",
-      "4": "L", "5": "R", "6": "ZL", "7": "ZR",
-      "8": "Minus", "9": "Plus", "10": "L3", "11": "R3", "12": "↑", "13": "↓", "14": "←", "15": "→"
-    }
-  };
-
-  const ACTION_LABELS = {
-    click: "Select",
-    back: "Back",
-    search: "Search",
-    fullscreen: "Fullscreen",
-    toggle_play: "Play/Pause",
-    scroll_up: "Scroll Up",
-    scroll_down: "Scroll Down",
-    scroll_left: "Scroll Left",
-    scroll_right: "Scroll Right",
-    volume_up: "Volume Up",
-    volume_down: "Volume Down",
-    seek_forward: "Forward",
-    seek_backward: "Rewind",
-    open_options: "Options",
-    next_tab: "Next Tab",
-    prev_tab: "Prev Tab",
-    close_tab: "Close Tab",
-    focus_next: "Focus Next",
-    focus_prev: "Focus Previous",
-    toggle_hud: "Toggle Navigation Guide",
-    dom_action: "DOM Action",
-    nav_next_collection: "Next Row",
-    nav_prev_collection: "Prev Row",
-    nav_next_item: "Next Item",
-    nav_prev_item: "Prev Item",
-    nav_up: "Navigate Up",
-    nav_down: "Navigate Down",
-    nav_left: "Navigate Left",
-    nav_right: "Navigate Right"
-  };
-
-  const DOM_ACTION_OPERATIONS = new Set([
-    'click',
-    'focus',
-    'scroll',
-    'set-value',
-    'toggle-attribute',
-    'toggle-media'
-  ]);
-  const MAX_DOM_ACTION_PAYLOAD_LENGTH = 12000;
-  const TOGGLEABLE_DOM_ATTRIBUTES = new Set([
-    'hidden',
-    'disabled',
-    'open',
-    'checked',
-    'selected',
-    'muted',
-    'controls',
-    'loop',
-    'autoplay'
-  ]);
-
-  const SITE_SEARCH_SELECTORS = {
-    'youtube.com': '#search-input input, input#search',
-    'netflix.com': '.searchTab, [data-uia="search-tab"], input[type="text"]',
-    'primevideo.com': '[data-testid="search-field"], .nav-search-field input',
-    'twitch.tv': '[data-a-target="search-input"]',
-    'disneyplus.com': '[data-testid="search-icon"], input[type="search"]',
-    'hulu.com': '.NavSearch-searchInput, [placeholder*="Search"]',
-    'max.com': '[data-testid="search-bar-input"]'
-  };
-
-  const FULLSCREEN_CONTROL_SELECTOR = [
-    '[data-uia="control-fullscreen-enter"]',
-    '[data-uia="control-fullscreen-exit"]',
-    '[data-uia*="fullscreen" i]',
-    '[data-testid="player-fullscreen-button"]',
-    '[data-testid*="fullscreen" i]',
-    '[data-testid*="full-screen" i]',
-    '[data-a-target="player-fullscreen-button"]',
-    '[data-a-target*="fullscreen" i]',
-    '.ytp-fullscreen-button',
-    '.ff-fullscreen-button',
-    '.fullscreen-button',
-    '.button-fullscreen',
-    'button.fullscreen',
-    '[aria-label*="fullscreen" i]',
-    '[aria-label*="full screen" i]',
-    '[aria-label*="Full screen" i]',
-    '[title*="fullscreen" i]',
-    '[title*="full screen" i]',
-    '.vjs-fullscreen-control',
-    '.jw-icon-fullscreen',
-    '.media-control-input[data-fullscreen]'
-  ].join(', ');
+  const messagingClient = CS.MessagingClient?.create(api);
+  const controllerStyle = CS.ControllerStyle?.create(CONTROLLER_STYLE_PATTERNS);
 
   // ─── State ──────────────────────────────────────────────────────────────────
 
-  const WEBSITE_MAPPINGS_DEFAULT = {
-    'netflix.com':    { ...DEFAULT_PROFILE },
-    'primevideo.com': { ...DEFAULT_PROFILE }
-  };
 
-  const SITE_COLLECTIONS_DEFAULT = {
-    'netflix.com': {
-      containerSelector: '.lolomoRow',
-      itemSelector: '.title-card-container'
-    },
-    'primevideo.com': {
-      containerSelector: '[data-testid="grid-lockup"], ._1h3rtFr, .wv_A6',
-      itemSelector: '[data-testid="card"], ._1t8qyG2, .P2TLe'
-    }
-  };
 
   let settings = {
     iconStyle: 'auto',
@@ -261,26 +131,10 @@
 
   const currentHostname = location.hostname.replace(/^www\./, '');
 
-  const CONTROLLER_STYLE_PATTERNS = [
-    { test: /xbox|microsoft|xinput|generic x/, style: 'xbox' },
-    { test: /dualsense|dualshock|sony|playstation|ps4|ps5/, style: 'playstation' },
-    { test: /nintendo|switch|pro controller/, style: 'nintendo' }
-  ];
 
-  let detectedControllerStyle = null;
-
-  function detectControllerStyle(gamepadId) {
-    const id = (gamepadId || '').toLowerCase();
-    for (const { test, style } of CONTROLLER_STYLE_PATTERNS) {
-      if (test.test(id)) return style;
-    }
-    return null;
-  }
 
   function resolveIconStyle() {
-    const stored = settings.iconStyle || 'auto';
-    if (stored !== 'auto') return stored;
-    return detectedControllerStyle || 'playstation';
+    return controllerStyle.resolve(settings.iconStyle);
   }
 
   // ─── Initialisation ─────────────────────────────────────────────────────────
@@ -430,19 +284,17 @@
   }
 
   function processGamepad(gp) {
-    const detected = detectControllerStyle(gp.id);
-    if (detected && detected !== detectedControllerStyle) {
-      detectedControllerStyle = detected;
-      if (settings.iconStyle === 'auto') {
-        if (hudVisible) updateHUD();
-        if (typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.isOpen()) {
-          const glyphs = GLYPHS[resolveIconStyle()] || GLYPHS.playstation;
-          RemapadKeyboard.setShortcutGlyphs({
-            confirm: glyphs['2'],
-            cancel: glyphs['1'],
-            backspace: glyphs['3']
-          });
-        }
+    const previous = controllerStyle.getDetected();
+    controllerStyle.update(gp.id);
+    if (controllerStyle.getDetected() !== previous && settings.iconStyle === 'auto') {
+      if (hudVisible) updateHUD();
+      if (typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.isOpen()) {
+        const glyphs = GLYPHS[resolveIconStyle()] || GLYPHS.playstation;
+        RemapadKeyboard.setShortcutGlyphs({
+          confirm: glyphs['2'],
+          cancel: glyphs['1'],
+          backspace: glyphs['3']
+        });
       }
     }
 
@@ -691,7 +543,7 @@
         if (btnIdx === 0) { // Cross / A: execute selected action
           const target = hudItems[hudHighlightedIndex];
           if (target === 'edit') {
-            api.runtime.sendMessage({ type: 'OPEN_SITE_MAPPING' }).catch(() => {});
+            messagingClient.openSiteMapping();
             hideHUD();
           } else if (target !== 'ls' && target !== 'rs') {
             const action = activeProfile[target];
@@ -928,7 +780,7 @@
     // Browser-level actions are handled by background worker
     const browserActions = ['next_tab', 'prev_tab', 'close_tab', 'open_options'];
     if (browserActions.includes(action)) {
-      api.runtime.sendMessage({ type: 'BROWSER_ACTION', action }).catch(() => {});
+      messagingClient.browserAction(action);
       return;
     }
 
@@ -1338,72 +1190,6 @@
     return best;
   }
 
-  function isDirectionalMove(direction, sourceRect, targetRect) {
-    switch (direction) {
-      case 'up':    return targetRect.bottom < sourceRect.top;
-      case 'down':  return targetRect.top > sourceRect.bottom;
-      case 'left':  return targetRect.right < sourceRect.left;
-      case 'right': return targetRect.left > sourceRect.right;
-      default:      return false;
-    }
-  }
-
-  function isInBeam(direction, sourceRect, targetRect) {
-    if (direction === 'up' || direction === 'down') {
-      return targetRect.right > sourceRect.left && targetRect.left < sourceRect.right;
-    }
-    return targetRect.bottom > sourceRect.top && targetRect.top < sourceRect.bottom;
-  }
-
-  function primaryEdgeDistance(direction, sourceRect, targetRect) {
-    switch (direction) {
-      case 'up':    return sourceRect.top - targetRect.bottom;
-      case 'down':  return targetRect.top - sourceRect.bottom;
-      case 'left':  return sourceRect.left - targetRect.right;
-      case 'right': return targetRect.left - sourceRect.right;
-      default:      return Infinity;
-    }
-  }
-
-  function orthogonalEdgeDistance(direction, sourceRect, targetRect) {
-    if (direction === 'up' || direction === 'down') {
-      const overlap = Math.max(0, Math.min(sourceRect.right, targetRect.right) - Math.max(sourceRect.left, targetRect.left));
-      const span = Math.max(sourceRect.width, targetRect.width);
-      return span - overlap;
-    }
-    const overlap = Math.max(0, Math.min(sourceRect.bottom, targetRect.bottom) - Math.max(sourceRect.top, targetRect.top));
-    const span = Math.max(sourceRect.height, targetRect.height);
-    return span - overlap;
-  }
-
-  function anchorDistance(direction, targetRect, preferredInline) {
-    if (direction === 'up' || direction === 'down') {
-      const targetCenter = targetRect.left + targetRect.width / 2;
-      return Math.abs(targetCenter - preferredInline);
-    }
-    const targetCenter = targetRect.top + targetRect.height / 2;
-    return Math.abs(targetCenter - preferredInline);
-  }
-
-  function centerDistance(sourceRect, targetRect) {
-    const sx = sourceRect.left + sourceRect.width / 2;
-    const sy = sourceRect.top + sourceRect.height / 2;
-    const tx = targetRect.left + targetRect.width / 2;
-    const ty = targetRect.top + targetRect.height / 2;
-    return Math.hypot(tx - sx, ty - sy);
-  }
-
-  function rectCenter(rect) {
-    return {
-      x: rect.left + rect.width / 2,
-      y: rect.top + rect.height / 2
-    };
-  }
-
-  function clampIndex(value, min, max) {
-    return Math.max(min, Math.min(max, value));
-  }
-
   function findClosestCollectionIndex(containers) {
     const viewportMid = window.innerHeight / 2;
     let closestIdx = 0;
@@ -1589,95 +1375,6 @@
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
 
-  function getKeyboardCode(key) {
-    const punctuationCodes = {
-      '!': 'Digit1', '@': 'Digit2', '#': 'Digit3', '$': 'Digit4', '%': 'Digit5', '^': 'Digit6',
-      '&': 'Digit7', '*': 'Digit8', '(': 'Digit9', ')': 'Digit0', '-': 'Minus', '_': 'Minus',
-      '=': 'Equal', '+': 'Equal', '[': 'BracketLeft', '{': 'BracketLeft', ']': 'BracketRight',
-      '}': 'BracketRight', '\\': 'Backslash', '|': 'Backslash', ';': 'Semicolon', ':': 'Semicolon',
-      "'": 'Quote', '"': 'Quote', ',': 'Comma', '<': 'Comma', '.': 'Period', '>': 'Period',
-      '/': 'Slash', '?': 'Slash', '`': 'Backquote', '~': 'Backquote'
-    };
-
-    if (/^[a-zA-Z]$/.test(key)) return `Key${key.toUpperCase()}`;
-    if (/^[0-9]$/.test(key)) return `Digit${key}`;
-    if (key === ' ') return 'Space';
-    return punctuationCodes[key] || key;
-  }
-
-  function getLegacyKeyCode(key) {
-    const namedKeys = {
-      ' ': 32,
-      ArrowLeft: 37,
-      ArrowUp: 38,
-      ArrowRight: 39,
-      ArrowDown: 40,
-      Enter: 13,
-      Escape: 27,
-      Tab: 9,
-      Backspace: 8,
-      Delete: 46,
-      Home: 36,
-      End: 35,
-      PageUp: 33,
-      PageDown: 34,
-      '!': 49,
-      '@': 50,
-      '#': 51,
-      '$': 52,
-      '%': 53,
-      '^': 54,
-      '&': 55,
-      '*': 56,
-      '(': 57,
-      ')': 48,
-      '-': 189,
-      '_': 189,
-      '=': 187,
-      '+': 187,
-      '[': 219,
-      '{': 219,
-      ']': 221,
-      '}': 221,
-      '\\': 220,
-      '|': 220,
-      ';': 186,
-      ':': 186,
-      "'": 222,
-      '"': 222,
-      ',': 188,
-      '<': 188,
-      '.': 190,
-      '>': 190,
-      '/': 191,
-      '?': 191,
-      '`': 192,
-      '~': 192
-    };
-
-    if (namedKeys[key] !== undefined) return namedKeys[key];
-    if (/^[a-zA-Z]$/.test(key)) return key.toUpperCase().charCodeAt(0);
-    if (/^[0-9]$/.test(key)) return key.charCodeAt(0);
-    return 0;
-  }
-
-  function dispatchKeyEvent(target, key, code = getKeyboardCode(key), modifiers = {}) {
-    const keyCode = getLegacyKeyCode(key);
-    const opts = {
-      bubbles: true,
-      cancelable: true,
-      composed: true,
-      view: window,
-      key,
-      code,
-      keyCode,
-      which: keyCode,
-      ...modifiers
-    };
-    target.dispatchEvent(new KeyboardEvent('keydown', opts));
-    target.dispatchEvent(new KeyboardEvent('keyup', opts));
-  }
-
   function executeDomAction(encodedConfig) {
     if (encodedConfig.length > MAX_DOM_ACTION_PAYLOAD_LENGTH) {
       console.warn('[Remapad CS] DOM action configuration is too large.');
@@ -1817,9 +1514,7 @@
     }
 
     // 3. Trigger browser F11 window fullscreen toggle via extension background worker
-    try {
-      api.runtime.sendMessage({ type: 'BROWSER_ACTION', action: 'toggle_window_fullscreen' });
-    } catch (_) {}
+    messagingClient.browserAction('toggle_window_fullscreen');
 
     // 4. Fallback: Browser Fullscreen API Exit or Request
     if (isFS) {
@@ -1864,15 +1559,6 @@
   function getFullscreenControl() {
     return Array.from(document.querySelectorAll(FULLSCREEN_CONTROL_SELECTOR))
       .find(element => isVisibleElement(element) && !element.matches(':disabled')) || null;
-  }
-
-  function isVisibleElement(element) {
-    return element.getClientRects().length > 0 && getComputedStyle(element).visibility !== 'hidden';
-  }
-
-  function getElementArea(element) {
-    const rect = element.getBoundingClientRect();
-    return rect.width * rect.height;
   }
 
   function requestElementFullscreen(element) {
@@ -2114,15 +1800,6 @@
     return true;
   }
 
-  function safeQuerySelector(selector) {
-    try {
-      return document.querySelector(selector);
-    } catch (e) {
-      console.warn('[Remapad CS] Invalid selector:', selector);
-      return null;
-    }
-  }
-
   // ─── Quick Map ──────────────────────────────────────────────────────────────
 
   function openQuickMap() {
@@ -2337,11 +2014,6 @@
     quickMapHighlightedElement?.classList.add('remapad-picker-target');
   }
 
-  function isRemapadElement(target) {
-    if (!(target instanceof Element)) return false;
-    return Boolean(target.closest('.remapad-quick-map, .remapad-hud-container, .remapad-keyboard-overlay'));
-  }
-
   function getStableSelector(el) {
     if (!(el instanceof Element) || el === document.body || el === document.documentElement) return null;
 
@@ -2385,15 +2057,6 @@
     } catch (_) {
       return false;
     }
-  }
-
-  function escapeCssIdentifier(value) {
-    if (window.CSS?.escape) return window.CSS.escape(value);
-    return value.replace(/[^a-zA-Z0-9_-]/g, char => `\\${char.codePointAt(0).toString(16)} `);
-  }
-
-  function escapeCssString(value) {
-    return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/[\n\r\f]/g, ' ');
   }
 
   async function saveQuickMap() {
@@ -2561,25 +2224,6 @@
 
   function defaultCursorColor(stickId) {
     return stickId === 'left' ? '#00a8e1' : '#e50914';
-  }
-
-  function hexToRgba(hex, alpha) {
-    if (!hex) return `rgba(0, 0, 0, ${alpha})`;
-    const short = /^#([a-f\d])([a-f\d])([a-f\d])$/i.exec(hex);
-    if (short) {
-      const r = Number.parseInt(short[1] + short[1], 16);
-      const g = Number.parseInt(short[2] + short[2], 16);
-      const b = Number.parseInt(short[3] + short[3], 16);
-      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-    }
-    const full = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    if (full) {
-      const r = Number.parseInt(full[1], 16);
-      const g = Number.parseInt(full[2], 16);
-      const b = Number.parseInt(full[3], 16);
-      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-    }
-    return `rgba(0, 0, 0, ${alpha})`;
   }
 
   function updateCursorTarget(stickId) {
@@ -2777,7 +2421,7 @@
     ensureWindowFocus();
     simulateClickAt(el, x, y);
     simulateKeyboardActivate(el);
-    requestTrustedClickFromBackground(x, y);
+    messagingClient.requestTrustedClick(x, y);
     const video = findVideoUnderPoint(x, y);
     if (video) {
       checkAutoplayAndWarn(() => toggleVideoPlay(video));
@@ -2899,66 +2543,6 @@
     });
   }
 
-  function createWavProbeDataUrl(muted = false) {
-    const sampleRate = 22050;
-    const duration = 0.35;
-    const numSamples = Math.floor(sampleRate * duration);
-    const headerSize = 44;
-    const buffer = new ArrayBuffer(headerSize + numSamples * 2);
-    const view = new DataView(buffer);
-    const writeString = (offset, str) => {
-      for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
-    };
-    writeString(0, 'RIFF');
-    view.setUint32(4, 36 + numSamples * 2, true);
-    writeString(8, 'WAVE');
-    writeString(12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);
-    view.setUint16(22, 1, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * 2, true);
-    view.setUint16(32, 2, true);
-    view.setUint16(34, 16, true);
-    writeString(36, 'data');
-    view.setUint32(40, numSamples * 2, true);
-
-    const ampMult = muted ? 0.0001 : 1.0;
-
-    const notes = [
-      { freq: 523.25, start: 0.00, decay: 18, amp: 0.25 * ampMult }, // C5
-      { freq: 659.25, start: 0.07, decay: 18, amp: 0.25 * ampMult }, // E5
-      { freq: 1046.50, start: 0.14, decay: 10, amp: 0.35 * ampMult }  // C6
-    ];
-
-    let offset = 44;
-    for (let i = 0; i < numSamples; i++) {
-      const t = i / sampleRate;
-      let sampleVal = 0;
-      for (let n = 0; n < notes.length; n++) {
-        const note = notes[n];
-        if (t >= note.start) {
-          const dt = t - note.start;
-          const attack = Math.min(1.0, dt / 0.005);
-          const env = attack * Math.exp(-dt * note.decay);
-          const rad = 2 * Math.PI * note.freq * dt;
-          const wave = Math.sin(rad) + 0.25 * Math.sin(2 * rad) + 0.1 * Math.sin(3 * rad);
-          sampleVal += wave * env * note.amp;
-        }
-      }
-      sampleVal = Math.max(-1, Math.min(1, sampleVal));
-      view.setInt16(offset, sampleVal * 32767, true);
-      offset += 2;
-    }
-    const bytes = new Uint8Array(buffer);
-    let binary = '';
-    const chunkSize = 0x8000;
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
-    }
-    return 'data:audio/wav;base64,' + btoa(binary);
-  }
-
   async function checkAutoplayAndWarn(playFn) {
     const status = await checkAutoplayPolicy();
     const blocked = status.mediaelement !== 'allowed';
@@ -3022,12 +2606,6 @@
         setTimeout(() => el.remove(), 350);
       }
     }, 7000);
-  }
-
-  function requestTrustedClickFromBackground(x, y) {
-    try {
-      api.runtime.sendMessage({ type: 'TRUSTED_CLICK', x, y }, () => {});
-    } catch (e) {}
   }
 
   function ensureWindowFocus() {
@@ -3117,10 +2695,6 @@
     } else {
       video.pause();
     }
-  }
-
-  function clamp(value, min, max) {
-    return Math.max(min, Math.min(max, value));
   }
 
   // ─── HUD Rendering ──────────────────────────────────────────────────────────
@@ -3657,7 +3231,7 @@
 
     hudElement.querySelector('#remapad-hud-edit-btn')?.addEventListener('click', (event) => {
       if (!event.isTrusted) return;
-      api.runtime.sendMessage({ type: 'OPEN_SITE_MAPPING' }).catch(() => {});
+      messagingClient.openSiteMapping();
     });
 
   }
@@ -3747,12 +3321,6 @@
     } catch (_) {
       return ACTION_LABELS.dom_action;
     }
-  }
-
-  function escapeHtml(value) {
-    return String(value).replace(/[&<>"']/g, char => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-    }[char]));
   }
 
   // ─── Boot ───────────────────────────────────────────────────────────────────

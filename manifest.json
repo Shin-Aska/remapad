@@ -49,7 +49,15 @@
       "matches": [
         "*://*/*"
       ],
-      "js": ["shared/language-detector.js", "shared/keyboard.js", "content/content_script.js"],
+      "js": [
+        "shared/language-detector.js",
+        "shared/keyboard.js",
+        "content/modules/constants.js",
+        "content/modules/utils.js",
+        "content/modules/messaging-client.js",
+        "content/modules/controller-style.js",
+        "content/content_script.js"
+      ],
       "run_at": "document_idle"
     }
   ],
