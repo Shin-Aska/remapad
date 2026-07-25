@@ -602,10 +602,12 @@
           const target = hudItems[hudHighlightedIndex];
           if (target === 'edit') {
             api.runtime.sendMessage({ type: 'OPEN_SITE_MAPPING' }).catch(() => {});
+            hideHUD();
           } else if (target !== 'ls' && target !== 'rs') {
             const action = activeProfile[target];
             if (action && action !== 'none') {
               executeAction(action);
+              hideHUD();
             }
           }
           return false; // consume button press
