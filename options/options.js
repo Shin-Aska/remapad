@@ -234,6 +234,8 @@ let settings = {
   keyboardEnabled: true,
   keyboardLayout: 'qwerty',
   keyboardAutoDetect: true,
+  keyboardTriggerMode: 'both',
+  keyboardTriggerSelectors: [],
   siteKeyboardLayouts: {},
   customKeyboardLayouts: null
 };
@@ -358,7 +360,7 @@ const ACTION_LABEL_MAP = Object.fromEntries(ACTION_OPTIONS.map(o => [o.value, o.
 async function loadSettings() {
   try {
     const data = await api.storage.local.get([
-      'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'siteCollections', 'navSettings', 'muteActivation', 'keyboardEnabled', 'keyboardLayout', 'keyboardAutoDetect', 'siteKeyboardLayouts', 'customKeyboardLayouts'
+      'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'siteCollections', 'navSettings', 'muteActivation', 'keyboardEnabled', 'keyboardLayout', 'keyboardAutoDetect', 'keyboardTriggerMode', 'keyboardTriggerSelectors', 'siteKeyboardLayouts', 'customKeyboardLayouts'
     ]);
 
     if (data.iconStyle) settings.iconStyle = data.iconStyle;
@@ -368,6 +370,8 @@ async function loadSettings() {
     if (data.keyboardEnabled !== undefined) settings.keyboardEnabled = data.keyboardEnabled;
     if (data.keyboardLayout) settings.keyboardLayout = data.keyboardLayout;
     if (data.keyboardAutoDetect !== undefined) settings.keyboardAutoDetect = data.keyboardAutoDetect;
+    if (data.keyboardTriggerMode) settings.keyboardTriggerMode = data.keyboardTriggerMode;
+    if (Array.isArray(data.keyboardTriggerSelectors)) settings.keyboardTriggerSelectors = data.keyboardTriggerSelectors;
     if (data.siteKeyboardLayouts && typeof data.siteKeyboardLayouts === 'object') settings.siteKeyboardLayouts = data.siteKeyboardLayouts;
     if (data.customKeyboardLayouts) settings.customKeyboardLayouts = data.customKeyboardLayouts;
     if (data.siteCollections && typeof data.siteCollections === 'object') {
@@ -477,6 +481,8 @@ async function saveSettings() {
       keyboardEnabled: settings.keyboardEnabled,
       keyboardLayout:  settings.keyboardLayout,
       keyboardAutoDetect: settings.keyboardAutoDetect,
+      keyboardTriggerMode: settings.keyboardTriggerMode,
+      keyboardTriggerSelectors: settings.keyboardTriggerSelectors,
       siteKeyboardLayouts: settings.siteKeyboardLayouts,
       customKeyboardLayouts: settings.customKeyboardLayouts
     });
@@ -501,8 +507,30 @@ function renderAll() {
   populateVisualLabels();
   renderCollectionConfig();
   renderNavConfig();
+  renderKeyboardConfig();
   if (keyboardLayoutSelect) {
     keyboardLayoutSelect.value = settings.keyboardLayout || 'qwerty';
+  }
+}
+
+function renderKeyboardConfig() {
+  const enabledToggle = document.getElementById('keyboard-enabled-toggle');
+  if (enabledToggle) enabledToggle.checked = !!settings.keyboardEnabled;
+
+  const triggerModeSelect = document.getElementById('keyboard-trigger-mode-select');
+  if (triggerModeSelect) triggerModeSelect.value = settings.keyboardTriggerMode || 'both';
+
+  const selectorsInput = document.getElementById('keyboard-trigger-selectors-input');
+  if (selectorsInput) {
+    selectorsInput.value = (settings.keyboardTriggerSelectors || []).join('\n');
+  }
+
+  if (keyboardLayoutSelect) {
+    keyboardLayoutSelect.value = settings.keyboardLayout || 'qwerty';
+  }
+
+  if (keyboardAutodetectToggle) {
+    keyboardAutodetectToggle.checked = !!settings.keyboardAutoDetect;
   }
 }
 
@@ -2427,6 +2455,9 @@ function initTabs() {
         if (targetPanelId === 'tab-panel-navigation') {
           renderNavConfig();
         }
+        if (targetPanelId === 'tab-panel-keyboard') {
+          renderKeyboardConfig();
+        }
       }
     });
   });
@@ -2488,6 +2519,39 @@ const keyboardAutodetectToggle = document.getElementById('keyboard-autodetect-to
 if (keyboardAutodetectToggle) {
   keyboardAutodetectToggle.addEventListener('change', () => {
     settings.keyboardAutoDetect = keyboardAutodetectToggle.checked;
+    unsavedChanges = true;
+    saveSettings();
+  });
+}
+
+const keyboardEnabledToggle = document.getElementById('keyboard-enabled-toggle');
+if (keyboardEnabledToggle) {
+  keyboardEnabledToggle.addEventListener('change', () => {
+    settings.keyboardEnabled = keyboardEnabledToggle.checked;
+    unsavedChanges = true;
+    saveSettings();
+  });
+}
+
+const keyboardTriggerModeSelect = document.getElementById('keyboard-trigger-mode-select');
+if (keyboardTriggerModeSelect) {
+  keyboardTriggerModeSelect.addEventListener('change', () => {
+    settings.keyboardTriggerMode = keyboardTriggerModeSelect.value;
+    unsavedChanges = true;
+    saveSettings();
+  });
+}
+
+const keyboardTriggerSelectorsSave = document.getElementById('keyboard-trigger-selectors-save');
+if (keyboardTriggerSelectorsSave) {
+  keyboardTriggerSelectorsSave.addEventListener('click', () => {
+    const input = document.getElementById('keyboard-trigger-selectors-input');
+    if (!input) return;
+    const selectors = input.value
+      .split('\n')
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+    settings.keyboardTriggerSelectors = selectors;
     unsavedChanges = true;
     saveSettings();
   });

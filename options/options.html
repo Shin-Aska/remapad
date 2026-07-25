@@ -56,6 +56,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;flex-shrink:0"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
         Collection Nav
       </button>
+      <button class="tab-btn" id="tab-btn-keyboard" role="tab" aria-selected="false" aria-controls="tab-panel-keyboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;flex-shrink:0"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M8 14h8"/></svg>
+        Keyboard
+      </button>
     </div>
 
     <!-- ── Tab Panel: Controller ────────────────────────────────────────────── -->
@@ -118,21 +122,7 @@
             </div>
           </section>
 
-          <!-- Audio & Activation Settings -->
-          <section class="card">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-              <div>
-                <div class="card-title" style="margin-bottom:2px">Mute extension activation</div>
-                <div style="font-size:12px;color:var(--on-surface-variant)">Silence probe chime when checking autoplay permissions</div>
-              </div>
-              <label class="switch" style="flex-shrink:0">
-                <input type="checkbox" id="mute-activation-toggle">
-                <span class="switch-track"></span>
-              </label>
-            </div>
-          </section>
-
-        </div>
+          </div>
 
         <!-- ── Right Column — Mapping Editor ────────────────────────────────── -->
         <div class="right-col">
@@ -769,6 +759,123 @@
         </div>
       </div>
     </div><!-- tab-panel-collection -->
+
+    <!-- ── Tab Panel: Keyboard ─────────────────────────────────────────────── -->
+    <div class="tab-panel" id="tab-panel-keyboard" role="tabpanel" aria-labelledby="tab-btn-keyboard" hidden>
+      <div class="nav-panel">
+
+        <div class="nav-title-row">
+          <div class="nav-title-group">
+            <h2 class="nav-panel-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;display:block"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M8 14h8"/></svg>
+              Keyboard
+            </h2>
+            <p class="nav-panel-subtitle">
+              Configure Remapad's on-screen virtual keyboard. Per-site layout overrides live in the Controller tab.
+            </p>
+          </div>
+        </div>
+
+        <div class="nav-body" style="grid-template-columns:1fr">
+          <main class="nav-editor">
+            <div class="nav-config-grid" style="grid-template-columns:1fr">
+
+              <!-- Master switch -->
+              <section class="card nav-section-card">
+                <div class="nav-section-header">
+                  <div class="nav-section-title">Virtual Keyboard</div>
+                  <label class="switch">
+                    <input type="checkbox" id="keyboard-enabled-toggle">
+                    <span class="switch-track"></span>
+                  </label>
+                </div>
+                <p class="nav-hint">Master switch for the on-screen keyboard. When off, Remapad will not show the virtual keyboard on any page.</p>
+              </section>
+
+              <!-- Trigger mode -->
+              <section class="card nav-section-card">
+                <div class="nav-section-header">
+                  <div class="nav-section-title">Trigger Mode</div>
+                </div>
+                <div class="nav-control-row">
+                  <div class="nav-control">
+                    <label class="nav-field-label" for="keyboard-trigger-mode-select">Open the keyboard</label>
+                    <select id="keyboard-trigger-mode-select" class="nav-select">
+                      <option value="both">On focus and click</option>
+                      <option value="focus">On focus only</option>
+                      <option value="click">On click only</option>
+                      <option value="disabled">Disabled</option>
+                    </select>
+                    <p class="nav-hint">Controls when the virtual keyboard opens. Disabled mode still lets the gamepad cursor click elements normally.</p>
+                  </div>
+                </div>
+              </section>
+
+              <!-- Custom trigger selectors -->
+              <section class="card nav-section-card">
+                <div class="nav-section-header">
+                  <div class="nav-section-title">Custom Trigger Selectors</div>
+                </div>
+                <div class="nav-control">
+                  <label class="nav-field-label" for="keyboard-trigger-selectors-input">Additional elements that open the keyboard</label>
+                  <textarea id="keyboard-trigger-selectors-input" class="nav-textarea" rows="5" placeholder="e.g. .search-box, [contenteditable], iframe[src*=chat]"></textarea>
+                  <p class="nav-hint">CSS selectors, one per line. Matched elements are treated as keyboard triggers when focused or clicked, in addition to normal inputs and textareas.</p>
+                </div>
+                <div class="nav-editor-actions">
+                  <button class="btn-secondary" id="keyboard-trigger-selectors-save">Save Selectors</button>
+                </div>
+              </section>
+
+              <!-- Default layout -->
+              <section class="card nav-section-card">
+                <div class="nav-section-header">
+                  <div class="nav-section-title">Default Layout</div>
+                </div>
+                <div class="nav-control-row">
+                  <div class="nav-control">
+                    <label class="nav-field-label" for="keyboard-layout-select">Keyboard layout</label>
+                    <select id="keyboard-layout-select" class="nav-select">
+                      <option value="qwerty">QWERTY</option>
+                      <option value="dvorak">Dvorak</option>
+                      <option value="azerty">AZERTY</option>
+                      <option value="german">German (QWERTZ)</option>
+                      <option value="spanish">Spanish</option>
+                      <option value="russian">Russian (ЙЦУКЕН)</option>
+                      <option value="korean">Korean (Dubeolsik)</option>
+                      <option value="chinese">Chinese (Pinyin)</option>
+                      <option value="japanese">Japanese (Hiragana / Katakana)</option>
+                    </select>
+                    <p class="nav-hint">Used as the fallback layout for sites without a per-site override.</p>
+                  </div>
+                  <div class="nav-control">
+                    <label class="nav-field-label" for="keyboard-autodetect-toggle">Auto-detect layout</label>
+                    <label class="switch-inline">
+                      <input type="checkbox" id="keyboard-autodetect-toggle">
+                      <span class="switch-track"></span>
+                      <span class="switch-label">Detect from <code>navigator.language</code></span>
+                    </label>
+                    <p class="nav-hint">When on, Remapad guesses the layout per page unless a site override is set.</p>
+                  </div>
+                </div>
+              </section>
+
+              <!-- Mute extension activation (moved from Controller tab) -->
+              <section class="card nav-section-card">
+                <div class="nav-section-header">
+                  <div class="nav-section-title">Mute extension activation</div>
+                  <label class="switch">
+                    <input type="checkbox" id="mute-activation-toggle">
+                    <span class="switch-track"></span>
+                  </label>
+                </div>
+                <p class="nav-hint">Silence the probe chime Remapad plays when checking autoplay permissions on a page.</p>
+              </section>
+
+            </div>
+          </main>
+        </div>
+      </div>
+    </div><!-- tab-panel-keyboard -->
 
   </div><!-- options-content -->
 </main>

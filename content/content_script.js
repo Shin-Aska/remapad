@@ -206,6 +206,8 @@
     siteCollections: { ...SITE_COLLECTIONS_DEFAULT },
     navSettings: structuredClone(DEFAULT_NAV_SETTINGS),
   keyboardEnabled: true,
+  keyboardTriggerMode: 'both',
+  keyboardTriggerSelectors: [],
   keyboardLayout: 'qwerty',
   keyboardAutoDetect: true,
   siteKeyboardLayouts: {}
@@ -237,6 +239,10 @@
   let quickMapSuppressClick = false;
   let quickMapSuppressPointerUp = false;
   let gamepadEventListenersAttached = false;
+  let keyboardOpenTarget = null;
+  let keyboardFocusSetupDone = false;
+  let keyboardIgnoreFocusTarget = null;
+  let keyboardIgnoreFocusUntil = 0;
   const cursors = {
     left:  { element: null, target: null, x: 0, y: 0, visible: false },
     right: { element: null, target: null, x: 0, y: 0, visible: false }
@@ -257,13 +263,17 @@
   async function init() {
     try {
       const data = await api.storage.local.get([
-        'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'siteCollections', 'navSettings', 'muteActivation', 'keyboardEnabled', 'keyboardLayout', 'keyboardAutoDetect', 'siteKeyboardLayouts'
+        'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'siteCollections', 'navSettings', 'muteActivation', 'keyboardEnabled', 'keyboardTriggerMode', 'keyboardTriggerSelectors', 'keyboardLayout', 'keyboardAutoDetect', 'siteKeyboardLayouts'
       ]);
 
       if (data.keyboardEnabled !== undefined) settings.keyboardEnabled = data.keyboardEnabled;
+      if (data.keyboardTriggerMode && typeof data.keyboardTriggerMode === 'string') settings.keyboardTriggerMode = data.keyboardTriggerMode;
+      if (data.keyboardTriggerSelectors && Array.isArray(data.keyboardTriggerSelectors)) settings.keyboardTriggerSelectors = data.keyboardTriggerSelectors;
       if (data.keyboardLayout) settings.keyboardLayout = data.keyboardLayout;
       if (data.keyboardAutoDetect !== undefined) settings.keyboardAutoDetect = data.keyboardAutoDetect;
       if (data.siteKeyboardLayouts && typeof data.siteKeyboardLayouts === 'object') settings.siteKeyboardLayouts = data.siteKeyboardLayouts;
+
+      setupKeyboardFocusTrigger();
 
       if (data.iconStyle) settings.iconStyle = data.iconStyle;
       if (data.enabledSites) settings.enabledSites = data.enabledSites;
@@ -2593,6 +2603,74 @@
     }
   }
 
+  // ─── Keyboard trigger helpers ──────────────────────────────────────────────
+
+  function matchesCustomTriggerSelector(el) {
+    if (!settings.keyboardTriggerSelectors.length) return false;
+    for (const selector of settings.keyboardTriggerSelectors) {
+      try {
+        if (el.matches(selector)) return true;
+      } catch (e) {
+        console.warn('[Remapad CS] Invalid keyboard trigger selector:', selector, e);
+      }
+    }
+    return false;
+  }
+
+  function isKeyboardTrigger(el) {
+    if (!el) return false;
+    if (typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.isEditableElement(el)) return true;
+    return matchesCustomTriggerSelector(el);
+  }
+
+  function maybeOpenKeyboard(el, x, y) {
+    if (!settings.keyboardEnabled || typeof RemapadKeyboard === 'undefined') return false;
+    const mode = settings.keyboardTriggerMode || 'both';
+    if (mode === 'disabled') return false;
+    if (!isKeyboardTrigger(el)) return false;
+
+    // Determine trigger source: click (cursor) or focus
+    const isClickTrigger = x !== null && x !== undefined;
+    if (isClickTrigger && mode !== 'click' && mode !== 'both') return false;
+    if (!isClickTrigger && mode !== 'focus' && mode !== 'both') return false;
+
+    // Prevent re-opening keyboard on the same element
+    if (keyboardOpenTarget === el) return true;
+
+    keyboardOpenTarget = el;
+    resolveKeyboardLayout().then(layoutId => {
+      RemapadKeyboard.open(el, {
+        layoutId,
+        layouts: settings.customKeyboardLayouts,
+        onClose: (target, confirmed) => {
+          keyboardOpenTarget = null;
+          if (target) {
+            keyboardIgnoreFocusTarget = target;
+            keyboardIgnoreFocusUntil = Date.now() + 300;
+          }
+          if (target && confirmed && isClickTrigger) {
+            simulateClickAt(target, x, y);
+          }
+        }
+      });
+    });
+    return true;
+  }
+
+  function setupKeyboardFocusTrigger() {
+    if (keyboardFocusSetupDone) return;
+    keyboardFocusSetupDone = true;
+
+    document.addEventListener('focusin', (event) => {
+      const mode = settings.keyboardTriggerMode || 'both';
+      if (mode !== 'focus' && mode !== 'both') return;
+      const target = event.target;
+      if (!target || target.closest('.remapad-keyboard-overlay')) return;
+      if (target === keyboardIgnoreFocusTarget && Date.now() < keyboardIgnoreFocusUntil) return;
+      maybeOpenKeyboard(target, null, null);
+    }, true);
+  }
+
   async function resolveKeyboardLayout() {
     const siteLayout = settings.siteKeyboardLayouts?.[currentHostname];
     if (siteLayout && siteLayout !== 'auto') return siteLayout;
@@ -2606,19 +2684,9 @@
   }
 
   function activateElementAsClick(el, x, y) {
-    if (settings.keyboardEnabled && typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.isEditableElement(el)) {
-      resolveKeyboardLayout().then(layoutId => {
-        RemapadKeyboard.open(el, {
-          layoutId,
-          layouts: settings.customKeyboardLayouts,
-          onClose: (target, confirmed) => {
-            if (target && confirmed) {
-              simulateClickAt(target, x, y);
-            }
-          }
-        });
-      });
-      return;
+    const mode = settings.keyboardTriggerMode || 'both';
+    if (mode === 'click' || mode === 'both') {
+      if (maybeOpenKeyboard(el, x, y)) return;
     }
     ensureWindowFocus();
     simulateClickAt(el, x, y);

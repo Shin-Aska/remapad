@@ -244,9 +244,6 @@
     keyboardStyleElement.textContent = `
       .remapad-keyboard-overlay {
         position: fixed;
-        bottom: 0;
-        left: 50%;
-        transform: translateX(-50%);
         z-index: 2147483646;
         background: #1c1c1c;
         border: 1px solid rgba(255, 255, 255, 0.15);
@@ -463,6 +460,64 @@
     }
   }
 
+  function positionOverlayNear(targetEl) {
+    if (!keyboardOverlay) return;
+    keyboardOverlay.style.bottom = '';
+    keyboardOverlay.style.transform = '';
+
+    const margin = 8;
+    let targetRect;
+
+    try {
+      if (!targetEl || !(targetEl instanceof HTMLElement)) {
+        throw new Error('Invalid target element');
+      }
+      targetRect = targetEl.getBoundingClientRect();
+      if (targetRect.width === 0 && targetRect.height === 0) {
+        throw new Error('Target has zero dimensions');
+      }
+    } catch (_err) {
+      // Fallback: center horizontally near top
+      keyboardOverlay.style.top = margin + 'px';
+      keyboardOverlay.style.left = '50%';
+      keyboardOverlay.style.transform = 'translateX(-50%)';
+      return;
+    }
+
+    const overlayRect = keyboardOverlay.getBoundingClientRect();
+    const overlayHeight = overlayRect.height || 0;
+    const overlayWidth = overlayRect.width || 0;
+
+    if (overlayHeight === 0 || overlayWidth === 0) {
+      // Overlay not yet laid out; try an approximate positioning
+      const approxTop = targetRect.bottom + margin;
+      if (approxTop + 200 > window.innerHeight - margin) {
+        keyboardOverlay.style.top = Math.max(margin, targetRect.top - 200 - margin) + 'px';
+      } else {
+        keyboardOverlay.style.top = approxTop + 'px';
+      }
+      keyboardOverlay.style.left = Math.max(margin, Math.min(
+        window.innerWidth - 520 - margin,
+        targetRect.left + targetRect.width / 2 - 260
+      )) + 'px';
+      return;
+    }
+
+    // Position below the target, flipping above if no room
+    let top = targetRect.bottom + margin;
+    if (top + overlayHeight > window.innerHeight - margin) {
+      top = targetRect.top - overlayHeight - margin;
+    }
+    top = Math.max(margin, top);
+
+    // Center horizontally on the target, clamped to viewport
+    let left = targetRect.left + targetRect.width / 2 - overlayWidth / 2;
+    left = Math.max(margin, Math.min(window.innerWidth - overlayWidth - margin, left));
+
+    keyboardOverlay.style.top = top + 'px';
+    keyboardOverlay.style.left = left + 'px';
+  }
+
   function openGamepadKeyboard(inputEl, options = {}) {
     if (!inputEl) return;
     ensureKeyboardDOM();
@@ -479,6 +534,7 @@
     buildGamepadKeyboard();
     updateGamepadKeyboardPreview();
     keyboardOverlay.style.display = 'block';
+    positionOverlayNear(inputEl);
     keyboardFocusElements = collectKeyboardFocusables();
     keyboardFocusIndex = 0;
     refreshKeyboardFocusVisual();
