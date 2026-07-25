@@ -56,6 +56,8 @@
         "content/modules/utils.js",
         "content/modules/messaging-client.js",
         "content/modules/controller-style.js",
+        "content/modules/settings-store.js",
+        "content/modules/site-policy.js",
         "content/content_script.js"
       ],
       "run_at": "document_idle"

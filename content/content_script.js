@@ -62,28 +62,14 @@
 
   const messagingClient = CS.MessagingClient?.create(api);
   const controllerStyle = CS.ControllerStyle?.create(CONTROLLER_STYLE_PATTERNS);
+  const currentHostname = location.hostname.replace(/^www\./, '');
+  const settingsStore = CS.SettingsStore?.create({ api, constants: CS.Constants, hostname: currentHostname });
+  const sitePolicy = CS.SitePolicy?.create({ constants: CS.Constants, hostname: currentHostname });
 
   // ─── State ──────────────────────────────────────────────────────────────────
 
-
-
-  let settings = {
-    iconStyle: 'auto',
-    websiteMappings: { ...WEBSITE_MAPPINGS_DEFAULT },
-    defaultMapping: { ...DEFAULT_PROFILE },
-    enabledSites: {}, // hostname -> bool (defaults to true)
-    globalEnabled: true,
-    siteCollections: { ...SITE_COLLECTIONS_DEFAULT },
-    navSettings: structuredClone(DEFAULT_NAV_SETTINGS),
-  keyboardEnabled: true,
-  keyboardTriggerMode: 'both',
-  keyboardTriggerSelectors: [],
-  keyboardLayout: 'qwerty',
-  keyboardAutoDetect: true,
-  siteKeyboardLayouts: {},
-  siteKeyboardTriggerModes: {},
-  siteKeyboardTriggerSelectors: {}
-};
+  let settings = settingsStore.getSettings();
+  let activeProfile = settingsStore.getActiveProfile();
 
   // ─── Collection Navigation State ─────────────────────────────────────────────
   let activeCollectionIndex = -1;
@@ -129,10 +115,6 @@
   let modalFocusGeneration = 0;
   const modalOpeners = new WeakMap();
 
-  const currentHostname = location.hostname.replace(/^www\./, '');
-
-
-
   function resolveIconStyle() {
     return controllerStyle.resolve(settings.iconStyle);
   }
@@ -141,68 +123,15 @@
 
   async function init() {
     try {
-      const data = await api.storage.local.get([
-        'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'siteCollections', 'navSettings', 'muteActivation', 'keyboardEnabled', 'keyboardTriggerMode', 'keyboardTriggerSelectors', 'keyboardLayout', 'keyboardAutoDetect', 'siteKeyboardLayouts'
-      ]);
+      const { isMapped } = await settingsStore.load();
 
-      if (data.keyboardEnabled !== undefined) settings.keyboardEnabled = data.keyboardEnabled;
-      if (data.keyboardTriggerMode && typeof data.keyboardTriggerMode === 'string') settings.keyboardTriggerMode = data.keyboardTriggerMode;
-      if (data.keyboardTriggerSelectors && Array.isArray(data.keyboardTriggerSelectors)) settings.keyboardTriggerSelectors = data.keyboardTriggerSelectors;
-      if (data.keyboardLayout) settings.keyboardLayout = data.keyboardLayout;
-      if (data.keyboardAutoDetect !== undefined) settings.keyboardAutoDetect = data.keyboardAutoDetect;
-      if (data.siteKeyboardLayouts && typeof data.siteKeyboardLayouts === 'object') settings.siteKeyboardLayouts = data.siteKeyboardLayouts;
-      if (data.siteKeyboardTriggerModes && typeof data.siteKeyboardTriggerModes === 'object') settings.siteKeyboardTriggerModes = data.siteKeyboardTriggerModes;
-      if (data.siteKeyboardTriggerSelectors && typeof data.siteKeyboardTriggerSelectors === 'object') settings.siteKeyboardTriggerSelectors = data.siteKeyboardTriggerSelectors;
+      settings = settingsStore.getSettings();
+      activeProfile = settingsStore.getActiveProfile();
+      siteMappingActive = isMapped;
 
       setupKeyboardFocusTrigger();
 
-      if (data.iconStyle) settings.iconStyle = data.iconStyle;
-      if (data.enabledSites) settings.enabledSites = data.enabledSites;
-      if (data.globalEnabled !== undefined) settings.globalEnabled = data.globalEnabled;
-      if (data.muteActivation !== undefined) settings.muteActivation = data.muteActivation;
-      if (data.siteCollections && typeof data.siteCollections === 'object') {
-        settings.siteCollections = data.siteCollections;
-      }
-      if (data.navSettings && typeof data.navSettings === 'object') {
-        settings.navSettings = mergeNavSettings(data.navSettings);
-      }
-
-      let isMapped = false;
-
-      // Backward compatible migration fallback
-      if (data.profiles && Object.keys(data.profiles).length > 0) {
-        const profiles = data.profiles;
-        const defaultProfile = profiles['default'] || DEFAULT_PROFILE;
-        const mappedVal = data.websiteMappings ? data.websiteMappings[currentHostname] : null;
-        isMapped = mappedVal !== undefined && mappedVal !== null;
-        if (typeof mappedVal === 'string') {
-          activeProfile = profiles[mappedVal] || defaultProfile;
-        } else if (mappedVal && typeof mappedVal === 'object') {
-          activeProfile = mappedVal;
-        } else {
-          activeProfile = defaultProfile;
-        }
-      } else {
-        if (data.defaultMapping) {
-          settings.defaultMapping = data.defaultMapping;
-        } else {
-          settings.defaultMapping = { ...DEFAULT_PROFILE };
-        }
-        if (data.websiteMappings && Object.keys(data.websiteMappings).length > 0) {
-          settings.websiteMappings = data.websiteMappings;
-        } else {
-          settings.websiteMappings = { ...WEBSITE_MAPPINGS_DEFAULT };
-        }
-      activeProfile = settings.websiteMappings[currentHostname] || settings.defaultMapping || DEFAULT_PROFILE;
-      isMapped = settings.websiteMappings[currentHostname] !== undefined;
-    }
-
-    siteMappingActive = isMapped;
-
-    activeProfile = { ...DEFAULT_PROFILE, ...activeProfile };
-
-      const siteEnabled = settings.enabledSites[currentHostname] !== false;
-      const quickMapAvailable = settings.globalEnabled && siteEnabled;
+      const quickMapAvailable = settingsStore.isQuickMapAvailable();
 
       if (quickMapAvailable) {
         setupGamepadPolling();
@@ -224,8 +153,7 @@
 
   async function showAutoplayWarningIfBlocked() {
     if (!settings.globalEnabled || settings.enabledSites[currentHostname] === false) return;
-    const isMapped = settings.websiteMappings[currentHostname] !== undefined;
-    if (!isMapped) return;
+    if (!settingsStore.isMapped()) return;
     const status = await checkAutoplayPolicy();
     if (status.mediaelement !== 'allowed' && !autoplayWarningShown) {
       autoplayWarningShown = true;
@@ -334,31 +262,6 @@
       hideCursor('left');
       hideCursor('right');
     }
-  }
-
-  function mergeNavSettings(stored) {
-    const merged = structuredClone(DEFAULT_NAV_SETTINGS);
-    if (!stored || typeof stored !== 'object') return merged;
-
-    if (stored.enabled !== undefined) merged.enabled = stored.enabled;
-    if (stored.strategy) merged.strategy = stored.strategy;
-    if (stored.rightStick && typeof stored.rightStick === 'object') {
-      merged.rightStick = { ...merged.rightStick, ...stored.rightStick };
-    }
-    if (stored.leftStick && typeof stored.leftStick === 'object') {
-      merged.leftStick = { ...merged.leftStick, ...stored.leftStick };
-    }
-    if (stored.axisMap && typeof stored.axisMap === 'object') {
-      for (const dir of ['up', 'down', 'left', 'right']) {
-        if (stored.axisMap[dir] && typeof stored.axisMap[dir] === 'object') {
-          merged.axisMap[dir] = { ...merged.axisMap[dir], ...stored.axisMap[dir] };
-        }
-      }
-    }
-    if (stored.collectionGrid && typeof stored.collectionGrid === 'object') {
-      merged.collectionGrid = { ...merged.collectionGrid, ...stored.collectionGrid };
-    }
-    return merged;
   }
 
   function handleStick(x, y, stickId, nav) {
@@ -808,11 +711,7 @@
         break;
       }
       case 'search': {
-        let selector = SITE_SEARCH_SELECTORS[currentHostname];
-        let input = selector ? document.querySelector(selector) : null;
-        if (!input) {
-          input = document.querySelector('input[type="search"], input[placeholder*="Search" i]');
-        }
+        const input = sitePolicy.findSearchTarget();
         if (input) {
           input.focus();
           input.select();
@@ -880,7 +779,7 @@
   // ─── Collection Navigation ───────────────────────────────────────────────────
 
   function getCollectionConfig() {
-    return settings.siteCollections?.[currentHostname] || null;
+    return sitePolicy.getCollectionConfig(settings);
   }
 
   function getCollectionContainers() {
@@ -1574,7 +1473,7 @@
   }
 
   function performBackAction() {
-    if (navigateNetflixJbvStateHome()) return;
+    if (sitePolicy.navigateNetflixHome()) return;
 
     const modal = getOpenModals()[0];
     if (modal && closeModal(modal)) return;
@@ -1664,17 +1563,6 @@
       });
       modalFocusTimeout = setTimeout(stopModalFocusObserver, 1200);
     });
-  }
-
-  function navigateNetflixJbvStateHome() {
-    if (currentHostname !== 'netflix.com') return false;
-
-    const url = new URL(location.href);
-    const isTitleRoute = /^\/(?:title|watch)\//.test(url.pathname);
-    if (!url.searchParams.has('jbv') && !isTitleRoute) return false;
-
-    location.replace(`${url.origin}/`);
-    return true;
   }
 
   function beginModalFocusTracking() {
@@ -2066,22 +1954,8 @@
     if (!['click', 'focus', 'hover'].includes(action)) return;
     const actionValue = `${action}_element:${selector}`;
     try {
-      const data = await api.storage.local.get(['websiteMappings']);
-      const websiteMappings = {
-        ...(data.websiteMappings && typeof data.websiteMappings === 'object'
-          ? data.websiteMappings
-          : settings.websiteMappings)
-      };
-      const storedProfile = websiteMappings[currentHostname];
-      const baseProfile = storedProfile && typeof storedProfile === 'object'
-        ? storedProfile
-        : activeProfile || settings.defaultMapping || DEFAULT_PROFILE;
-      const updatedProfile = { ...baseProfile, [button]: actionValue };
-
-      websiteMappings[currentHostname] = updatedProfile;
-      await api.storage.local.set({ websiteMappings });
-      settings.websiteMappings = websiteMappings;
-      activeProfile = updatedProfile;
+      activeProfile = await settingsStore.saveButtonMapping(button, actionValue);
+      settings = settingsStore.getSettings();
       updateHUD();
       closeQuickMap();
     } catch (error) {
