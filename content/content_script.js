@@ -583,8 +583,13 @@
     }
 
     if (hudVisible) {
-      const standardButtons = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15'];
-      
+      const hudItems = [
+        '0', '1', '2', '3', '4', '5', '6', '7',
+        '8', '9', '10', '11', '12', '13', '14', '15',
+        'ls', 'rs', 'edit'
+      ];
+      const hudItemCount = hudItems.length;
+
       // Initialize highlight if user navigates using D-pad
       if (hudHighlightedIndex === -1 && (btnIdx === 12 || btnIdx === 13 || btnIdx === 14 || btnIdx === 15)) {
         hudHighlightedIndex = 0;
@@ -594,10 +599,14 @@
 
       if (hudHighlightedIndex >= 0) {
         if (btnIdx === 0) { // Cross / A: execute selected action
-          const targetBtnIdx = standardButtons[hudHighlightedIndex];
-          const action = activeProfile[targetBtnIdx];
-          if (action && action !== 'none') {
-            executeAction(action);
+          const target = hudItems[hudHighlightedIndex];
+          if (target === 'edit') {
+            api.runtime.sendMessage({ type: 'OPEN_SITE_MAPPING' }).catch(() => {});
+          } else if (target !== 'ls' && target !== 'rs') {
+            const action = activeProfile[target];
+            if (action && action !== 'none') {
+              executeAction(action);
+            }
           }
           return false; // consume button press
         }
@@ -608,12 +617,12 @@
           return false; // consume button press
         }
         if (btnIdx === 14) { // D-pad Left
-          hudHighlightedIndex = (hudHighlightedIndex - 1 + standardButtons.length) % standardButtons.length;
+          hudHighlightedIndex = (hudHighlightedIndex - 1 + hudItemCount) % hudItemCount;
           updateHUDHighlight();
           return false; // consume
         }
         if (btnIdx === 15) { // D-pad Right
-          hudHighlightedIndex = (hudHighlightedIndex + 1) % standardButtons.length;
+          hudHighlightedIndex = (hudHighlightedIndex + 1) % hudItemCount;
           updateHUDHighlight();
           return false; // consume
         }
@@ -659,13 +668,14 @@
     if (quickMapElement) return;
 
     if (hudVisible) {
+      const hudItemCount = 19;
       if (Math.abs(x) > DEADZONE) {
         if (hudHighlightedIndex === -1) {
           hudHighlightedIndex = 0;
           updateHUDHighlight();
         } else {
           const direction = x > 0 ? 1 : -1;
-          hudHighlightedIndex = (hudHighlightedIndex + direction + 16) % 16;
+          hudHighlightedIndex = (hudHighlightedIndex + direction + hudItemCount) % hudItemCount;
           updateHUDHighlight();
         }
       }
@@ -2925,13 +2935,15 @@
        }
        .remapad-hud-row::-webkit-scrollbar { display: none !important; }
         .remapad-hud-item--unmapped { opacity: 0.4 !important; }
-        .remapad-hud-item.highlighted {
-          background: rgba(229, 9, 20, 0.25) !important;
-          outline: 2px solid #e50914 !important;
-          outline-offset: 4px !important;
-          border-radius: 4px !important;
-          box-shadow: 0 0 10px rgba(229, 9, 20, 0.5) !important;
-        }
+         .remapad-hud-item.highlighted,
+         .remapad-hud-stick.highlighted,
+         .remapad-hud-edit.highlighted {
+           background: rgba(229, 9, 20, 0.25) !important;
+           outline: 2px solid #e50914 !important;
+           outline-offset: 4px !important;
+           border-radius: 4px !important;
+           box-shadow: 0 0 10px rgba(229, 9, 20, 0.5) !important;
+         }
       .remapad-hud-glyph {
         width: 20px !important;
         height: 20px !important;
@@ -3339,20 +3351,24 @@
       const unmapped = !action || action === 'none';
       const isHighlighted = arrayIndex === hudHighlightedIndex;
       return `
-        <div class="remapad-hud-item${unmapped ? ' remapad-hud-item--unmapped' : ''}${isHighlighted ? ' highlighted' : ''}">
+        <div class="remapad-hud-item${unmapped ? ' remapad-hud-item--unmapped' : ''}${isHighlighted ? ' highlighted' : ''}" data-hud-selectable>
           <span class="remapad-hud-glyph">${glyph}</span>
           <span class="remapad-hud-label">${label}</span>
         </div>
       `;
     }).join('');
 
+    const lsHighlighted = hudHighlightedIndex === 16;
+    const rsHighlighted = hudHighlightedIndex === 17;
+    const editHighlighted = hudHighlightedIndex === 18;
+
     const stickItems = `
       <div class="remapad-hud-sticks" aria-label="Stick controls">
-      <div class="remapad-hud-stick">
+      <div class="remapad-hud-stick${lsHighlighted ? ' highlighted' : ''}" data-hud-selectable>
         <span class="remapad-hud-glyph">LS</span>
         <span class="remapad-hud-label">Scroll</span>
       </div>
-      <div class="remapad-hud-stick">
+      <div class="remapad-hud-stick${rsHighlighted ? ' highlighted' : ''}" data-hud-selectable>
         <span class="remapad-hud-glyph">RS↑↓</span>
         <span class="remapad-hud-label">Focus</span>
       </div>
@@ -3361,7 +3377,7 @@
     let innerHtml = `<div class="remapad-hud-row">${items}${stickItems}</div>`;
 
     // Add close button
-    innerHtml += `<button class="remapad-hud-edit" id="remapad-hud-edit-btn" type="button">Edit</button>`;
+    innerHtml += `<button class="remapad-hud-edit${editHighlighted ? ' highlighted' : ''}" id="remapad-hud-edit-btn" type="button" data-hud-selectable>Edit</button>`;
     innerHtml += `<button class="remapad-hud-close" id="remapad-hud-close-btn" type="button" title="Hide this guide" aria-label="Hide controller guide">✕</button>`;
 
     hudElement.innerHTML = innerHtml;
@@ -3381,7 +3397,7 @@
 
   function updateHUDHighlight() {
     if (!hudElement) return;
-    const items = hudElement.querySelectorAll('.remapad-hud-row > .remapad-hud-item');
+    const items = hudElement.querySelectorAll('[data-hud-selectable]');
     items.forEach((item, idx) => {
       if (idx === hudHighlightedIndex) {
         item.classList.add('highlighted');
