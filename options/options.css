@@ -1552,6 +1552,14 @@ body {
 .cnav-input:focus {
   border-color: var(--primary);
 }
+
+.gamepad-focused {
+  outline: 2px solid var(--primary) !important;
+  outline-offset: 2px !important;
+  border-radius: 2px !important;
+  box-shadow: 0 0 0 4px rgba(255, 180, 170, 0.25) !important;
+}
+
 .cnav-test-result {
   display: none;
   margin: 10px 0;

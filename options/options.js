@@ -8,12 +8,15 @@ const api = typeof chrome !== 'undefined' ? chrome : browser;
 
 // ─── Constants & Default Settings ────────────────────────────────────────────
 
+const RESERVED_OPTIONS_KEY = '__remapad_options__';
+
 const WEBSITE_MAPPINGS_DEFAULT = {
   'netflix.com':    'default',
   'primevideo.com': 'default',
 };
 
 const FRIENDLY_NAMES = {
+  [RESERVED_OPTIONS_KEY]: 'Remapad Settings',
   'netflix.com': 'Netflix',
   'primevideo.com': 'Prime Video',
   'youtube.com': 'YouTube',
@@ -21,6 +24,25 @@ const FRIENDLY_NAMES = {
   'disneyplus.com': 'Disney+',
   'hulu.com': 'Hulu',
   'max.com': 'Max'
+};
+
+const OPTIONS_PAGE_PROFILE = {
+  '0': 'select',
+  '1': 'back',
+  '2': 'none',
+  '3': 'none',
+  '4': 'prev_tab',
+  '5': 'next_tab',
+  '6': 'none',
+  '7': 'none',
+  '8': 'none',
+  '9': 'none',
+  '10': 'none',
+  '11': 'none',
+  '12': 'focus_up',
+  '13': 'focus_down',
+  '14': 'focus_left',
+  '15': 'focus_right'
 };
 
 function getFriendlyLabel(domain) {
@@ -139,6 +161,14 @@ const ACTION_OPTIONS = [
   { value: 'nav_down',             label: 'Navigate Down'              },
   { value: 'nav_left',             label: 'Navigate Left'              },
   { value: 'nav_right',            label: 'Navigate Right'             },
+  { value: 'select',               label: 'Select / Activate'          },
+  { value: 'back',                 label: 'Back / Cancel'              },
+  { value: 'prev_tab',             label: 'Previous Tab'               },
+  { value: 'next_tab',             label: 'Next Tab'                   },
+  { value: 'focus_up',             label: 'Focus Up'                   },
+  { value: 'focus_down',           label: 'Focus Down'                 },
+  { value: 'focus_left',           label: 'Focus Left'                 },
+  { value: 'focus_right',          label: 'Focus Right'                },
   // Advanced
   { value: 'click_element',  label: 'Click CSS Element...'              },
   { value: 'hover_element',  label: 'Hover CSS Element...'              },
@@ -182,6 +212,7 @@ const BUTTON_NAMES = {
 let settings = {
   iconStyle:       'playstation',
   websiteMappings: {
+    [RESERVED_OPTIONS_KEY]: { ...OPTIONS_PAGE_PROFILE },
     'netflix.com':    { ...DEFAULT_PROFILE },
     'primevideo.com': { ...DEFAULT_PROFILE }
   },
@@ -351,6 +382,7 @@ async function loadSettings() {
           }
         });
       }
+      settings.websiteMappings[RESERVED_OPTIONS_KEY] = mergeProfileWithDefaults(OPTIONS_PAGE_PROFILE);
       await api.storage.local.set({
         defaultMapping: settings.defaultMapping,
         websiteMappings: settings.websiteMappings
@@ -372,6 +404,12 @@ async function loadSettings() {
           'primevideo.com': { ...DEFAULT_PROFILE }
         };
       }
+
+      settings.websiteMappings[RESERVED_OPTIONS_KEY] = mergeProfileWithDefaults(
+        data.websiteMappings && data.websiteMappings[RESERVED_OPTIONS_KEY]
+          ? data.websiteMappings[RESERVED_OPTIONS_KEY]
+          : OPTIONS_PAGE_PROFILE
+      );
     }
 
     const params = new URLSearchParams(window.location.search);
@@ -738,8 +776,13 @@ function renderWebsiteMappings() {
     });
 
     const deleteBtn = row.querySelector('.delete-site-btn');
+    if (domain === RESERVED_OPTIONS_KEY) {
+      deleteBtn.style.display = 'none';
+      deleteBtn.disabled = true;
+    }
     deleteBtn.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (domain === RESERVED_OPTIONS_KEY) return;
       if (confirm(`Remove mapping for ${domain}?`)) {
         delete settings.websiteMappings[domain];
         if (selectedSiteKey === domain) {
@@ -1003,6 +1046,8 @@ resetBtn.addEventListener('click', () => {
   if (!confirm('Revert all bindings in this mapping to defaults?')) return;
   if (selectedSiteKey === 'default') {
     settings.defaultMapping = { ...DEFAULT_PROFILE };
+  } else if (selectedSiteKey === RESERVED_OPTIONS_KEY) {
+    settings.websiteMappings[selectedSiteKey] = { ...OPTIONS_PAGE_PROFILE };
   } else {
     settings.websiteMappings[selectedSiteKey] = { ...settings.defaultMapping };
   }
@@ -1040,10 +1085,12 @@ function pollGamepads() {
     statusDotEl.className   = 'status-dot pulse';
     statusTextEl.textContent = 'CONNECTED';
 
+    const prevPressedSnapshot = [...prevPressed];
+
     // 1. Highlight visual buttons inside SVG in real-time
     gp.buttons.forEach((btn, idx) => {
       const isPressed = btn.pressed || btn.value > 0.5;
-      const wasPressed = prevPressed[idx] || false;
+      const wasPressed = prevPressedSnapshot[idx] || false;
       prevPressed[idx] = isPressed;
 
       const path = document.getElementById(`svg-btn-${idx}`);
@@ -1086,6 +1133,7 @@ function pollGamepads() {
     }
 
     updateNavigationStickViz(gp);
+    updateOptionsGamepadNav(gp, prevPressedSnapshot);
 
   } else {
     deviceNameEl.textContent = 'No Controller Detected';
@@ -1147,6 +1195,162 @@ function resetNavigationStickViz() {
     }
   });
 }
+
+let gamepadFocusIndex = -1;
+let gamepadFocusElements = [];
+let lastOptionsActionTime = 0;
+const OPTIONS_NAV_REPEAT_MS = 350;
+
+function getOptionsFocusableElements() {
+  if (testMode) return [];
+
+  const modal = document.getElementById('config-modal');
+  if (modal && modal.style.display !== 'none') {
+    if (modalKeyboardSec && modalKeyboardSec.style.display !== 'none') {
+      return [];
+    }
+    return Array.from(modal.querySelectorAll('button, input, select, textarea')).filter(
+      el => !el.disabled && el.offsetParent !== null
+    );
+  }
+
+  if (actionDropdown && actionDropdown.style.display !== 'none') {
+    return [actionSelect].filter(Boolean);
+  }
+
+  const baseSelector = [
+    'button:not([disabled]):not([hidden])',
+    'input:not([disabled]):not([hidden]):not([type="hidden"])',
+    'select:not([disabled]):not([hidden])',
+    'textarea:not([disabled]):not([hidden])',
+    '.mapping-row',
+    '.icon-style-item',
+    '.editor-callout',
+    '.cnav-site-item',
+    '.tab-btn'
+  ].join(', ');
+
+  return Array.from(document.querySelectorAll(baseSelector)).filter(el => {
+    if (el.disabled || el.hasAttribute('hidden')) return false;
+    if (el.closest('[hidden]')) return false;
+    return el.offsetParent !== null;
+  });
+}
+
+function setOptionsGamepadFocus(index) {
+  const elements = getOptionsFocusableElements();
+  gamepadFocusElements = elements;
+  if (elements.length === 0) {
+    gamepadFocusIndex = -1;
+    return;
+  }
+
+  gamepadFocusElements.forEach(el => el.classList.remove('gamepad-focused'));
+  gamepadFocusIndex = Math.max(0, Math.min(index, elements.length - 1));
+
+  const el = elements[gamepadFocusIndex];
+  el.classList.add('gamepad-focused');
+  el.focus({ preventScroll: false });
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+}
+
+function moveOptionsFocus(delta) {
+  const elements = getOptionsFocusableElements();
+  if (elements.length === 0) return;
+  if (gamepadFocusIndex === -1 || gamepadFocusElements !== elements) {
+    const current = document.activeElement;
+    const currentIdx = current ? elements.indexOf(current) : -1;
+    setOptionsGamepadFocus(currentIdx >= 0 ? currentIdx : 0);
+  } else {
+    setOptionsGamepadFocus((gamepadFocusIndex + delta + elements.length) % elements.length);
+  }
+}
+
+function activateOptionsFocus() {
+  const elements = getOptionsFocusableElements();
+  if (gamepadFocusIndex < 0 || gamepadFocusIndex >= elements.length) return;
+  const el = elements[gamepadFocusIndex];
+  el.click();
+  if (el.tagName === 'SELECT') {
+    el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
+  }
+}
+
+function optionsBack() {
+  if (configModal && configModal.style.display !== 'none') {
+    closeConfigModal(false);
+    return;
+  }
+  if (actionDropdown && actionDropdown.style.display !== 'none') {
+    closeDropdown();
+  }
+}
+
+function switchOptionsTab(direction) {
+  const tabs = Array.from(document.querySelectorAll('.tab-btn'));
+  const activeIdx = tabs.findIndex(t => t.classList.contains('active'));
+  if (activeIdx === -1) return;
+  const nextIdx = (activeIdx + direction + tabs.length) % tabs.length;
+  tabs[nextIdx].click();
+}
+
+function executeOptionsAction(action) {
+  switch (action) {
+    case 'focus_up':
+    case 'focus_left':
+      moveOptionsFocus(-1);
+      break;
+    case 'focus_down':
+    case 'focus_right':
+      moveOptionsFocus(1);
+      break;
+    case 'select':
+      activateOptionsFocus();
+      break;
+    case 'back':
+      optionsBack();
+      break;
+    case 'prev_tab':
+      switchOptionsTab(-1);
+      break;
+    case 'next_tab':
+      switchOptionsTab(1);
+      break;
+  }
+}
+
+function updateOptionsGamepadNav(gp, prevPressedSnapshot) {
+  const profile = settings.websiteMappings[RESERVED_OPTIONS_KEY];
+  if (!profile) return;
+
+  const now = Date.now();
+  const directional = new Set(['focus_up', 'focus_down', 'focus_left', 'focus_right', 'prev_tab', 'next_tab']);
+
+  gp.buttons.forEach((btn, idx) => {
+    const isPressed = btn.pressed || btn.value > 0.5;
+    const wasPressed = prevPressedSnapshot[idx] || false;
+    const action = profile[idx.toString()];
+
+    if (!action || action === 'none') return;
+
+    const isDirectional = directional.has(action);
+    if (isPressed && (!wasPressed || (isDirectional && now - lastOptionsActionTime > OPTIONS_NAV_REPEAT_MS))) {
+      executeOptionsAction(action);
+      lastOptionsActionTime = now;
+    }
+  });
+}
+
+document.addEventListener('focusin', (e) => {
+  const elements = getOptionsFocusableElements();
+  const idx = elements.indexOf(e.target);
+  if (idx >= 0) {
+    elements.forEach(el => el.classList.remove('gamepad-focused'));
+    gamepadFocusIndex = idx;
+    gamepadFocusElements = elements;
+    e.target.classList.add('gamepad-focused');
+  }
+});
 
 // Test input listener
 let testMode = false;
@@ -1233,6 +1437,11 @@ addSiteBtn.addEventListener('click', () => {
 
   if (!domain || !domain.includes('.')) {
     alert('Please enter a valid website domain (e.g. twitch.tv).');
+    return;
+  }
+
+  if (domain === RESERVED_OPTIONS_KEY) {
+    alert('That name is reserved for the Remapad Settings mapping.');
     return;
   }
 
