@@ -532,7 +532,9 @@
     const elements = getKeyboardFocusableElements();
     if (elements.length === 0) return;
 
-    if (keyboardFocusIndex < 0 || keyboardFocusIndex >= elements.length || keyboardFocusElements !== elements) {
+    const sameElements = keyboardFocusElements.length === elements.length &&
+      keyboardFocusElements.every((el, i) => el === elements[i]);
+    if (keyboardFocusIndex < 0 || keyboardFocusIndex >= elements.length || !sameElements) {
       keyboardFocusIndex = 0;
       keyboardFocusElements = elements;
       refreshKeyboardFocusVisual();

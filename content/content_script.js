@@ -488,6 +488,20 @@
       return;
     }
 
+    // Virtual keyboard mode: route stick axes to keyboard focus navigation
+    if (typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.isOpen()) {
+      const timerKey = `axis_${stickId}`;
+      if (!axisTimers[timerKey]) {
+        if (stickId === 'left') {
+          onStickMove(x, y);
+        } else {
+          onFocusStickMove(y);
+        }
+        axisTimers[timerKey] = setTimeout(() => delete axisTimers[timerKey], AXIS_REPEAT_DELAY_MS);
+      }
+      return;
+    }
+
     const direction = resolveStickDirection(x, y, stickConfig.directionMode);
     let action = nav.axisMap?.[direction]?.action;
     const axisBelongsToStick = nav.axisMap?.[direction]?.stick === stickId;
@@ -582,6 +596,16 @@
   // ─── Action Dispatcher ─────────────────────────────────────────────────────
 
   function onButtonPress(btnIdx) {
+    const keyboardOpen = typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.isOpen();
+    if (keyboardOpen) {
+      if (btnIdx === 12) { RemapadKeyboard.moveFocus('up'); return false; }
+      if (btnIdx === 13) { RemapadKeyboard.moveFocus('down'); return false; }
+      if (btnIdx === 14) { RemapadKeyboard.moveFocus('left'); return false; }
+      if (btnIdx === 15) { RemapadKeyboard.moveFocus('right'); return false; }
+      if (btnIdx === 0 || btnIdx === 2) { RemapadKeyboard.activateFocus(); return false; }
+      if (btnIdx === 1 || btnIdx === 3) { RemapadKeyboard.close(false); return false; }
+    }
+
     if (quickMapElement) {
       if (btnIdx === 9) {
         closeQuickMap();
@@ -678,6 +702,17 @@
   function onStickMove(x, y) {
     if (quickMapElement) return;
 
+    if (typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.isOpen()) {
+      if (Math.abs(y) > DEADZONE || Math.abs(x) > DEADZONE) {
+        if (Math.abs(y) > Math.abs(x)) {
+          RemapadKeyboard.moveFocus(y < 0 ? 'up' : 'down');
+        } else {
+          RemapadKeyboard.moveFocus(x < 0 ? 'left' : 'right');
+        }
+      }
+      return;
+    }
+
     if (hudVisible) {
       const hudItemCount = 19;
       if (Math.abs(x) > DEADZONE) {
@@ -702,6 +737,14 @@
 
   function onFocusStickMove(y) {
     if (quickMapElement) return;
+
+    if (typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.isOpen()) {
+      if (Math.abs(y) > DEADZONE) {
+        RemapadKeyboard.moveFocus(y < 0 ? 'up' : 'down');
+      }
+      return;
+    }
+
     executeAction(y < -DEADZONE ? 'focus_prev' : 'focus_next');
   }
 
