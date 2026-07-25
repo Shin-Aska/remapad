@@ -191,6 +191,7 @@
   let keyboardOpenCallback = null;
   let keyboardCloseCallback = null;
   let keyboardActionCallback = null;
+  let keyboardShortcutGlyphs = {};
 
   function ensureKeyboardDOM() {
     if (keyboardOverlay) return;
@@ -222,10 +223,12 @@
     keyboardConfirmBtn.type = 'button';
     keyboardConfirmBtn.className = 'remapad-keyboard-btn';
     keyboardConfirmBtn.textContent = 'Confirm';
+    keyboardConfirmBtn.dataset.action = 'confirm';
     keyboardCancelBtn = document.createElement('button');
     keyboardCancelBtn.type = 'button';
     keyboardCancelBtn.className = 'remapad-keyboard-btn';
     keyboardCancelBtn.textContent = 'Cancel';
+    keyboardCancelBtn.dataset.action = 'cancel';
     footer.appendChild(keyboardConfirmBtn);
     footer.appendChild(keyboardCancelBtn);
 
@@ -335,12 +338,58 @@
         outline: 2px solid #ffb4aa;
         outline-offset: 1px;
       }
+      .remapad-keyboard-shortcut {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-left: 6px;
+        padding: 1px 4px;
+        min-width: 16px;
+        height: 16px;
+        font-size: 10px;
+        font-weight: 600;
+        line-height: 1;
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 3px;
+        color: #ffb4aa;
+      }
+      .remapad-keyboard-key-label {
+        pointer-events: none;
+      }
     `;
     document.head.appendChild(keyboardStyleElement);
   }
 
   function getCurrentLayout() {
     return layouts[keyboardLayoutId] || layouts.qwerty;
+  }
+
+  function renderShortcutBadges() {
+    ensureKeyboardDOM();
+    const confirmGlyph = keyboardShortcutGlyphs.confirm;
+    const cancelGlyph = keyboardShortcutGlyphs.cancel;
+    const backspaceGlyph = keyboardShortcutGlyphs.backspace;
+    if (confirmGlyph) {
+      keyboardConfirmBtn.innerHTML = `Confirm <span class="remapad-keyboard-shortcut">${confirmGlyph}</span>`;
+    } else {
+      keyboardConfirmBtn.textContent = 'Confirm';
+    }
+    if (cancelGlyph) {
+      keyboardCancelBtn.innerHTML = `Cancel <span class="remapad-keyboard-shortcut">${cancelGlyph}</span>`;
+    } else {
+      keyboardCancelBtn.textContent = 'Cancel';
+    }
+    const backspaceKey = keyboardGrid.querySelector('[data-key-value="backspace"]');
+    if (backspaceKey && backspaceGlyph) {
+      if (!backspaceKey.querySelector('.remapad-keyboard-shortcut')) {
+        const label = backspaceKey.querySelector('.remapad-keyboard-key-label') || backspaceKey;
+        if (label === backspaceKey) {
+          backspaceKey.innerHTML = `<span class="remapad-keyboard-key-label">${label.textContent}</span><span class="remapad-keyboard-shortcut">${backspaceGlyph}</span>`;
+        } else {
+          backspaceKey.insertAdjacentHTML('beforeend', `<span class="remapad-keyboard-shortcut">${backspaceGlyph}</span>`);
+        }
+      }
+    }
   }
 
   function buildGamepadKeyboard() {
@@ -370,6 +419,7 @@
       });
       keyboardGrid.appendChild(rowEl);
     });
+    renderShortcutBadges();
   }
 
   function resolveKeyDef(value, layerId) {
@@ -527,6 +577,7 @@
     keyboardCapsLock = false;
     if (options.layoutId && layouts[options.layoutId]) keyboardLayoutId = options.layoutId;
     if (options.layouts) layouts = { ...DEFAULT_KEYBOARD_LAYOUTS, ...options.layouts };
+    keyboardShortcutGlyphs = options.shortcutGlyphs || {};
     keyboardOpenCallback = options.onOpen || null;
     keyboardCloseCallback = options.onClose || null;
     keyboardActionCallback = options.onAction || null;
@@ -543,13 +594,31 @@
 
   function dispatchEnterOnTarget(target) {
     if (!target) return;
-    const common = { bubbles: true, cancelable: true, view: window };
+    target.focus({ preventScroll: true });
+    const common = { bubbles: true, cancelable: true, composed: true, view: window };
     target.dispatchEvent(new KeyboardEvent('keydown', { ...common, key: 'Enter', code: 'Enter', keyCode: 13, which: 13 }));
     target.dispatchEvent(new KeyboardEvent('keypress', { ...common, key: 'Enter', code: 'Enter', keyCode: 13, charCode: 13, which: 13 }));
     target.dispatchEvent(new KeyboardEvent('keyup', { ...common, key: 'Enter', code: 'Enter', keyCode: 13, which: 13 }));
-    if (target.form && target.tagName === 'INPUT') {
-      const submit = target.form.querySelector('button[type="submit"], input[type="submit"]');
-      if (submit) submit.click();
+
+    if (target.form) {
+      const form = target.form;
+      const submitControl = form.querySelector('button[type="submit"], input[type="submit"]');
+      if (typeof form.requestSubmit === 'function') {
+        try { form.requestSubmit(submitControl); } catch (_e) {}
+      } else if (submitControl) {
+        submitControl.click();
+      }
+      return;
+    }
+
+    const root = target.getRootNode ? target.getRootNode() : document;
+    const candidates = root.querySelectorAll('button[type="submit"], input[type="submit"], [role="button"]');
+    for (const candidate of candidates) {
+      const text = (candidate.textContent || candidate.value || candidate.getAttribute('aria-label') || '').toLowerCase();
+      if (/\b(search|submit|go|enter|find)\b/.test(text)) {
+        candidate.click();
+        return;
+      }
     }
   }
 
@@ -707,6 +776,11 @@
     }
   }
 
+  function setShortcutGlyphs(glyphs) {
+    keyboardShortcutGlyphs = glyphs || {};
+    if (isKeyboardOpen()) buildGamepadKeyboard();
+  }
+
   function registerLayouts(customLayouts) {
     layouts = { ...DEFAULT_KEYBOARD_LAYOUTS, ...customLayouts };
   }
@@ -735,6 +809,7 @@
     moveFocus: moveKeyboardFocus,
     activateFocus: activateKeyboardFocus,
     pressBackspace: pressKeyboardBackspace,
+    setShortcutGlyphs,
     getFocusableElements: getKeyboardFocusableElements,
     setLayout: setKeyboardLayout,
     registerLayouts,

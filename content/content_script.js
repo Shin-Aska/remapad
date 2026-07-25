@@ -2669,9 +2669,16 @@
 
     keyboardOpenTarget = el;
     resolveKeyboardLayout().then(layoutId => {
+      const glyphs = GLYPHS[settings.iconStyle] || GLYPHS.playstation;
+      const shortcutGlyphs = {
+        confirm: glyphs['2'],
+        cancel: glyphs['1'],
+        backspace: glyphs['3']
+      };
       RemapadKeyboard.open(el, {
         layoutId,
         layouts: settings.customKeyboardLayouts,
+        shortcutGlyphs,
         onClose: (target, confirmed) => {
           keyboardOpenTarget = null;
           if (target) {
