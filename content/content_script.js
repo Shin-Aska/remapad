@@ -65,6 +65,7 @@
   const currentHostname = location.hostname.replace(/^www\./, '');
   const settingsStore = CS.SettingsStore?.create({ api, constants: CS.Constants, hostname: currentHostname });
   const sitePolicy = CS.SitePolicy?.create({ constants: CS.Constants, hostname: currentHostname });
+  const domSimulator = CS.DomSimulator?.create({ utils: CS.Utils, constants: CS.Constants, messagingClient });
 
   // ─── State ──────────────────────────────────────────────────────────────────
 
@@ -373,32 +374,32 @@
     const scrollBy = (el, top, left) => el.scrollBy({ top, left, behavior: 'smooth' });
     switch (action) {
       case 'scroll_up':
-        scrollBy(getScrollableElement(), -scrollAmountPx, 0);
+        scrollBy(domSimulator.getScrollableElement(), -scrollAmountPx, 0);
         dispatchKeyEvent(document.activeElement || document.body, 'ArrowUp', 'ArrowUp');
         break;
       case 'scroll_down':
-        scrollBy(getScrollableElement(), scrollAmountPx, 0);
+        scrollBy(domSimulator.getScrollableElement(), scrollAmountPx, 0);
         dispatchKeyEvent(document.activeElement || document.body, 'ArrowDown', 'ArrowDown');
         break;
       case 'scroll_left':
-        scrollBy(getScrollableElement(), 0, -scrollAmountPx);
+        scrollBy(domSimulator.getScrollableElement(), 0, -scrollAmountPx);
         dispatchKeyEvent(document.activeElement || document.body, 'ArrowLeft', 'ArrowLeft');
         break;
       case 'scroll_right':
-        scrollBy(getScrollableElement(), 0, scrollAmountPx);
+        scrollBy(domSimulator.getScrollableElement(), 0, scrollAmountPx);
         dispatchKeyEvent(document.activeElement || document.body, 'ArrowRight', 'ArrowRight');
         break;
       case 'nav_up':
-        scrollBy(getScrollableElement(), -scrollAmountPx, 0);
+        scrollBy(domSimulator.getScrollableElement(), -scrollAmountPx, 0);
         break;
       case 'nav_down':
-        scrollBy(getScrollableElement(), scrollAmountPx, 0);
+        scrollBy(domSimulator.getScrollableElement(), scrollAmountPx, 0);
         break;
       case 'nav_left':
-        scrollBy(getScrollableElement(), 0, -scrollAmountPx);
+        scrollBy(domSimulator.getScrollableElement(), 0, -scrollAmountPx);
         break;
       case 'nav_right':
-        scrollBy(getScrollableElement(), 0, scrollAmountPx);
+        scrollBy(domSimulator.getScrollableElement(), 0, scrollAmountPx);
         break;
     }
   }
@@ -649,7 +650,11 @@
     }
 
     if (action.startsWith('dom_action:')) {
-      executeDomAction(action.substring('dom_action:'.length));
+      domSimulator.executeDomAction(action.substring('dom_action:'.length), {
+        beginModalFocusTracking,
+        focusNewModalAfterClick,
+        focusElement
+      });
       return;
     }
 
@@ -736,16 +741,16 @@
         break;
       }
       case 'fullscreen': {
-        toggleFullscreen();
+        domSimulator.toggleFullscreen();
         break;
       }
       case 'scroll_up': {
-        getScrollableElement().scrollBy({ top: -150, behavior: 'smooth' });
+        domSimulator.getScrollableElement().scrollBy({ top: -150, behavior: 'smooth' });
         dispatchKeyEvent(document.activeElement || document.body, 'ArrowUp', 'ArrowUp');
         break;
       }
       case 'scroll_down': {
-        getScrollableElement().scrollBy({ top: 150, behavior: 'smooth' });
+        domSimulator.getScrollableElement().scrollBy({ top: 150, behavior: 'smooth' });
         dispatchKeyEvent(document.activeElement || document.body, 'ArrowDown', 'ArrowDown');
         break;
       }
@@ -993,8 +998,8 @@
       focusElement(focusTarget);
     } else {
       controllerFocusedElement?.classList.remove('remapad-controller-focus');
-      dispatchHoverEvents(controllerFocusedElement, false);
-      dispatchHoverEvents(best, true);
+      domSimulator.dispatchHoverEvents(controllerFocusedElement, false);
+      domSimulator.dispatchHoverEvents(best, true);
       best.classList.add('remapad-controller-focus');
       best.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
       controllerFocusedElement = best;
@@ -1150,7 +1155,7 @@
     if (focusTarget) {
       focusElement(focusTarget);
     } else {
-      dispatchHoverEvents(item, true);
+      domSimulator.dispatchHoverEvents(item, true);
       item.classList.add('remapad-hover');
     }
 
@@ -1169,17 +1174,8 @@
   function clearPrevCollectionHover(items) {
     items.forEach(item => {
       item.classList.remove('remapad-hover');
-      dispatchHoverEvents(item, false);
+      domSimulator.dispatchHoverEvents(item, false);
     });
-  }
-
-  function dispatchHoverEvents(el, enter) {
-    if (!el) return;
-    const eventType = enter ? 'mouseover' : 'mouseout';
-    const leaveType = enter ? 'mouseenter' : 'mouseleave';
-    const opts = { bubbles: true, cancelable: true, view: window };
-    el.dispatchEvent(new MouseEvent(eventType, opts));
-    el.dispatchEvent(new MouseEvent(leaveType, opts));
   }
 
   function resetCollectionNavState() {
@@ -1273,204 +1269,6 @@
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
-
-  function executeDomAction(encodedConfig) {
-    if (encodedConfig.length > MAX_DOM_ACTION_PAYLOAD_LENGTH) {
-      console.warn('[Remapad CS] DOM action configuration is too large.');
-      return;
-    }
-
-    let config;
-    try {
-      config = JSON.parse(decodeURIComponent(encodedConfig));
-    } catch (error) {
-      console.warn('[Remapad CS] Invalid DOM action configuration:', error);
-      return;
-    }
-
-    if (!isValidDomActionConfig(config)) {
-      console.warn('[Remapad CS] Unsupported DOM action configuration:', config);
-      return;
-    }
-
-    const element = safeQuerySelector(config.selector);
-    if (!element) {
-      console.warn('[Remapad CS] Selector not found for DOM action:', config.selector);
-      return;
-    }
-
-    switch (config.operation) {
-      case 'click':
-        const modalFocusState = beginModalFocusTracking();
-        element.click();
-        focusNewModalAfterClick(modalFocusState);
-        break;
-      case 'focus':
-        focusElement(element);
-        break;
-      case 'scroll':
-        element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
-        break;
-      case 'set-value':
-        setElementValue(element, config.value);
-        break;
-      case 'toggle-attribute':
-        element.toggleAttribute(config.value);
-        break;
-      case 'toggle-media':
-        toggleMediaElement(element);
-        break;
-    }
-  }
-
-  function isValidDomActionConfig(config) {
-    if (!config || typeof config !== 'object' || Array.isArray(config)) return false;
-    if (!DOM_ACTION_OPERATIONS.has(config.operation)) return false;
-    if (typeof config.selector !== 'string' || !config.selector.trim() || config.selector.length > 2000) return false;
-
-    if (config.operation === 'set-value') {
-      return typeof config.value === 'string' && config.value.length <= 2000;
-    }
-
-    if (config.operation === 'toggle-attribute') {
-      return typeof config.value === 'string' && isToggleableDomAttribute(config.value);
-    }
-
-    return true;
-  }
-
-  function isToggleableDomAttribute(attribute) {
-    return TOGGLEABLE_DOM_ATTRIBUTES.has(attribute) || attribute.startsWith('aria-') || attribute.startsWith('data-');
-  }
-
-  function setElementValue(element, value) {
-    if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement) {
-      const prototype = Object.getPrototypeOf(element);
-      const valueSetter = Object.getOwnPropertyDescriptor(prototype, 'value')?.set;
-      if (valueSetter) valueSetter.call(element, value);
-      else element.value = value;
-    } else if (element.isContentEditable) {
-      element.textContent = value;
-    } else {
-      console.warn('[Remapad CS] DOM set-value target must be a form control or contenteditable element:', element);
-      return;
-    }
-
-    element.dispatchEvent(new Event('input', { bubbles: true }));
-    element.dispatchEvent(new Event('change', { bubbles: true }));
-  }
-
-  function toggleMediaElement(element) {
-    if (typeof element.play !== 'function' || typeof element.pause !== 'function') {
-      console.warn('[Remapad CS] DOM toggle-media target must be an audio or video element:', element);
-      return;
-    }
-
-    if (element.paused) {
-      try {
-        const playResult = element.play();
-        if (playResult && typeof playResult.catch === 'function') {
-          playResult.catch(error => {
-            console.warn('[Remapad CS] Unable to play media element:', error);
-          });
-        }
-      } catch (error) {
-        console.warn('[Remapad CS] Unable to play media element:', error);
-      }
-    } else {
-      element.pause();
-    }
-  }
-
-  async function toggleFullscreen() {
-    const isFS = !!getFullscreenElement();
-
-    // 1. Try clicking native button controls on the page (both visible and player bar controls)
-    const allControls = Array.from(document.querySelectorAll(FULLSCREEN_CONTROL_SELECTOR));
-    const control = allControls.find(el => isVisibleElement(el)) || allControls[0];
-    if (control) {
-      try {
-        control.click();
-        control.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
-      } catch (_) {}
-    }
-
-    // 2. Dispatch 'f' and 'F' key events across video, player container, activeElement, body, document, and window
-    const video = getPrimaryVideo();
-    const playerTarget = video ? getFullscreenTarget(video) : null;
-    const keyTargets = [
-      document.activeElement,
-      video,
-      playerTarget,
-      document.body,
-      document,
-      window
-    ].filter(Boolean);
-
-    for (const target of keyTargets) {
-      dispatchKeyEvent(target, 'f', 'KeyF');
-      dispatchKeyEvent(target, 'F', 'KeyF');
-    }
-
-    // 3. Trigger browser F11 window fullscreen toggle via extension background worker
-    messagingClient.browserAction('toggle_window_fullscreen');
-
-    // 4. Fallback: Browser Fullscreen API Exit or Request
-    if (isFS) {
-      try {
-        await exitDocumentFullscreen();
-      } catch (error) {
-        console.warn('[Remapad CS] Exit fullscreen fallback:', error);
-      }
-    } else {
-      const targetElement = playerTarget || video;
-      if (targetElement) {
-        try {
-          await requestElementFullscreen(targetElement);
-        } catch (error) {
-          console.warn('[Remapad CS] Direct requestFullscreen fallback:', error);
-        }
-      }
-    }
-  }
-
-  function getFullscreenElement() {
-    return document.fullscreenElement || document.webkitFullscreenElement || null;
-  }
-
-  function getPrimaryVideo() {
-    return Array.from(document.querySelectorAll('video'))
-      .filter(isVisibleElement)
-      .sort((first, second) => getElementArea(second) - getElementArea(first))[0] || null;
-  }
-
-  function getFullscreenTarget(video) {
-    if (!video) return null;
-    return video.closest([
-      '[data-uia*="player" i]',
-      '[data-testid*="player" i]',
-      '.html5-video-player',
-      '[class*="player" i]',
-      '[id*="player" i]'
-    ].join(', ')) || video;
-  }
-
-  function getFullscreenControl() {
-    return Array.from(document.querySelectorAll(FULLSCREEN_CONTROL_SELECTOR))
-      .find(element => isVisibleElement(element) && !element.matches(':disabled')) || null;
-  }
-
-  function requestElementFullscreen(element) {
-    const requestFullscreen = element.requestFullscreen || element.webkitRequestFullscreen;
-    if (!requestFullscreen) return Promise.reject(new Error('Fullscreen API is unavailable for this element.'));
-    return Promise.resolve(requestFullscreen.call(element));
-  }
-
-  function exitDocumentFullscreen() {
-    const exitFullscreen = document.exitFullscreen || document.webkitExitFullscreen;
-    if (!exitFullscreen) return Promise.reject(new Error('Fullscreen API is unavailable for this document.'));
-    return Promise.resolve(exitFullscreen.call(document));
-  }
 
   function performBackAction() {
     if (sitePolicy.navigateNetflixHome()) return;
@@ -1636,35 +1434,8 @@
     resetCollectionNavState();
   }
 
-  function getScrollableElement() {
-    let el = document.activeElement;
-    while (el && el !== document.body) {
-      const style = getComputedStyle(el);
-      if ((style.overflowY === 'auto' || style.overflowY === 'scroll') && el.scrollHeight > el.clientHeight) {
-        return el;
-      }
-      el = el.parentElement;
-    }
-    return window;
-  }
-
-  function getFocusableElements() {
-    const selector = [
-      'a[href]', 'button:not([disabled])', 'input:not([disabled]):not([type="hidden"])',
-      'select:not([disabled])', 'textarea:not([disabled])', '[tabindex]:not([tabindex="-1"])',
-      '[contenteditable="true"]', 'video[controls]', 'audio[controls]'
-    ].join(',');
-
-    return Array.from(document.querySelectorAll(selector)).filter(el =>
-      !el.closest('.remapad-hud-container') &&
-      !el.matches(':disabled') &&
-      !el.closest('[inert]') &&
-      el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden'
-    );
-  }
-
   function moveFocus(direction) {
-    const elements = getFocusableElements();
+    const elements = domSimulator.getFocusableElements();
     if (!elements.length) return;
 
     const currentIndex = elements.indexOf(document.activeElement);
@@ -2117,7 +1888,7 @@
       const color = (stickConfig?.cursorColor || '').trim() || defaultCursorColor(stickId);
       cursor.target.style.setProperty('--remapad-cursor-color', hexToRgba(color, 0.7));
       cursor.target.classList.add('remapad-cursor-target');
-      dispatchHoverEvents(cursor.target, true);
+      domSimulator.dispatchHoverEvents(cursor.target, true);
     } else if (!target) {
       clearCursorTarget(stickId);
     }
@@ -2137,7 +1908,7 @@
   function clearCursorTarget(stickId) {
     const cursor = cursors[stickId];
     if (cursor.target) {
-      dispatchHoverEvents(cursor.target, false);
+      domSimulator.dispatchHoverEvents(cursor.target, false);
       cursor.target.classList.remove('remapad-cursor-target');
       cursor.target.style.removeProperty('--remapad-cursor-color');
       cursor.target = null;
@@ -2244,7 +2015,7 @@
             keyboardIgnoreFocusUntil = Date.now() + 300;
           }
           if (target && confirmed && isClickTrigger) {
-            simulateClickAt(target, x, y);
+            domSimulator.simulateClickAt(target, x, y);
           }
         }
       });
@@ -2292,13 +2063,13 @@
     if (mode === 'click' || mode === 'both') {
       if (maybeOpenKeyboard(el, x, y)) return;
     }
-    ensureWindowFocus();
-    simulateClickAt(el, x, y);
+    domSimulator.ensureWindowFocus();
+    domSimulator.simulateClickAt(el, x, y);
     simulateKeyboardActivate(el);
     messagingClient.requestTrustedClick(x, y);
-    const video = findVideoUnderPoint(x, y);
+    const video = domSimulator.findVideoUnderPoint(x, y, [cursors.left.element, cursors.right.element]);
     if (video) {
-      checkAutoplayAndWarn(() => toggleVideoPlay(video));
+      checkAutoplayAndWarn(() => domSimulator.toggleVideoPlay(video));
     }
   }
 
@@ -2482,52 +2253,6 @@
     }, 7000);
   }
 
-  function ensureWindowFocus() {
-    try {
-      if (typeof window.focus === 'function') window.focus();
-    } catch (e) {}
-  }
-
-  function simulateClickAt(el, x, y) {
-    const opts = {
-      bubbles: true,
-      cancelable: true,
-      view: window,
-      clientX: x,
-      clientY: y,
-      screenX: x + window.screenX,
-      screenY: y + window.screenY,
-      pointerType: 'mouse',
-      button: 0,
-      buttons: 1,
-      isPrimary: true,
-      composed: true
-    };
-
-    if (typeof PointerEvent !== 'undefined') {
-      const pointerOpts = { ...opts, pointerId: 1, width: 1, height: 1, pressure: 0.5 };
-      el.dispatchEvent(new PointerEvent('pointerover', pointerOpts));
-      el.dispatchEvent(new PointerEvent('pointerenter', pointerOpts));
-      el.dispatchEvent(new PointerEvent('pointermove', pointerOpts));
-      el.dispatchEvent(new PointerEvent('pointerdown', { ...pointerOpts, buttons: 1 }));
-      el.dispatchEvent(new MouseEvent('mousedown', opts));
-      el.dispatchEvent(new PointerEvent('pointerup', { ...pointerOpts, buttons: 0 }));
-      el.dispatchEvent(new MouseEvent('mouseup', opts));
-      el.click();
-      el.dispatchEvent(new PointerEvent('pointerout', pointerOpts));
-      el.dispatchEvent(new PointerEvent('pointerleave', pointerOpts));
-    } else {
-      el.dispatchEvent(new MouseEvent('mouseover', opts));
-      el.dispatchEvent(new MouseEvent('mouseenter', opts));
-      el.dispatchEvent(new MouseEvent('mousemove', opts));
-      el.dispatchEvent(new MouseEvent('mousedown', opts));
-      el.dispatchEvent(new MouseEvent('mouseup', opts));
-      el.click();
-      el.dispatchEvent(new MouseEvent('mouseout', opts));
-      el.dispatchEvent(new MouseEvent('mouseleave', opts));
-    }
-  }
-
   function simulateKeyboardActivate(el) {
     if (el.focus && typeof el.focus === 'function' && el.tabIndex !== -1) {
       focusElement(el);
@@ -2544,31 +2269,6 @@
     };
     el.dispatchEvent(new KeyboardEvent('keydown', keyOpts));
     el.dispatchEvent(new KeyboardEvent('keyup', keyOpts));
-  }
-
-  function findVideoUnderPoint(x, y) {
-    let el = document.elementFromPoint(x, y);
-    if (el === cursors.left.element || el === cursors.right.element) el = null;
-    if (el instanceof HTMLVideoElement) return el;
-    for (let i = 0; el && i < 8; i++) {
-      const videos = el.querySelectorAll?.('video');
-      if (videos?.length === 1) return videos[0];
-      el = el.parentElement;
-    }
-    const allVideos = Array.from(document.querySelectorAll('video'));
-    return allVideos.find(v => {
-      const rect = v.getBoundingClientRect();
-      return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
-    }) || allVideos[0] || null;
-  }
-
-  function toggleVideoPlay(video) {
-    if (!video) return;
-    if (video.paused || video.ended) {
-      video.play().catch(() => {});
-    } else {
-      video.pause();
-    }
   }
 
   // ─── HUD Rendering ──────────────────────────────────────────────────────────
