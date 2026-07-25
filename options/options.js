@@ -233,6 +233,8 @@ let settings = {
   muteActivation: false,
   keyboardEnabled: true,
   keyboardLayout: 'qwerty',
+  keyboardAutoDetect: true,
+  siteKeyboardLayouts: {},
   customKeyboardLayouts: null
 };
 
@@ -356,7 +358,7 @@ const ACTION_LABEL_MAP = Object.fromEntries(ACTION_OPTIONS.map(o => [o.value, o.
 async function loadSettings() {
   try {
     const data = await api.storage.local.get([
-      'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'siteCollections', 'navSettings', 'muteActivation', 'keyboardEnabled', 'keyboardLayout', 'customKeyboardLayouts'
+      'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'siteCollections', 'navSettings', 'muteActivation', 'keyboardEnabled', 'keyboardLayout', 'keyboardAutoDetect', 'siteKeyboardLayouts', 'customKeyboardLayouts'
     ]);
 
     if (data.iconStyle) settings.iconStyle = data.iconStyle;
@@ -365,6 +367,8 @@ async function loadSettings() {
     if (data.muteActivation !== undefined) settings.muteActivation = data.muteActivation;
     if (data.keyboardEnabled !== undefined) settings.keyboardEnabled = data.keyboardEnabled;
     if (data.keyboardLayout) settings.keyboardLayout = data.keyboardLayout;
+    if (data.keyboardAutoDetect !== undefined) settings.keyboardAutoDetect = data.keyboardAutoDetect;
+    if (data.siteKeyboardLayouts && typeof data.siteKeyboardLayouts === 'object') settings.siteKeyboardLayouts = data.siteKeyboardLayouts;
     if (data.customKeyboardLayouts) settings.customKeyboardLayouts = data.customKeyboardLayouts;
     if (data.siteCollections && typeof data.siteCollections === 'object') {
       settings.siteCollections = data.siteCollections;
@@ -425,7 +429,10 @@ async function loadSettings() {
       if (cleanSite) {
         if (!settings.websiteMappings[cleanSite]) {
           settings.websiteMappings[cleanSite] = { ...settings.defaultMapping };
-          await api.storage.local.set({ websiteMappings: settings.websiteMappings });
+          if (!settings.siteKeyboardLayouts[cleanSite]) {
+            settings.siteKeyboardLayouts[cleanSite] = 'auto';
+          }
+          await api.storage.local.set({ websiteMappings: settings.websiteMappings, siteKeyboardLayouts: settings.siteKeyboardLayouts });
         }
         selectedSiteKey = cleanSite;
       }
@@ -469,6 +476,8 @@ async function saveSettings() {
       muteActivation:  settings.muteActivation,
       keyboardEnabled: settings.keyboardEnabled,
       keyboardLayout:  settings.keyboardLayout,
+      keyboardAutoDetect: settings.keyboardAutoDetect,
+      siteKeyboardLayouts: settings.siteKeyboardLayouts,
       customKeyboardLayouts: settings.customKeyboardLayouts
     });
 
@@ -762,16 +771,34 @@ function renderWebsiteMappings() {
 
     const row = document.createElement('div');
     row.className = 'mapping-row' + (isSelected ? ' selected-site' : '');
+    const siteLayout = settings.siteKeyboardLayouts[domain] || 'auto';
     row.innerHTML = `
-      <div class="mapping-row-left" tabindex="-1" style="display:flex;align-items:center;gap:8px;flex:1;overflow:hidden">
-        <img class="site-favicon-img" src="https://www.google.com/s2/favicons?sz=32&domain=${domain}" style="width:16px;height:16px;border-radius:2px;display:block;flex-shrink:0">
-        <svg class="fallback-globe-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:none;color:var(--on-surface-variant);flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-        <span class="mapping-row-label" style="font-family:var(--font-body);font-size:13px;color:var(--on-surface);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${friendlyName} (${domain})">${friendlyName} <span style="font-size:11px;color:var(--on-surface-variant);margin-left:4px">(${domain})</span></span>
+      <div class="mapping-row-main" style="display:flex;align-items:center;gap:8px;flex:1;overflow:hidden">
+        <div class="mapping-row-left" tabindex="-1" style="display:flex;align-items:center;gap:8px;flex:1;overflow:hidden">
+          <img class="site-favicon-img" src="https://www.google.com/s2/favicons?sz=32&domain=${domain}" style="width:16px;height:16px;border-radius:2px;display:block;flex-shrink:0">
+          <svg class="fallback-globe-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:none;color:var(--on-surface-variant);flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          <span class="mapping-row-label" style="font-family:var(--font-body);font-size:13px;color:var(--on-surface);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${friendlyName} (${domain})">${friendlyName} <span style="font-size:11px;color:var(--on-surface-variant);margin-left:4px">(${domain})</span></span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+          <button class="delete-site-btn" data-site="${domain}" style="background:none;border:none;color:var(--error);cursor:pointer;padding:4px;display:flex;align-items:center;opacity:0.7;transition:opacity 0.2s" title="Remove site mapping">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+          </button>
+        </div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-        <button class="delete-site-btn" data-site="${domain}" style="background:none;border:none;color:var(--error);cursor:pointer;padding:4px;display:flex;align-items:center;opacity:0.7;transition:opacity 0.2s" title="Remove site mapping">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-        </button>
+      <div class="mapping-row-keyboard" style="display:${isSelected ? 'flex' : 'none'};align-items:center;gap:8px;margin-top:8px;padding-left:24px">
+        <span style="font-size:11px;color:var(--on-surface-variant);font-family:var(--font-body);white-space:nowrap">Keyboard:</span>
+        <select class="site-keyboard-layout-select" data-site="${domain}" style="flex:1;background:var(--surface-container);color:var(--on-surface);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:4px 8px;font-size:11px;outline:none;font-family:var(--font-body);cursor:pointer">
+          <option value="auto" ${siteLayout === 'auto' ? 'selected' : ''}>Auto-detect</option>
+          <option value="qwerty" ${siteLayout === 'qwerty' ? 'selected' : ''}>QWERTY</option>
+          <option value="dvorak" ${siteLayout === 'dvorak' ? 'selected' : ''}>Dvorak</option>
+          <option value="azerty" ${siteLayout === 'azerty' ? 'selected' : ''}>AZERTY</option>
+          <option value="german" ${siteLayout === 'german' ? 'selected' : ''}>German (QWERTZ)</option>
+          <option value="spanish" ${siteLayout === 'spanish' ? 'selected' : ''}>Spanish</option>
+          <option value="russian" ${siteLayout === 'russian' ? 'selected' : ''}>Russian (ЙЦУКЕН)</option>
+          <option value="korean" ${siteLayout === 'korean' ? 'selected' : ''}>Korean (Dubeolsik)</option>
+          <option value="chinese" ${siteLayout === 'chinese' ? 'selected' : ''}>Chinese (Pinyin)</option>
+          <option value="japanese" ${siteLayout === 'japanese' ? 'selected' : ''}>Japanese (Romaji)</option>
+        </select>
       </div>
     `;
 
@@ -784,14 +811,29 @@ function renderWebsiteMappings() {
       });
     }
 
-    const rowLeft = row.querySelector('.mapping-row-left');
-    rowLeft.addEventListener('click', () => {
+    const rowMain = row.querySelector('.mapping-row-main');
+    rowMain.addEventListener('click', () => {
       selectedSiteKey = domain;
       editorSiteSelect.value = domain;
       populateVisualLabels();
       closeDropdown();
       renderWebsiteMappings();
     });
+
+    const layoutSelect = row.querySelector('.site-keyboard-layout-select');
+    if (layoutSelect) {
+      layoutSelect.addEventListener('change', (e) => {
+        e.stopPropagation();
+        settings.siteKeyboardLayouts[domain] = layoutSelect.value;
+        unsavedChanges = true;
+        if (typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.setLayout) {
+          const effectiveLayout = layoutSelect.value === 'auto' ? (settings.keyboardLayout || 'qwerty') : layoutSelect.value;
+          RemapadKeyboard.setLayout(effectiveLayout);
+        }
+        saveSettings();
+      });
+      layoutSelect.addEventListener('click', (e) => e.stopPropagation());
+    }
 
     const deleteBtn = row.querySelector('.delete-site-btn');
     if (domain === RESERVED_OPTIONS_KEY) {
@@ -803,6 +845,7 @@ function renderWebsiteMappings() {
       if (domain === RESERVED_OPTIONS_KEY) return;
       if (confirm(`Remove mapping for ${domain}?`)) {
         delete settings.websiteMappings[domain];
+        delete settings.siteKeyboardLayouts[domain];
         if (selectedSiteKey === domain) {
           selectedSiteKey = 'default';
         }
@@ -2012,6 +2055,7 @@ addSiteBtn.addEventListener('click', () => {
 
   // Copy default mappings for the new website mapping
   settings.websiteMappings[domain] = { ...settings.defaultMapping };
+  settings.siteKeyboardLayouts[domain] = 'auto';
   selectedSiteKey = domain; // Select in editor immediately!
   unsavedChanges = true;
   newSiteInput.value = '';
@@ -2440,8 +2484,18 @@ if (keyboardLayoutSelect) {
   });
 }
 
+const keyboardAutodetectToggle = document.getElementById('keyboard-autodetect-toggle');
+if (keyboardAutodetectToggle) {
+  keyboardAutodetectToggle.addEventListener('change', () => {
+    settings.keyboardAutoDetect = keyboardAutodetectToggle.checked;
+    unsavedChanges = true;
+    saveSettings();
+  });
+}
+
 (async () => {
   await loadSettings();
+  if (keyboardAutodetectToggle) keyboardAutodetectToggle.checked = !!settings.keyboardAutoDetect;
   initTabs();
   bindNavInputs();
   startPolling();

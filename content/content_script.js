@@ -205,9 +205,11 @@
     globalEnabled: true,
     siteCollections: { ...SITE_COLLECTIONS_DEFAULT },
     navSettings: structuredClone(DEFAULT_NAV_SETTINGS),
-    keyboardEnabled: true,
-    keyboardLayout: 'qwerty'
-  };
+  keyboardEnabled: true,
+  keyboardLayout: 'qwerty',
+  keyboardAutoDetect: true,
+  siteKeyboardLayouts: {}
+};
 
   // ─── Collection Navigation State ─────────────────────────────────────────────
   let activeCollectionIndex = -1;
@@ -255,11 +257,13 @@
   async function init() {
     try {
       const data = await api.storage.local.get([
-        'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'siteCollections', 'navSettings', 'muteActivation', 'keyboardEnabled', 'keyboardLayout'
+        'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'siteCollections', 'navSettings', 'muteActivation', 'keyboardEnabled', 'keyboardLayout', 'keyboardAutoDetect', 'siteKeyboardLayouts'
       ]);
 
       if (data.keyboardEnabled !== undefined) settings.keyboardEnabled = data.keyboardEnabled;
       if (data.keyboardLayout) settings.keyboardLayout = data.keyboardLayout;
+      if (data.keyboardAutoDetect !== undefined) settings.keyboardAutoDetect = data.keyboardAutoDetect;
+      if (data.siteKeyboardLayouts && typeof data.siteKeyboardLayouts === 'object') settings.siteKeyboardLayouts = data.siteKeyboardLayouts;
 
       if (data.iconStyle) settings.iconStyle = data.iconStyle;
       if (data.enabledSites) settings.enabledSites = data.enabledSites;
@@ -2546,15 +2550,29 @@
     }
   }
 
+  async function resolveKeyboardLayout() {
+    const siteLayout = settings.siteKeyboardLayouts?.[currentHostname];
+    if (siteLayout && siteLayout !== 'auto') return siteLayout;
+
+    if (settings.keyboardAutoDetect && typeof RemapadLanguageDetector !== 'undefined') {
+      const result = await RemapadLanguageDetector.detectPageLanguage(500);
+      if (result.layout) return result.layout;
+    }
+
+    return settings.keyboardLayout || 'qwerty';
+  }
+
   function activateElementAsClick(el, x, y) {
     if (settings.keyboardEnabled && typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.isEditableElement(el)) {
-      RemapadKeyboard.open(el, {
-        layoutId: settings.keyboardLayout,
-        onClose: (target, confirmed) => {
-          if (target && confirmed) {
-            simulateClickAt(target, x, y);
+      resolveKeyboardLayout().then(layoutId => {
+        RemapadKeyboard.open(el, {
+          layoutId,
+          onClose: (target, confirmed) => {
+            if (target && confirmed) {
+              simulateClickAt(target, x, y);
+            }
           }
-        }
+        });
       });
       return;
     }

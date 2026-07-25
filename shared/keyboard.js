@@ -12,16 +12,17 @@
       name: 'QWERTY',
       layers: {
         alpha: [
+          ['1','2','3','4','5','6','7','8','9','0'],
           ['q','w','e','r','t','y','u','i','o','p'],
           ['a','s','d','f','g','h','j','k','l'],
           ['shift','z','x','c','v','b','n','m','backspace'],
-          ['toggle-layer',' ','.','-','_','/',':','confirm']
+          ['toggle-layer','tab',' ','.',',','-','_','/','caps','confirm']
         ],
         symbols: [
           ['1','2','3','4','5','6','7','8','9','0'],
           ['!','@','#','$','%','^','&','*','(',')'],
-          ['shift','"',"'",';',',','+','=','?','backspace'],
-          ['toggle-layer',' ','.','-','_','/',':','confirm']
+          ['shift','"',"'",';',':','+','=','?','backspace'],
+          ['toggle-layer','tab',' ','.',',','-','_','/','caps','confirm']
         ]
       }
     },
@@ -29,16 +30,17 @@
       name: 'Dvorak',
       layers: {
         alpha: [
+          ['1','2','3','4','5','6','7','8','9','0'],
           ['p','y','f','g','c','r','l',',','.'],
           ['a','o','e','u','i','d','h','t','n','s'],
           ['shift','q','j','k','x','b','m','w','v','z'],
-          ['toggle-layer',' ','backspace','confirm']
+          ['toggle-layer','tab',' ','.',',','-','_','/','caps','backspace','confirm']
         ],
         symbols: [
           ['1','2','3','4','5','6','7','8','9','0'],
           ['!','@','#','$','%','^','&','*','(',')'],
-          ['shift','"',"'",';',',','+','=','?','backspace'],
-          ['toggle-layer',' ','.','-','_','/',':','confirm']
+          ['shift','"',"'",';',':','+','=','?','backspace'],
+          ['toggle-layer','tab',' ','.',',','-','_','/','caps','confirm']
         ]
       }
     },
@@ -46,16 +48,125 @@
       name: 'AZERTY',
       layers: {
         alpha: [
+          ['1','2','3','4','5','6','7','8','9','0'],
           ['a','z','e','r','t','y','u','i','o','p'],
           ['q','s','d','f','g','h','j','k','l','m'],
           ['shift','w','x','c','v','b','n',"'",'backspace'],
-          ['toggle-layer',' ','.','-','_','/',':','confirm']
+          ['toggle-layer','tab',' ','.',',','-','_','/','caps','confirm']
         ],
         symbols: [
           ['1','2','3','4','5','6','7','8','9','0'],
           ['!','@','#','$','%','^','&','*','(',')'],
-          ['shift','"',';','.',',','+','=','?','backspace'],
-          ['toggle-layer',' ','-','_','/',':','confirm']
+          ['shift','"',';',':','.',',','+','=','?','backspace'],
+          ['toggle-layer','tab',' ','-','_','/','caps','confirm']
+        ]
+      }
+    },
+    german: {
+      name: 'German (QWERTZ)',
+      layers: {
+        alpha: [
+          ['1','2','3','4','5','6','7','8','9','0'],
+          ['q','w','e','r','t','z','u','i','o','p','ü'],
+          ['a','s','d','f','g','h','j','k','l','ö','ä'],
+          ['shift','y','x','c','v','b','n','m',',','.','backspace'],
+          ['toggle-layer','tab',' ','-','_','/','caps','confirm']
+        ],
+        symbols: [
+          ['1','2','3','4','5','6','7','8','9','0'],
+          ['!','"','§','$','%','&','/','(',')','=','?'],
+          ['shift','@','#','€','^','°','{','[',']','}','backspace'],
+          ['toggle-layer','tab',' ','<','>','|','\\','`','caps','confirm']
+        ]
+      }
+    },
+    spanish: {
+      name: 'Spanish',
+      layers: {
+        alpha: [
+          ['1','2','3','4','5','6','7','8','9','0'],
+          ['q','w','e','r','t','y','u','i','o','p'],
+          ['a','s','d','f','g','h','j','k','l','ñ'],
+          ['shift','z','x','c','v','b','n','m',',','.','backspace'],
+          ['toggle-layer','tab',' ','-','_','/','caps','@','confirm']
+        ],
+        symbols: [
+          ['1','2','3','4','5','6','7','8','9','0'],
+          ['!','"','#','$','%','&','/','(',')','=','?'],
+          ['shift','@','€','^','°','{','[',']','}','backspace'],
+          ['toggle-layer','tab',' ','<','>','|','\\','`','caps','confirm']
+        ]
+      }
+    },
+    russian: {
+      name: 'Russian (ЙЦУКЕН)',
+      layers: {
+        alpha: [
+          ['1','2','3','4','5','6','7','8','9','0'],
+          ['й','ц','у','к','е','н','г','ш','щ','з'],
+          ['ф','ы','в','а','п','р','о','л','д','ж','э'],
+          ['shift','я','ч','с','м','и','т','ь','б','ю','ё','backspace'],
+          ['toggle-layer','tab',' ','-','_','/','caps','confirm']
+        ],
+        symbols: [
+          ['1','2','3','4','5','6','7','8','9','0'],
+          ['!','"','№',';','%',':','?','*','(',')'],
+          ['shift','@','#','$','€','^','&','{','[',']','}','backspace'],
+          ['toggle-layer','tab',' ','.',',','/','\\','|','caps','confirm']
+        ]
+      }
+    },
+    korean: {
+      name: 'Korean (Dubeolsik)',
+      layers: {
+        alpha: [
+          ['1','2','3','4','5','6','7','8','9','0'],
+          ['ㅂ','ㅈ','ㄷ','ㄱ','ㅅ','ㅛ','ㅕ','ㅑ','ㅐ','ㅔ'],
+          ['ㅁ','ㄴ','ㅇ','ㄹ','ㅎ','ㅗ','ㅓ','ㅏ','ㅣ'],
+          ['shift','ㅋ','ㅌ','ㅊ','ㅍ','ㅠ','ㅜ','ㅡ','backspace'],
+          ['toggle-layer','tab',' ','-','_','/','caps','confirm']
+        ],
+        symbols: [
+          ['1','2','3','4','5','6','7','8','9','0'],
+          ['!','@','#','$','%','^','&','*','(',')'],
+          ['shift','"',"'",';',':',',','.','/','?','backspace'],
+          ['toggle-layer','tab',' ','-','_','+','=','[',']','caps','confirm']
+        ]
+      }
+    },
+    chinese: {
+      name: 'Chinese (Pinyin)',
+      layers: {
+        alpha: [
+          ['1','2','3','4','5','6','7','8','9','0'],
+          ['q','w','e','r','t','y','u','i','o','p'],
+          ['a','s','d','f','g','h','j','k','l'],
+          ['shift','z','x','c','v','b','n','m','backspace'],
+          ['toggle-layer','tab',' ','-','_','/','caps','confirm']
+        ],
+        symbols: [
+          ['1','2','3','4','5','6','7','8','9','0'],
+          ['!','@','#','$','%','^','&','*','(',')'],
+          ['shift','"',"'",';',':',',','.','/','?','backspace'],
+          ['toggle-layer','tab',' ','-','_','+','=','[',']','caps','confirm']
+        ]
+      }
+    },
+    japanese: {
+      name: 'Japanese (Romaji)',
+      layers: {
+        alpha: [
+          ['1','2','3','4','5','6','7','8','9','0'],
+          ['q','w','e','r','t','y','u','i','o','p'],
+          ['a','s','d','f','g','h','j','k','l'],
+          ['shift','z','x','c','v','b','n','m','backspace'],
+          ['toggle-layer','tab',' ','-','_','/','caps','confirm']
+        ],
+        symbols: [
+          ['1','2','3','4','5','6','7','8','9','0'],
+          ['!','@','#','$','%','^','&','*','(',')'],
+          ['shift','"',"'",';',':',',','.','/','?','backspace'],
+          ['toggle-layer','tab',' ','-','_','+','=','[',']','caps','confirm']
         ]
       }
     }
@@ -73,6 +184,7 @@
   let keyboardValue = '';
   let keyboardLayer = 'alpha';
   let keyboardLayoutId = 'qwerty';
+  let keyboardCapsLock = false;
   let keyboardFocusIndex = -1;
   let keyboardFocusElements = [];
   let keyboardOpenCallback = null;
@@ -173,33 +285,43 @@
         justify-content: center;
       }
       .remapad-keyboard-key {
-        min-width: 32px;
-        height: 36px;
+        min-width: 28px;
+        height: 34px;
         background: rgba(255, 255, 255, 0.06);
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 4px;
         color: #e5e2e1;
-        font-size: 14px;
+        font-size: 13px;
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 0 6px;
+        padding: 0 5px;
+        flex: 1 1 auto;
+        max-width: 52px;
       }
       .remapad-keyboard-key:hover {
         background: rgba(255, 255, 255, 0.12);
       }
       .remapad-keyboard-key-wide {
-        min-width: 60px;
+        flex: 1.6 1 auto;
+        min-width: 54px;
+        max-width: none;
       }
       .remapad-keyboard-key-special {
         background: rgba(255, 255, 255, 0.03);
-        font-size: 12px;
+        font-size: 11px;
       }
       .remapad-keyboard-key.focused {
         background: rgba(229, 9, 20, 0.3);
         outline: 2px solid #ffb4aa;
         outline-offset: 1px;
+      }
+      .remapad-keyboard-row {
+        display: flex;
+        gap: 4px;
+        justify-content: center;
+        min-height: 34px;
       }
       .remapad-keyboard-btn {
         background: rgba(255, 255, 255, 0.05);
@@ -254,14 +376,16 @@
 
   function resolveKeyDef(value, layerId) {
     const labels = {
-      'shift': layerId === 'alpha' ? '⇧' : '⇧',
+      'shift': keyboardCapsLock ? '⇧CAPS' : '⇧',
+      'caps': keyboardCapsLock ? '⇪ ON' : '⇪',
       'backspace': '⌫',
+      'tab': '⇥ Tab',
       'toggle-layer': layerId === 'alpha' ? '123' : 'ABC',
       ' ': '␣',
       'confirm': '✓'
     };
-    const wideKeys = new Set(['shift', 'backspace', 'toggle-layer', ' ', 'confirm']);
-    const specialKeys = new Set(['shift', 'backspace', 'toggle-layer', ' ', 'confirm']);
+    const wideKeys = new Set(['shift', 'caps', 'backspace', 'toggle-layer', 'tab', ' ', 'confirm']);
+    const specialKeys = new Set(['shift', 'caps', 'backspace', 'toggle-layer', 'tab', ' ', 'confirm']);
     return {
       value,
       label: labels[value] || value,
@@ -274,7 +398,10 @@
     if (value === 'backspace') {
       keyboardValue = keyboardValue.slice(0, -1);
     } else if (value === 'shift') {
-      keyboardLayer = keyboardLayer === 'alpha' ? 'symbols' : 'alpha';
+      keyboardCapsLock = !keyboardCapsLock;
+      buildGamepadKeyboard();
+    } else if (value === 'caps') {
+      keyboardCapsLock = !keyboardCapsLock;
       buildGamepadKeyboard();
     } else if (value === 'toggle-layer') {
       keyboardLayer = keyboardLayer === 'alpha' ? 'symbols' : 'alpha';
@@ -282,10 +409,17 @@
     } else if (value === 'confirm') {
       closeGamepadKeyboard(true);
       return;
+    } else if (value === 'tab') {
+      keyboardValue += '\t';
     } else if (value === ' ') {
       keyboardValue += ' ';
     } else {
-      keyboardValue += value;
+      let char = value;
+      if (keyboardLayer === 'alpha' && keyboardCapsLock) {
+        const upper = char.toUpperCase();
+        if (upper.length === 1) char = upper;
+      }
+      keyboardValue += char;
     }
     updateGamepadKeyboardPreview();
     refreshKeyboardFocusVisual();
@@ -294,6 +428,10 @@
 
   function setNativeValue(target, value) {
     if (!target) return;
+    if (target.isContentEditable) {
+      target.textContent = value;
+      return;
+    }
     const proto = target instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
     const descriptor = Object.getOwnPropertyDescriptor(proto, 'value');
     if (descriptor && descriptor.set) {
@@ -301,6 +439,12 @@
     } else {
       target.value = value;
     }
+  }
+
+  function getNativeValue(target) {
+    if (!target) return '';
+    if (target.isContentEditable) return target.textContent || '';
+    return target.value || '';
   }
 
   function updateGamepadKeyboardPreview() {
@@ -317,8 +461,9 @@
     if (!inputEl) return;
     ensureKeyboardDOM();
     keyboardTarget = inputEl;
-    keyboardValue = inputEl.value || '';
+    keyboardValue = getNativeValue(inputEl);
     keyboardLayer = 'alpha';
+    keyboardCapsLock = false;
     if (options.layoutId && layouts[options.layoutId]) keyboardLayoutId = options.layoutId;
     if (options.layouts) layouts = { ...DEFAULT_KEYBOARD_LAYOUTS, ...options.layouts };
     keyboardOpenCallback = options.onOpen || null;
@@ -345,6 +490,7 @@
     const target = keyboardTarget;
     keyboardTarget = null;
     keyboardValue = '';
+    keyboardCapsLock = false;
     keyboardFocusElements = [];
     keyboardFocusIndex = -1;
     if (keyboardCloseCallback) keyboardCloseCallback(target, confirm);
