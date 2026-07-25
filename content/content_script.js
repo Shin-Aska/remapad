@@ -458,7 +458,7 @@
 
     const nav = settings.navSettings;
 
-    if (nav?.enabled) {
+    if (nav?.enabled && siteMappingActive) {
       const leftMode = nav.leftStick?.mode;
       const rightMode = nav.rightStick?.mode;
 
