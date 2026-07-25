@@ -2567,6 +2567,7 @@
       resolveKeyboardLayout().then(layoutId => {
         RemapadKeyboard.open(el, {
           layoutId,
+          layouts: settings.customKeyboardLayouts,
           onClose: (target, confirmed) => {
             if (target && confirmed) {
               simulateClickAt(target, x, y);

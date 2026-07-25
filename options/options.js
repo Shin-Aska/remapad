@@ -797,7 +797,7 @@ function renderWebsiteMappings() {
           <option value="russian" ${siteLayout === 'russian' ? 'selected' : ''}>Russian (ЙЦУКЕН)</option>
           <option value="korean" ${siteLayout === 'korean' ? 'selected' : ''}>Korean (Dubeolsik)</option>
           <option value="chinese" ${siteLayout === 'chinese' ? 'selected' : ''}>Chinese (Pinyin)</option>
-          <option value="japanese" ${siteLayout === 'japanese' ? 'selected' : ''}>Japanese (Romaji)</option>
+          <option value="japanese" ${siteLayout === 'japanese' ? 'selected' : ''}>Japanese (Hiragana / Katakana)</option>
         </select>
       </div>
     `;

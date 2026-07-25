@@ -153,20 +153,21 @@
       }
     },
     japanese: {
-      name: 'Japanese (Romaji)',
+      name: 'Japanese (Hiragana / Katakana)',
       layers: {
         alpha: [
           ['1','2','3','4','5','6','7','8','9','0'],
-          ['q','w','e','r','t','y','u','i','o','p'],
-          ['a','s','d','f','g','h','j','k','l'],
-          ['shift','z','x','c','v','b','n','m','backspace'],
-          ['toggle-layer','tab',' ','-','_','/','caps','confirm']
+          ['あ','い','う','え','お','か','き','く','け','こ'],
+          ['さ','し','す','せ','そ','た','ち','つ','て','と'],
+          ['shift','な','に','ぬ','ね','の','は','ひ','ふ','へ','ほ','backspace'],
+          ['toggle-layer','tab',' ','。','、','ー','caps','confirm']
         ],
         symbols: [
           ['1','2','3','4','5','6','7','8','9','0'],
-          ['!','@','#','$','%','^','&','*','(',')'],
-          ['shift','"',"'",';',':',',','.','/','?','backspace'],
-          ['toggle-layer','tab',' ','-','_','+','=','[',']','caps','confirm']
+          ['ア','イ','ウ','エ','オ','カ','キ','ク','ケ','コ'],
+          ['サ','シ','ス','セ','ソ','タ','チ','ツ','テ','ト'],
+          ['shift','ナ','ニ','ヌ','ネ','ノ','ハ','ヒ','フ','ヘ','ホ','backspace'],
+          ['toggle-layer','tab',' ','。','、','ー','caps','confirm']
         ]
       }
     }
@@ -375,7 +376,7 @@
   }
 
   function resolveKeyDef(value, layerId) {
-    const labels = {
+    const specialLabels = {
       'shift': keyboardCapsLock ? '⇧CAPS' : '⇧',
       'caps': keyboardCapsLock ? '⇪ ON' : '⇪',
       'backspace': '⌫',
@@ -386,11 +387,16 @@
     };
     const wideKeys = new Set(['shift', 'caps', 'backspace', 'toggle-layer', 'tab', ' ', 'confirm']);
     const specialKeys = new Set(['shift', 'caps', 'backspace', 'toggle-layer', 'tab', ' ', 'confirm']);
+    const isSpecial = specialKeys.has(value);
+    const label = specialLabels[value] || value;
+    const displayLabel = !isSpecial && keyboardCapsLock && layerId === 'alpha' && /^[a-z\u0430-\u044f\u0451]$/.test(label)
+      ? label.toUpperCase()
+      : label;
     return {
       value,
-      label: labels[value] || value,
+      label: displayLabel,
       wide: wideKeys.has(value),
-      special: specialKeys.has(value)
+      special: isSpecial
     };
   }
 
