@@ -230,7 +230,10 @@ let settings = {
     }
   },
   navSettings: structuredClone(DEFAULT_NAV_SETTINGS),
-  muteActivation: false
+  muteActivation: false,
+  keyboardEnabled: true,
+  keyboardLayout: 'qwerty',
+  customKeyboardLayouts: null
 };
 
 let selectedSiteKey  = 'default';
@@ -353,13 +356,16 @@ const ACTION_LABEL_MAP = Object.fromEntries(ACTION_OPTIONS.map(o => [o.value, o.
 async function loadSettings() {
   try {
     const data = await api.storage.local.get([
-      'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'siteCollections', 'navSettings', 'muteActivation'
+      'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'siteCollections', 'navSettings', 'muteActivation', 'keyboardEnabled', 'keyboardLayout', 'customKeyboardLayouts'
     ]);
 
     if (data.iconStyle) settings.iconStyle = data.iconStyle;
     if (data.enabledSites) settings.enabledSites = data.enabledSites;
     if (data.globalEnabled !== undefined) settings.globalEnabled = data.globalEnabled;
     if (data.muteActivation !== undefined) settings.muteActivation = data.muteActivation;
+    if (data.keyboardEnabled !== undefined) settings.keyboardEnabled = data.keyboardEnabled;
+    if (data.keyboardLayout) settings.keyboardLayout = data.keyboardLayout;
+    if (data.customKeyboardLayouts) settings.customKeyboardLayouts = data.customKeyboardLayouts;
     if (data.siteCollections && typeof data.siteCollections === 'object') {
       settings.siteCollections = data.siteCollections;
     }
@@ -460,7 +466,10 @@ async function saveSettings() {
       globalEnabled:   settings.globalEnabled,
       siteCollections: settings.siteCollections,
       navSettings:     settings.navSettings,
-      muteActivation:  settings.muteActivation
+      muteActivation:  settings.muteActivation,
+      keyboardEnabled: settings.keyboardEnabled,
+      keyboardLayout:  settings.keyboardLayout,
+      customKeyboardLayouts: settings.customKeyboardLayouts
     });
 
     unsavedChanges = false;
@@ -483,6 +492,9 @@ function renderAll() {
   populateVisualLabels();
   renderCollectionConfig();
   renderNavConfig();
+  if (keyboardLayoutSelect) {
+    keyboardLayoutSelect.value = settings.keyboardLayout || 'qwerty';
+  }
 }
 
 function mergeNavSettings(stored) {
@@ -1044,10 +1056,8 @@ document.addEventListener('click', (e) => {
       closeGamepadSelect();
     }
   }
-  if (gamepadKeyboardOverlay && gamepadKeyboardOverlay.style.display !== 'none') {
-    if (!gamepadKeyboardOverlay.contains(e.target) && e.target !== gamepadKeyboardTarget) {
-      closeGamepadKeyboard(false);
-    }
+  if (typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.isOpen()) {
+    RemapadKeyboard.close(false);
   }
 });
 
@@ -1300,7 +1310,7 @@ function dispatchHoverEvents(el, enter) {
 
 function isRemapadElement(target) {
   if (!(target instanceof Element)) return false;
-  return Boolean(target.closest('.remapad-quick-map, .remapad-hud-container, .remapad-cursor, .gamepad-select-overlay, .gamepad-keyboard-overlay'));
+  return Boolean(target.closest('.remapad-quick-map, .remapad-hud-container, .remapad-cursor, .gamepad-select-overlay, .remapad-keyboard-overlay'));
 }
 
 function isClickableCursorTarget(el) {
@@ -1534,7 +1544,7 @@ function activateElementAsClick(el, x, y) {
     openGamepadColorPicker(el);
     return;
   }
-  if (el.tagName === 'INPUT' && (el.type === 'text' || el.type === '' || el.type === 'url' || el.type === 'search')) {
+  if (typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.isEditableElement(el)) {
     openGamepadKeyboard(el);
     return;
   }
@@ -1617,171 +1627,22 @@ function executeOptionsScroll(action) {
 const gamepadSelectOverlay = document.getElementById('gamepad-select-overlay');
 let gamepadSelectTarget = null;
 
-const gamepadKeyboardOverlay = document.getElementById('gamepad-keyboard-overlay');
-const gamepadKeyboardGrid = document.getElementById('gamepad-keyboard-grid');
-const gamepadKeyboardPreview = document.getElementById('gamepad-keyboard-preview');
-const gamepadKeyboardConfirmBtn = document.getElementById('gamepad-keyboard-confirm');
-const gamepadKeyboardCancelBtn = document.getElementById('gamepad-keyboard-cancel');
-let gamepadKeyboardTarget = null;
-let gamepadKeyboardValue = '';
-let gamepadKeyboardLayer = 'alpha';
-
-const KEYBOARD_LAYOUTS = {
-  alpha: [
-    [
-      { label: 'q', value: 'q' }, { label: 'w', value: 'w' }, { label: 'e', value: 'e' },
-      { label: 'r', value: 'r' }, { label: 't', value: 't' }, { label: 'y', value: 'y' },
-      { label: 'u', value: 'u' }, { label: 'i', value: 'i' }, { label: 'o', value: 'o' },
-      { label: 'p', value: 'p' }
-    ],
-    [
-      { label: 'a', value: 'a' }, { label: 's', value: 's' }, { label: 'd', value: 'd' },
-      { label: 'f', value: 'f' }, { label: 'g', value: 'g' }, { label: 'h', value: 'h' },
-      { label: 'j', value: 'j' }, { label: 'k', value: 'k' }, { label: 'l', value: 'l' }
-    ],
-    [
-      { label: '⇧', value: 'shift', special: true, wide: true },
-      { label: 'z', value: 'z' }, { label: 'x', value: 'x' }, { label: 'c', value: 'c' },
-      { label: 'v', value: 'v' }, { label: 'b', value: 'b' }, { label: 'n', value: 'n' },
-      { label: 'm', value: 'm' },
-      { label: '⌫', value: 'backspace', special: true, wide: true }
-    ],
-    [
-      { label: '123', value: 'toggle-layer', special: true, wide: true },
-      { label: '␣', value: ' ', special: true, wide: true },
-      { label: '.', value: '.' },
-      { label: '-', value: '-' },
-      { label: '_', value: '_' },
-      { label: '/', value: '/' },
-      { label: ':', value: ':' },
-      { label: '✓', value: 'confirm', special: true, wide: true }
-    ]
-  ],
-  symbols: [
-    [
-      { label: '1', value: '1' }, { label: '2', value: '2' }, { label: '3', value: '3' },
-      { label: '4', value: '4' }, { label: '5', value: '5' }, { label: '6', value: '6' },
-      { label: '7', value: '7' }, { label: '8', value: '8' }, { label: '9', value: '9' },
-      { label: '0', value: '0' }
-    ],
-    [
-      { label: '!', value: '!' }, { label: '@', value: '@' }, { label: '#', value: '#' },
-      { label: '$', value: '$' }, { label: '%', value: '%' }, { label: '^', value: '^' },
-      { label: '&', value: '&' }, { label: '*', value: '*' }, { label: '(', value: '(' },
-      { label: ')', value: ')' }
-    ],
-    [
-      { label: '⇧', value: 'shift', special: true, wide: true },
-      { label: '"', value: '"' }, { label: "'", value: "'" }, { label: ';', value: ';' },
-      { label: ',', value: ',' }, { label: '+', value: '+' }, { label: '=', value: '=' },
-      { label: '?', value: '?' },
-      { label: '⌫', value: 'backspace', special: true, wide: true }
-    ],
-    [
-      { label: 'ABC', value: 'toggle-layer', special: true, wide: true },
-      { label: '␣', value: ' ', special: true, wide: true },
-      { label: '.', value: '.' },
-      { label: '-', value: '-' },
-      { label: '_', value: '_' },
-      { label: '/', value: '/' },
-      { label: ':', value: ':' },
-      { label: '✓', value: 'confirm', special: true, wide: true }
-    ]
-  ]
-};
-
-function buildGamepadKeyboard() {
-  gamepadKeyboardGrid.innerHTML = '';
-  const layout = KEYBOARD_LAYOUTS[gamepadKeyboardLayer] || KEYBOARD_LAYOUTS.alpha;
-
-  layout.forEach(row => {
-    const rowEl = document.createElement('div');
-    rowEl.className = 'gamepad-keyboard-row';
-    row.forEach(keyDef => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'gamepad-keyboard-key';
-      if (keyDef.wide) btn.classList.add('gamepad-keyboard-key-wide');
-      if (keyDef.special) btn.classList.add('gamepad-keyboard-key-special');
-      btn.textContent = keyDef.label;
-      btn.dataset.keyValue = keyDef.value;
-      btn.dataset.special = keyDef.special ? '1' : '0';
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        handleGamepadKeyboardKey(keyDef.value);
-      });
-      rowEl.appendChild(btn);
-    });
-    gamepadKeyboardGrid.appendChild(rowEl);
-  });
-
-  gamepadKeyboardConfirmBtn.onclick = (e) => { e.stopPropagation(); closeGamepadKeyboard(true); };
-  gamepadKeyboardCancelBtn.onclick = (e) => { e.stopPropagation(); closeGamepadKeyboard(false); };
-}
-
-function handleGamepadKeyboardKey(value) {
-  if (value === 'backspace') {
-    gamepadKeyboardValue = gamepadKeyboardValue.slice(0, -1);
-  } else if (value === 'shift') {
-    gamepadKeyboardLayer = gamepadKeyboardLayer === 'alpha' ? 'symbols' : 'alpha';
-    buildGamepadKeyboard();
-  } else if (value === 'toggle-layer') {
-    gamepadKeyboardLayer = gamepadKeyboardLayer === 'alpha' ? 'symbols' : 'alpha';
-    buildGamepadKeyboard();
-  } else if (value === 'confirm') {
-    closeGamepadKeyboard(true);
-    return;
-  } else if (value === ' ') {
-    gamepadKeyboardValue += ' ';
-  } else {
-    gamepadKeyboardValue += value;
-  }
-  updateGamepadKeyboardPreview();
-}
-
-function updateGamepadKeyboardPreview() {
-  if (gamepadKeyboardPreview) {
-    gamepadKeyboardPreview.textContent = gamepadKeyboardValue || ' ';
-  }
-  if (gamepadKeyboardTarget) {
-    gamepadKeyboardTarget.value = gamepadKeyboardValue;
-    gamepadKeyboardTarget.dispatchEvent(new Event('input', { bubbles: true }));
-  }
-}
+const COLOR_PRESETS = ['#e50914', '#00a8e1', '#ff6b35', '#4caf50', '#9c27b0', '#ffeb3b', '#ffffff', '#000000', '#ff4081', '#00bcd4', '#8bc34a', '#ffc107'];
 
 function openGamepadKeyboard(inputEl) {
-  gamepadKeyboardTarget = inputEl;
-  gamepadKeyboardValue = inputEl.value || '';
-  gamepadKeyboardLayer = 'alpha';
-  buildGamepadKeyboard();
-  updateGamepadKeyboardPreview();
-  gamepadKeyboardOverlay.style.display = 'block';
-  gamepadFocusElements = collectKeyboardFocusables();
+  if (typeof RemapadKeyboard === 'undefined') return;
+  RemapadKeyboard.open(inputEl, {
+    layoutId: settings.keyboardLayout || 'qwerty',
+    layouts: settings.customKeyboardLayouts,
+    onClose: function () {
+      gamepadFocusElements = [];
+      gamepadFocusIndex = -1;
+    }
+  });
+  gamepadFocusElements = RemapadKeyboard.getFocusableElements ? RemapadKeyboard.getFocusableElements() : [];
   gamepadFocusIndex = 0;
   refreshGamepadFocusVisual();
 }
-
-function closeGamepadKeyboard(confirm) {
-  if (confirm && gamepadKeyboardTarget) {
-    gamepadKeyboardTarget.value = gamepadKeyboardValue;
-    gamepadKeyboardTarget.dispatchEvent(new Event('input', { bubbles: true }));
-    gamepadKeyboardTarget.dispatchEvent(new Event('change', { bubbles: true }));
-  }
-  gamepadKeyboardOverlay.style.display = 'none';
-  gamepadKeyboardTarget = null;
-  gamepadKeyboardValue = '';
-  gamepadFocusElements = [];
-  gamepadFocusIndex = -1;
-}
-
-function collectKeyboardFocusables() {
-  const keys = Array.from(gamepadKeyboardGrid.querySelectorAll('.gamepad-keyboard-key'));
-  keys.push(gamepadKeyboardConfirmBtn);
-  keys.push(gamepadKeyboardCancelBtn);
-  return keys;
-}
-
-const COLOR_PRESETS = ['#e50914', '#00a8e1', '#ff6b35', '#4caf50', '#9c27b0', '#ffeb3b', '#ffffff', '#000000', '#ff4081', '#00bcd4', '#8bc34a', '#ffc107'];
 
 function openGamepadColorPicker(colorInput) {
   gamepadSelectTarget = colorInput;
@@ -1874,8 +1735,8 @@ function refreshGamepadFocusVisual() {
 }
 
 function getOverlayFocusableElements() {
-  if (gamepadKeyboardOverlay && gamepadKeyboardOverlay.style.display !== 'none') {
-    return collectKeyboardFocusables();
+  if (typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.isOpen()) {
+    return RemapadKeyboard.getFocusableElements ? RemapadKeyboard.getFocusableElements() : [];
   }
   if (gamepadSelectOverlay && gamepadSelectOverlay.style.display !== 'none') {
     return Array.from(gamepadSelectOverlay.querySelectorAll('.gamepad-select-option'));
@@ -1884,25 +1745,19 @@ function getOverlayFocusableElements() {
 }
 
 function isOverlayOpen() {
-  return (gamepadKeyboardOverlay && gamepadKeyboardOverlay.style.display !== 'none') ||
+  return (typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.isOpen()) ||
          (gamepadSelectOverlay && gamepadSelectOverlay.style.display !== 'none');
 }
 
 function activateOverlayFocus() {
+  if (typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.isOpen()) {
+    RemapadKeyboard.activateFocus();
+    return;
+  }
+
   const elements = getOverlayFocusableElements();
   if (gamepadFocusIndex < 0 || gamepadFocusIndex >= elements.length) return;
   const el = elements[gamepadFocusIndex];
-
-  if (gamepadKeyboardOverlay && gamepadKeyboardOverlay.style.display !== 'none') {
-    if (el.classList.contains('gamepad-keyboard-key')) {
-      handleGamepadKeyboardKey(el.dataset.keyValue);
-      gamepadFocusElements = collectKeyboardFocusables();
-      refreshGamepadFocusVisual();
-      return;
-    }
-    if (el === gamepadKeyboardConfirmBtn) { closeGamepadKeyboard(true); return; }
-    if (el === gamepadKeyboardCancelBtn) { closeGamepadKeyboard(false); return; }
-  }
 
   if (gamepadSelectOverlay && gamepadSelectOverlay.style.display !== 'none') {
     if (el.classList.contains('gamepad-select-option')) {
@@ -1913,6 +1768,11 @@ function activateOverlayFocus() {
 }
 
 function moveOverlayFocus(direction) {
+  if (typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.isOpen()) {
+    RemapadKeyboard.moveFocus(direction);
+    return;
+  }
+
   const elements = getOverlayFocusableElements();
   if (elements.length === 0) return;
 
@@ -1924,85 +1784,11 @@ function moveOverlayFocus(direction) {
     refreshGamepadFocusVisual();
     return;
   }
-
-  if (gamepadKeyboardOverlay && gamepadKeyboardOverlay.style.display !== 'none') {
-    const nextIdx = findSpatialNeighbor(elements, gamepadFocusIndex, direction);
-    if (nextIdx >= 0) {
-      gamepadFocusIndex = nextIdx;
-      gamepadFocusElements = elements;
-      refreshGamepadFocusVisual();
-    }
-    return;
-  }
-}
-
-function findSpatialNeighbor(elements, currentIndex, direction) {
-  if (currentIndex < 0 || currentIndex >= elements.length) return -1;
-  const currentEl = elements[currentIndex];
-  const currentRect = currentEl.getBoundingClientRect();
-  const originCx = currentRect.left + currentRect.width / 2;
-  const originCy = currentRect.top + currentRect.height / 2;
-
-  let bestIdx = -1;
-  let bestScore = Infinity;
-
-  elements.forEach((el, idx) => {
-    if (idx === currentIndex || el === currentEl) return;
-    const r = el.getBoundingClientRect();
-    if (r.width === 0 || r.height === 0) return;
-
-    const cx = r.left + r.width / 2;
-    const cy = r.top + r.height / 2;
-    const dx = cx - originCx;
-    const dy = cy - originCy;
-
-    let inDirection = false;
-    let primaryDist = 0;
-    let lateralDist = 0;
-
-    if (direction === 'up') {
-      inDirection = dy < -2;
-      primaryDist = Math.abs(dy);
-      lateralDist = Math.abs(dx);
-    } else if (direction === 'down') {
-      inDirection = dy > 2;
-      primaryDist = Math.abs(dy);
-      lateralDist = Math.abs(dx);
-    } else if (direction === 'left') {
-      inDirection = dx < -2;
-      primaryDist = Math.abs(dx);
-      lateralDist = Math.abs(dy);
-    } else if (direction === 'right') {
-      inDirection = dx > 2;
-      primaryDist = Math.abs(dx);
-      lateralDist = Math.abs(dy);
-    }
-
-    if (!inDirection) return;
-
-    const alignedThreshold = direction === 'up' || direction === 'down'
-      ? Math.max(currentRect.width, r.width) * 0.2
-      : Math.max(currentRect.height, r.height) * 0.2;
-
-    const overlap = direction === 'up' || direction === 'down'
-      ? Math.min(currentRect.right, r.right) - Math.max(currentRect.left, r.left)
-      : Math.min(currentRect.bottom, r.bottom) - Math.max(currentRect.top, r.top);
-
-    const aligned = overlap >= alignedThreshold;
-    const score = primaryDist + lateralDist * 5 + (aligned ? 0 : 1e6);
-
-    if (score < bestScore) {
-      bestScore = score;
-      bestIdx = idx;
-    }
-  });
-
-  return bestIdx;
 }
 
 function optionsBack() {
-  if (gamepadKeyboardOverlay && gamepadKeyboardOverlay.style.display !== 'none') {
-    closeGamepadKeyboard(false);
+  if (typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.isOpen()) {
+    RemapadKeyboard.close(false);
     return;
   }
   if (gamepadSelectOverlay && gamepadSelectOverlay.style.display !== 'none') {
@@ -2640,6 +2426,19 @@ document.getElementById('collection-add-site-btn')?.addEventListener('click', ()
 document.getElementById('cnav-save-all-btn')?.addEventListener('click', () => {
   saveSettings();
 });
+
+// Keyboard layout select handler
+const keyboardLayoutSelect = document.getElementById('keyboard-layout-select');
+if (keyboardLayoutSelect) {
+  keyboardLayoutSelect.addEventListener('change', function () {
+    settings.keyboardLayout = keyboardLayoutSelect.value;
+    unsavedChanges = true;
+    if (typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.setLayout) {
+      RemapadKeyboard.setLayout(settings.keyboardLayout);
+    }
+    saveSettings();
+  });
+}
 
 (async () => {
   await loadSettings();

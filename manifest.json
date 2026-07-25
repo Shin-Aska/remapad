@@ -49,7 +49,7 @@
       "matches": [
         "*://*/*"
       ],
-      "js": ["content/content_script.js"],
+      "js": ["shared/keyboard.js", "content/content_script.js"],
       "run_at": "document_idle"
     }
   ],

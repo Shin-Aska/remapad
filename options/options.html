@@ -118,6 +118,19 @@
             </div>
           </section>
 
+          <!-- Keyboard Layout -->
+          <section class="card">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:var(--space-sm)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;display:block"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M6 16h.01M10 16h.01M14 16h.01M18 16h.01"/></svg>
+              <div class="card-title" style="margin-bottom:0">Virtual Keyboard Layout</div>
+            </div>
+            <select id="keyboard-layout-select" style="width:100%;background:var(--surface-container);color:var(--on-surface);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:6px 10px;font-size:12px;outline:none;font-family:var(--font-body);cursor:pointer">
+              <option value="qwerty">QWERTY</option>
+              <option value="dvorak">Dvorak</option>
+              <option value="azerty">AZERTY</option>
+            </select>
+          </section>
+
           <!-- Audio & Activation Settings -->
           <section class="card">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
@@ -850,19 +863,7 @@
 <!-- Gamepad Select Overlay -->
 <div class="gamepad-select-overlay" id="gamepad-select-overlay" style="display:none"></div>
 
-<!-- Gamepad Virtual Keyboard -->
-<div class="gamepad-keyboard-overlay" id="gamepad-keyboard-overlay" style="display:none">
-  <div class="gamepad-keyboard-header">
-    <span class="gamepad-keyboard-title" id="gamepad-keyboard-title">Type text</span>
-    <span class="gamepad-keyboard-preview" id="gamepad-keyboard-preview"></span>
-  </div>
-  <div class="gamepad-keyboard-grid" id="gamepad-keyboard-grid"></div>
-  <div class="gamepad-keyboard-footer">
-    <button class="gamepad-keyboard-btn" id="gamepad-keyboard-confirm" type="button">Confirm</button>
-    <button class="gamepad-keyboard-btn" id="gamepad-keyboard-cancel" type="button">Cancel</button>
-  </div>
-</div>
-
+<script src="../shared/keyboard.js"></script>
 <script src="options.js"></script>
 </body>
 </html>

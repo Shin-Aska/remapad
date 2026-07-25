@@ -204,7 +204,9 @@
     enabledSites: {}, // hostname -> bool (defaults to true)
     globalEnabled: true,
     siteCollections: { ...SITE_COLLECTIONS_DEFAULT },
-    navSettings: structuredClone(DEFAULT_NAV_SETTINGS)
+    navSettings: structuredClone(DEFAULT_NAV_SETTINGS),
+    keyboardEnabled: true,
+    keyboardLayout: 'qwerty'
   };
 
   // ─── Collection Navigation State ─────────────────────────────────────────────
@@ -253,8 +255,11 @@
   async function init() {
     try {
       const data = await api.storage.local.get([
-        'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'siteCollections', 'navSettings', 'muteActivation'
+        'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'siteCollections', 'navSettings', 'muteActivation', 'keyboardEnabled', 'keyboardLayout'
       ]);
+
+      if (data.keyboardEnabled !== undefined) settings.keyboardEnabled = data.keyboardEnabled;
+      if (data.keyboardLayout) settings.keyboardLayout = data.keyboardLayout;
 
       if (data.iconStyle) settings.iconStyle = data.iconStyle;
       if (data.enabledSites) settings.enabledSites = data.enabledSites;
@@ -698,6 +703,39 @@
 
   function executeAction(action) {
     console.log('[Remapad CS] Executing action:', action);
+
+    if (typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.isOpen()) {
+      switch (action) {
+        case 'scroll_up':
+        case 'nav_up':
+        case 'focus_up':
+          RemapadKeyboard.moveFocus('up');
+          return;
+        case 'scroll_down':
+        case 'nav_down':
+        case 'focus_down':
+          RemapadKeyboard.moveFocus('down');
+          return;
+        case 'scroll_left':
+        case 'nav_left':
+        case 'focus_left':
+          RemapadKeyboard.moveFocus('left');
+          return;
+        case 'scroll_right':
+        case 'nav_right':
+        case 'focus_right':
+          RemapadKeyboard.moveFocus('right');
+          return;
+        case 'click':
+        case 'select':
+          RemapadKeyboard.activateFocus();
+          return;
+        case 'back':
+        case 'backspace':
+          RemapadKeyboard.close(false);
+          return;
+      }
+    }
 
     if (action === 'toggle_hud') {
       toggleHUD();
@@ -2195,7 +2233,7 @@
 
   function isRemapadElement(target) {
     if (!(target instanceof Element)) return false;
-    return Boolean(target.closest('.remapad-quick-map, .remapad-hud-container'));
+    return Boolean(target.closest('.remapad-quick-map, .remapad-hud-container, .remapad-keyboard-overlay'));
   }
 
   function getStableSelector(el) {
@@ -2509,6 +2547,17 @@
   }
 
   function activateElementAsClick(el, x, y) {
+    if (settings.keyboardEnabled && typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.isEditableElement(el)) {
+      RemapadKeyboard.open(el, {
+        layoutId: settings.keyboardLayout,
+        onClose: (target, confirmed) => {
+          if (target && confirmed) {
+            simulateClickAt(target, x, y);
+          }
+        }
+      });
+      return;
+    }
     ensureWindowFocus();
     simulateClickAt(el, x, y);
     simulateKeyboardActivate(el);
