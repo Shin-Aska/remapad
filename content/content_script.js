@@ -210,7 +210,9 @@
   keyboardTriggerSelectors: [],
   keyboardLayout: 'qwerty',
   keyboardAutoDetect: true,
-  siteKeyboardLayouts: {}
+  siteKeyboardLayouts: {},
+  siteKeyboardTriggerModes: {},
+  siteKeyboardTriggerSelectors: {}
 };
 
   // ─── Collection Navigation State ─────────────────────────────────────────────
@@ -243,6 +245,7 @@
   let keyboardFocusSetupDone = false;
   let keyboardIgnoreFocusTarget = null;
   let keyboardIgnoreFocusUntil = 0;
+  let siteMappingActive = false;
   const cursors = {
     left:  { element: null, target: null, x: 0, y: 0, visible: false },
     right: { element: null, target: null, x: 0, y: 0, visible: false }
@@ -272,6 +275,8 @@
       if (data.keyboardLayout) settings.keyboardLayout = data.keyboardLayout;
       if (data.keyboardAutoDetect !== undefined) settings.keyboardAutoDetect = data.keyboardAutoDetect;
       if (data.siteKeyboardLayouts && typeof data.siteKeyboardLayouts === 'object') settings.siteKeyboardLayouts = data.siteKeyboardLayouts;
+      if (data.siteKeyboardTriggerModes && typeof data.siteKeyboardTriggerModes === 'object') settings.siteKeyboardTriggerModes = data.siteKeyboardTriggerModes;
+      if (data.siteKeyboardTriggerSelectors && typeof data.siteKeyboardTriggerSelectors === 'object') settings.siteKeyboardTriggerSelectors = data.siteKeyboardTriggerSelectors;
 
       setupKeyboardFocusTrigger();
 
@@ -312,11 +317,13 @@
         } else {
           settings.websiteMappings = { ...WEBSITE_MAPPINGS_DEFAULT };
         }
-        activeProfile = settings.websiteMappings[currentHostname] || settings.defaultMapping || DEFAULT_PROFILE;
-        isMapped = settings.websiteMappings[currentHostname] !== undefined;
-      }
+      activeProfile = settings.websiteMappings[currentHostname] || settings.defaultMapping || DEFAULT_PROFILE;
+      isMapped = settings.websiteMappings[currentHostname] !== undefined;
+    }
 
-      activeProfile = { ...DEFAULT_PROFILE, ...activeProfile };
+    siteMappingActive = isMapped;
+
+    activeProfile = { ...DEFAULT_PROFILE, ...activeProfile };
 
       const siteEnabled = settings.enabledSites[currentHostname] !== false;
       const quickMapAvailable = settings.globalEnabled && siteEnabled;
@@ -2605,9 +2612,23 @@
 
   // ─── Keyboard trigger helpers ──────────────────────────────────────────────
 
+  function getEffectiveKeyboardTriggerMode() {
+    const siteMode = settings.siteKeyboardTriggerModes?.[currentHostname];
+    if (siteMode === 'focus' || siteMode === 'click' || siteMode === 'both' || siteMode === 'disabled') return siteMode;
+    return settings.keyboardTriggerMode || 'both';
+  }
+
+  function getEffectiveKeyboardTriggerSelectors() {
+    const siteSelectors = settings.siteKeyboardTriggerSelectors?.[currentHostname];
+    if (Array.isArray(siteSelectors)) return siteSelectors;
+    return settings.keyboardTriggerSelectors || [];
+  }
+
   function matchesCustomTriggerSelector(el) {
-    if (!settings.keyboardTriggerSelectors.length) return false;
-    for (const selector of settings.keyboardTriggerSelectors) {
+    const selectors = getEffectiveKeyboardTriggerSelectors();
+    if (!selectors.length) return false;
+    for (const selector of selectors) {
+      if (typeof selector !== 'string') continue;
       try {
         if (el.matches(selector)) return true;
       } catch (e) {
@@ -2623,9 +2644,16 @@
     return matchesCustomTriggerSelector(el);
   }
 
-  function maybeOpenKeyboard(el, x, y) {
+  function isKeyboardContextActive() {
     if (!settings.keyboardEnabled || typeof RemapadKeyboard === 'undefined') return false;
-    const mode = settings.keyboardTriggerMode || 'both';
+    if (!settings.globalEnabled) return false;
+    if (settings.enabledSites[currentHostname] === false) return false;
+    return siteMappingActive;
+  }
+
+  function maybeOpenKeyboard(el, x, y) {
+    if (!isKeyboardContextActive()) return false;
+    const mode = getEffectiveKeyboardTriggerMode();
     if (mode === 'disabled') return false;
     if (!isKeyboardTrigger(el)) return false;
 
@@ -2662,7 +2690,7 @@
     keyboardFocusSetupDone = true;
 
     document.addEventListener('focusin', (event) => {
-      const mode = settings.keyboardTriggerMode || 'both';
+      const mode = getEffectiveKeyboardTriggerMode();
       if (mode !== 'focus' && mode !== 'both') return;
       const target = event.target;
       if (!target || target.closest('.remapad-keyboard-overlay')) return;
@@ -2684,7 +2712,7 @@
   }
 
   function activateElementAsClick(el, x, y) {
-    const mode = settings.keyboardTriggerMode || 'both';
+    const mode = getEffectiveKeyboardTriggerMode();
     if (mode === 'click' || mode === 'both') {
       if (maybeOpenKeyboard(el, x, y)) return;
     }

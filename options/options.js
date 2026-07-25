@@ -237,6 +237,8 @@ let settings = {
   keyboardTriggerMode: 'both',
   keyboardTriggerSelectors: [],
   siteKeyboardLayouts: {},
+  siteKeyboardTriggerModes: {},
+  siteKeyboardTriggerSelectors: {},
   customKeyboardLayouts: null
 };
 
@@ -360,7 +362,7 @@ const ACTION_LABEL_MAP = Object.fromEntries(ACTION_OPTIONS.map(o => [o.value, o.
 async function loadSettings() {
   try {
     const data = await api.storage.local.get([
-      'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'siteCollections', 'navSettings', 'muteActivation', 'keyboardEnabled', 'keyboardLayout', 'keyboardAutoDetect', 'keyboardTriggerMode', 'keyboardTriggerSelectors', 'siteKeyboardLayouts', 'customKeyboardLayouts'
+      'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'siteCollections', 'navSettings', 'muteActivation', 'keyboardEnabled', 'keyboardLayout', 'keyboardAutoDetect', 'keyboardTriggerMode', 'keyboardTriggerSelectors', 'siteKeyboardLayouts', 'siteKeyboardTriggerModes', 'siteKeyboardTriggerSelectors', 'customKeyboardLayouts'
     ]);
 
     if (data.iconStyle) settings.iconStyle = data.iconStyle;
@@ -373,6 +375,8 @@ async function loadSettings() {
     if (data.keyboardTriggerMode) settings.keyboardTriggerMode = data.keyboardTriggerMode;
     if (Array.isArray(data.keyboardTriggerSelectors)) settings.keyboardTriggerSelectors = data.keyboardTriggerSelectors;
     if (data.siteKeyboardLayouts && typeof data.siteKeyboardLayouts === 'object') settings.siteKeyboardLayouts = data.siteKeyboardLayouts;
+    if (data.siteKeyboardTriggerModes && typeof data.siteKeyboardTriggerModes === 'object') settings.siteKeyboardTriggerModes = data.siteKeyboardTriggerModes;
+    if (data.siteKeyboardTriggerSelectors && typeof data.siteKeyboardTriggerSelectors === 'object') settings.siteKeyboardTriggerSelectors = data.siteKeyboardTriggerSelectors;
     if (data.customKeyboardLayouts) settings.customKeyboardLayouts = data.customKeyboardLayouts;
     if (data.siteCollections && typeof data.siteCollections === 'object') {
       settings.siteCollections = data.siteCollections;
@@ -484,6 +488,8 @@ async function saveSettings() {
       keyboardTriggerMode: settings.keyboardTriggerMode,
       keyboardTriggerSelectors: settings.keyboardTriggerSelectors,
       siteKeyboardLayouts: settings.siteKeyboardLayouts,
+      siteKeyboardTriggerModes: settings.siteKeyboardTriggerModes,
+      siteKeyboardTriggerSelectors: settings.siteKeyboardTriggerSelectors,
       customKeyboardLayouts: settings.customKeyboardLayouts
     });
 
@@ -800,6 +806,10 @@ function renderWebsiteMappings() {
     const row = document.createElement('div');
     row.className = 'mapping-row' + (isSelected ? ' selected-site' : '');
     const siteLayout = settings.siteKeyboardLayouts[domain] || 'auto';
+    const siteMode = settings.siteKeyboardTriggerModes[domain];
+    const siteSelectors = settings.siteKeyboardTriggerSelectors[domain] || [];
+    const baseSelectStyle = 'flex:1;background:var(--surface-container);color:var(--on-surface);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:4px 8px;font-size:11px;outline:none;font-family:var(--font-body);cursor:pointer';
+    const baseTextareaStyle = 'width:100%;box-sizing:border-box;background:var(--surface-container);color:var(--on-surface);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:6px 8px;font-size:11px;outline:none;font-family:var(--font-label);resize:vertical';
     row.innerHTML = `
       <div class="mapping-row-main" style="display:flex;align-items:center;gap:8px;flex:1;overflow:hidden">
         <div class="mapping-row-left" tabindex="-1" style="display:flex;align-items:center;gap:8px;flex:1;overflow:hidden">
@@ -813,20 +823,37 @@ function renderWebsiteMappings() {
           </button>
         </div>
       </div>
-      <div class="mapping-row-keyboard" style="display:${isSelected ? 'flex' : 'none'};align-items:center;gap:8px;margin-top:8px;padding-left:24px">
-        <span style="font-size:11px;color:var(--on-surface-variant);font-family:var(--font-body);white-space:nowrap">Keyboard:</span>
-        <select class="site-keyboard-layout-select" data-site="${domain}" style="flex:1;background:var(--surface-container);color:var(--on-surface);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:4px 8px;font-size:11px;outline:none;font-family:var(--font-body);cursor:pointer">
-          <option value="auto" ${siteLayout === 'auto' ? 'selected' : ''}>Auto-detect</option>
-          <option value="qwerty" ${siteLayout === 'qwerty' ? 'selected' : ''}>QWERTY</option>
-          <option value="dvorak" ${siteLayout === 'dvorak' ? 'selected' : ''}>Dvorak</option>
-          <option value="azerty" ${siteLayout === 'azerty' ? 'selected' : ''}>AZERTY</option>
-          <option value="german" ${siteLayout === 'german' ? 'selected' : ''}>German (QWERTZ)</option>
-          <option value="spanish" ${siteLayout === 'spanish' ? 'selected' : ''}>Spanish</option>
-          <option value="russian" ${siteLayout === 'russian' ? 'selected' : ''}>Russian (ЙЦУКЕН)</option>
-          <option value="korean" ${siteLayout === 'korean' ? 'selected' : ''}>Korean (Dubeolsik)</option>
-          <option value="chinese" ${siteLayout === 'chinese' ? 'selected' : ''}>Chinese (Pinyin)</option>
-          <option value="japanese" ${siteLayout === 'japanese' ? 'selected' : ''}>Japanese (Hiragana / Katakana)</option>
-        </select>
+      <div class="mapping-row-keyboard" style="display:${isSelected ? 'flex' : 'none'};flex-direction:column;gap:10px;margin-top:8px;padding-left:24px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:11px;color:var(--on-surface-variant);font-family:var(--font-body);white-space:nowrap">Layout:</span>
+          <select class="site-keyboard-layout-select" data-site="${domain}" style="${baseSelectStyle}">
+            <option value="auto" ${siteLayout === 'auto' ? 'selected' : ''}>Auto-detect</option>
+            <option value="qwerty" ${siteLayout === 'qwerty' ? 'selected' : ''}>QWERTY</option>
+            <option value="dvorak" ${siteLayout === 'dvorak' ? 'selected' : ''}>Dvorak</option>
+            <option value="azerty" ${siteLayout === 'azerty' ? 'selected' : ''}>AZERTY</option>
+            <option value="german" ${siteLayout === 'german' ? 'selected' : ''}>German (QWERTZ)</option>
+            <option value="spanish" ${siteLayout === 'spanish' ? 'selected' : ''}>Spanish</option>
+            <option value="russian" ${siteLayout === 'russian' ? 'selected' : ''}>Russian (ЙЦУКЕН)</option>
+            <option value="korean" ${siteLayout === 'korean' ? 'selected' : ''}>Korean (Dubeolsik)</option>
+            <option value="chinese" ${siteLayout === 'chinese' ? 'selected' : ''}>Chinese (Pinyin)</option>
+            <option value="japanese" ${siteLayout === 'japanese' ? 'selected' : ''}>Japanese (Hiragana / Katakana)</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:11px;color:var(--on-surface-variant);font-family:var(--font-body);white-space:nowrap">Trigger:</span>
+          <select class="site-keyboard-trigger-mode-select" data-site="${domain}" style="${baseSelectStyle}">
+            <option value="" ${!siteMode ? 'selected' : ''}>Use global</option>
+            <option value="both" ${siteMode === 'both' ? 'selected' : ''}>On focus and click</option>
+            <option value="focus" ${siteMode === 'focus' ? 'selected' : ''}>On focus only</option>
+            <option value="click" ${siteMode === 'click' ? 'selected' : ''}>On click only</option>
+            <option value="disabled" ${siteMode === 'disabled' ? 'selected' : ''}>Disabled</option>
+          </select>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <span style="font-size:11px;color:var(--on-surface-variant);font-family:var(--font-body)">Custom selectors (one per line):</span>
+          <textarea class="site-keyboard-trigger-selectors-input" data-site="${domain}" rows="3" style="${baseTextareaStyle}" placeholder="e.g. .search-box, [contenteditable]">${escHtml(siteSelectors.join('\n'))}</textarea>
+          <button class="btn-secondary site-keyboard-trigger-selectors-save" data-site="${domain}" style="align-self:flex-start;font-size:11px;padding:4px 10px">Save Selectors</button>
+        </div>
       </div>
     `;
 
@@ -863,6 +890,37 @@ function renderWebsiteMappings() {
       layoutSelect.addEventListener('click', (e) => e.stopPropagation());
     }
 
+    const triggerModeSelect = row.querySelector('.site-keyboard-trigger-mode-select');
+    if (triggerModeSelect) {
+      triggerModeSelect.addEventListener('change', (e) => {
+        e.stopPropagation();
+        const value = triggerModeSelect.value;
+        if (value === '') {
+          delete settings.siteKeyboardTriggerModes[domain];
+        } else {
+          settings.siteKeyboardTriggerModes[domain] = value;
+        }
+        unsavedChanges = true;
+        saveSettings();
+      });
+      triggerModeSelect.addEventListener('click', (e) => e.stopPropagation());
+    }
+
+    const triggerSelectorsInput = row.querySelector('.site-keyboard-trigger-selectors-input');
+    const triggerSelectorsSave = row.querySelector('.site-keyboard-trigger-selectors-save');
+    if (triggerSelectorsSave && triggerSelectorsInput) {
+      triggerSelectorsSave.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const selectors = triggerSelectorsInput.value
+          .split('\n')
+          .map(s => s.trim())
+          .filter(s => s.length > 0);
+        settings.siteKeyboardTriggerSelectors[domain] = selectors;
+        unsavedChanges = true;
+        saveSettings();
+      });
+    }
+
     const deleteBtn = row.querySelector('.delete-site-btn');
     if (domain === RESERVED_OPTIONS_KEY) {
       deleteBtn.style.display = 'none';
@@ -874,6 +932,8 @@ function renderWebsiteMappings() {
       if (confirm(`Remove mapping for ${domain}?`)) {
         delete settings.websiteMappings[domain];
         delete settings.siteKeyboardLayouts[domain];
+        delete settings.siteKeyboardTriggerModes[domain];
+        delete settings.siteKeyboardTriggerSelectors[domain];
         if (selectedSiteKey === domain) {
           selectedSiteKey = 'default';
         }
