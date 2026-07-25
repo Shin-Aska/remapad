@@ -954,7 +954,7 @@ function renderWebsiteMappings() {
 
 function detectControllerStyle(gamepadId) {
   const id = (gamepadId || '').toLowerCase();
-  if (/xbox|microsoft/.test(id)) return 'xbox';
+  if (/xbox|microsoft|xinput|generic x/.test(id)) return 'xbox';
   if (/dualsense|dualshock|sony|playstation|ps4|ps5/.test(id)) return 'playstation';
   if (/nintendo|switch|pro controller/.test(id)) return 'nintendo';
   return null;
@@ -1246,6 +1246,7 @@ resetBtn.addEventListener('click', () => {
 
 let prevPressed = [];
 let pollInterval = null;
+let lastDetectedControllerStyle = null;
 
 function startPolling() {
   if (pollInterval) return;
@@ -1257,6 +1258,15 @@ function pollGamepads() {
   const gp = [...gamepads].find(g => g && g.connected);
 
   if (gp) {
+    const detected = detectControllerStyle(gp.id);
+    if (detected && detected !== lastDetectedControllerStyle) {
+      lastDetectedControllerStyle = detected;
+      if (settings.iconStyle === 'auto') {
+        renderIconStyles();
+        updateSvgTextLabels();
+      }
+    }
+
     const rawId = gp.id.split('(')[0].trim() || 'Controller';
     const cleanId = rawId.length > 20 ? rawId.slice(0, 20) + '…' : rawId;
 

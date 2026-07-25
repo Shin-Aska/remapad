@@ -262,7 +262,7 @@
   const currentHostname = location.hostname.replace(/^www\./, '');
 
   const CONTROLLER_STYLE_PATTERNS = [
-    { test: /xbox|microsoft/, style: 'xbox' },
+    { test: /xbox|microsoft|xinput|generic x/, style: 'xbox' },
     { test: /dualsense|dualshock|sony|playstation|ps4|ps5/, style: 'playstation' },
     { test: /nintendo|switch|pro controller/, style: 'nintendo' }
   ];
@@ -433,13 +433,16 @@
     const detected = detectControllerStyle(gp.id);
     if (detected && detected !== detectedControllerStyle) {
       detectedControllerStyle = detected;
-      if (settings.iconStyle === 'auto' && typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.isOpen()) {
-        const glyphs = GLYPHS[resolveIconStyle()] || GLYPHS.playstation;
-        RemapadKeyboard.setShortcutGlyphs({
-          confirm: glyphs['2'],
-          cancel: glyphs['1'],
-          backspace: glyphs['3']
-        });
+      if (settings.iconStyle === 'auto') {
+        if (hudVisible) updateHUD();
+        if (typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.isOpen()) {
+          const glyphs = GLYPHS[resolveIconStyle()] || GLYPHS.playstation;
+          RemapadKeyboard.setShortcutGlyphs({
+            confirm: glyphs['2'],
+            cancel: glyphs['1'],
+            backspace: glyphs['3']
+          });
+        }
       }
     }
 
