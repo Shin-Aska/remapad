@@ -733,6 +733,8 @@
       return false;
     }
 
+    if (!siteMappingActive) return false;
+
     executeAction(action);
     return true;
   }
