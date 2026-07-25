@@ -110,6 +110,12 @@ const DEFAULT_NAV_SETTINGS = {
 
 const ICON_STYLES = [
   {
+    id:   'auto',
+    name: 'Auto-detect',
+    sub:  'Detect from connected controller',
+    btns: ['?'],
+  },
+  {
     id:   'playstation',
     name: 'PlayStation (DualSense)',
     sub:  '✕ and ○ Layout',
@@ -210,7 +216,7 @@ const BUTTON_NAMES = {
 // ─── State ────────────────────────────────────────────────────────────────────
 
 let settings = {
-  iconStyle:       'playstation',
+  iconStyle:       'auto',
   websiteMappings: {
     [RESERVED_OPTIONS_KEY]: { ...OPTIONS_PAGE_PROFILE },
     'netflix.com':    { ...DEFAULT_PROFILE },
@@ -946,11 +952,32 @@ function renderWebsiteMappings() {
   });
 }
 
+function detectControllerStyle(gamepadId) {
+  const id = (gamepadId || '').toLowerCase();
+  if (/xbox|microsoft/.test(id)) return 'xbox';
+  if (/dualsense|dualshock|sony|playstation|ps4|ps5/.test(id)) return 'playstation';
+  if (/nintendo|switch|pro controller/.test(id)) return 'nintendo';
+  return null;
+}
+
+function resolveIconStyle() {
+  const stored = settings.iconStyle || 'auto';
+  if (stored !== 'auto') return stored;
+  const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+  const gp = [...gamepads].find(g => g && g.connected);
+  return detectControllerStyle(gp?.id) || 'playstation';
+}
+
 function renderIconStyles() {
   iconStyleListEl.innerHTML = '';
+  const detected = resolveIconStyle();
 
   ICON_STYLES.forEach(style => {
     const isSelected = settings.iconStyle === style.id;
+    const isAuto = style.id === 'auto';
+    const sub = isAuto && settings.iconStyle === 'auto'
+      ? `Detected: ${detected.charAt(0).toUpperCase() + detected.slice(1)}`
+      : style.sub;
 
     const item = document.createElement('div');
     item.className = 'icon-style-item' + (isSelected ? ' selected' : '');
@@ -964,11 +991,11 @@ function renderIconStyles() {
         <div>
           <div class="icon-style-name">${escHtml(style.name)}</div>
           <div class="icon-style-sub ${isSelected ? 'profile-active' : 'profile-default'}">
-            ${isSelected ? 'Active Layout' : style.sub}
+            ${isSelected ? 'Active Layout' : escHtml(sub)}
           </div>
         </div>
       </div>
-      ${isSelected 
+      ${isSelected
         ? `<svg viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;display:block;flex-shrink:0"><circle cx="12" cy="12" r="10"/><polyline points="20 6 9 17 4 12"/></svg>`
         : `<svg viewBox="0 0 24 24" fill="none" stroke="var(--on-surface-variant)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;display:block;flex-shrink:0;opacity:0.5"><circle cx="12" cy="12" r="10"/></svg>`
       }
@@ -978,7 +1005,6 @@ function renderIconStyles() {
       settings.iconStyle = style.id;
       unsavedChanges = true;
       renderIconStyles();
-      // Update glyphs on SVG button labels
       updateSvgTextLabels();
     });
 
@@ -987,8 +1013,9 @@ function renderIconStyles() {
 }
 
 function updateSvgTextLabels() {
-  const isXbox = settings.iconStyle === 'xbox';
-  const isNintendo = settings.iconStyle === 'nintendo';
+  const resolved = resolveIconStyle();
+  const isXbox = resolved === 'xbox';
+  const isNintendo = resolved === 'nintendo';
   
   const crossTxt = document.querySelector('text[x="340"][y="163"]');
   const circleTxt = document.querySelector('text[x="360"][y="143"]');

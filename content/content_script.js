@@ -198,7 +198,7 @@
   };
 
   let settings = {
-    iconStyle: 'playstation',
+    iconStyle: 'auto',
     websiteMappings: { ...WEBSITE_MAPPINGS_DEFAULT },
     defaultMapping: { ...DEFAULT_PROFILE },
     enabledSites: {}, // hostname -> bool (defaults to true)
@@ -260,6 +260,28 @@
   const modalOpeners = new WeakMap();
 
   const currentHostname = location.hostname.replace(/^www\./, '');
+
+  const CONTROLLER_STYLE_PATTERNS = [
+    { test: /xbox|microsoft/, style: 'xbox' },
+    { test: /dualsense|dualshock|sony|playstation|ps4|ps5/, style: 'playstation' },
+    { test: /nintendo|switch|pro controller/, style: 'nintendo' }
+  ];
+
+  let detectedControllerStyle = null;
+
+  function detectControllerStyle(gamepadId) {
+    const id = (gamepadId || '').toLowerCase();
+    for (const { test, style } of CONTROLLER_STYLE_PATTERNS) {
+      if (test.test(id)) return style;
+    }
+    return null;
+  }
+
+  function resolveIconStyle() {
+    const stored = settings.iconStyle || 'auto';
+    if (stored !== 'auto') return stored;
+    return detectedControllerStyle || 'playstation';
+  }
 
   // ─── Initialisation ─────────────────────────────────────────────────────────
 
@@ -408,6 +430,19 @@
   }
 
   function processGamepad(gp) {
+    const detected = detectControllerStyle(gp.id);
+    if (detected && detected !== detectedControllerStyle) {
+      detectedControllerStyle = detected;
+      if (settings.iconStyle === 'auto' && typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.isOpen()) {
+        const glyphs = GLYPHS[resolveIconStyle()] || GLYPHS.playstation;
+        RemapadKeyboard.setShortcutGlyphs({
+          confirm: glyphs['2'],
+          cancel: glyphs['1'],
+          backspace: glyphs['3']
+        });
+      }
+    }
+
     // Buttons
     gp.buttons.forEach((btn, idx) => {
       const wasPressed = prevButtonStates[idx] || false;
@@ -2234,7 +2269,7 @@
   function renderQuickMap() {
     if (!quickMapElement || !quickMapState) return;
 
-    const glyphs = GLYPHS[settings.iconStyle] || GLYPHS.playstation;
+    const glyphs = GLYPHS[resolveIconStyle()] || GLYPHS.playstation;
     const glyph = quickMapState.button === null ? '' : escapeHtml(glyphs[quickMapState.button] || quickMapState.button);
     const selectedButton = quickMapState.button === null
       ? ''
@@ -2669,7 +2704,7 @@
 
     keyboardOpenTarget = el;
     resolveKeyboardLayout().then(layoutId => {
-      const glyphs = GLYPHS[settings.iconStyle] || GLYPHS.playstation;
+      const glyphs = GLYPHS[resolveIconStyle()] || GLYPHS.playstation;
       const shortcutGlyphs = {
         confirm: glyphs['2'],
         cancel: glyphs['1'],
@@ -3568,7 +3603,7 @@
       document.body.appendChild(hudElement);
     }
 
-    const currentGlyphs = GLYPHS[settings.iconStyle] || GLYPHS.playstation;
+    const currentGlyphs = GLYPHS[resolveIconStyle()] || GLYPHS.playstation;
 
     const standardButtons = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15'];
     const items = standardButtons.map((btnIdx, arrayIndex) => {

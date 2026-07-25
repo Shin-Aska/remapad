@@ -37,7 +37,7 @@ const WEBSITE_MAPPINGS_DEFAULT = {
 let currentHostname = '';
 let legacyProfiles = {};
 let settings = {
-  iconStyle: 'playstation',
+  iconStyle: 'auto',
   websiteMappings: { ...WEBSITE_MAPPINGS_DEFAULT },
   defaultMapping: { ...DEFAULT_PROFILE },
   enabledSites: {}, // host -> bool
