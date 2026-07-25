@@ -1560,6 +1560,157 @@ body {
   box-shadow: 0 0 0 4px rgba(255, 180, 170, 0.25) !important;
 }
 
+.gamepad-select-overlay {
+  position: fixed;
+  z-index: 10000;
+  background: var(--surface-container-high, #1c1c1c);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-sm, 4px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  max-height: 320px;
+  overflow-y: auto;
+  min-width: 180px;
+  padding: 4px 0;
+}
+
+.gamepad-select-option {
+  display: block;
+  width: 100%;
+  padding: 8px 14px;
+  background: none;
+  border: none;
+  color: var(--on-surface, #e5e2e1);
+  font-size: 13px;
+  font-family: var(--font-body, sans-serif);
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gamepad-select-option:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.gamepad-select-option.gamepad-select-option-selected {
+  color: var(--primary, #ffb4aa);
+  font-weight: 600;
+}
+
+.gamepad-select-option.gamepad-focused {
+  background: rgba(229, 9, 20, 0.2);
+}
+
+.gamepad-keyboard-overlay {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10001;
+  background: var(--surface-container-high, #1c1c1c);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-sm, 4px) var(--radius-sm, 4px) 0 0;
+  box-shadow: 0 -4px 32px rgba(0, 0, 0, 0.6);
+  padding: 12px 16px 16px;
+  width: 520px;
+  max-width: 95vw;
+}
+
+.gamepad-keyboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.gamepad-keyboard-title {
+  font-size: 12px;
+  color: var(--on-surface-variant, #e9bcb6);
+  font-family: var(--font-body, sans-serif);
+}
+
+.gamepad-keyboard-preview {
+  font-size: 13px;
+  color: var(--on-surface, #e5e2e1);
+  font-family: var(--font-body, sans-serif);
+  max-width: 380px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gamepad-keyboard-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gamepad-keyboard-row {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+}
+
+.gamepad-keyboard-key {
+  min-width: 32px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: var(--on-surface, #e5e2e1);
+  font-size: 14px;
+  font-family: var(--font-body, sans-serif);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+}
+
+.gamepad-keyboard-key:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.gamepad-keyboard-key.gamepad-keyboard-key-wide {
+  min-width: 60px;
+}
+
+.gamepad-keyboard-key.gamepad-keyboard-key-special {
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 12px;
+}
+
+.gamepad-keyboard-key.gamepad-focused {
+  background: rgba(229, 9, 20, 0.3);
+  outline: 2px solid var(--primary, #ffb4aa);
+  outline-offset: 1px;
+}
+
+.gamepad-keyboard-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.gamepad-keyboard-btn {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--on-surface, #e5e2e1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 6px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: var(--font-body, sans-serif);
+}
+
+.gamepad-keyboard-btn.gamepad-focused {
+  background: rgba(229, 9, 20, 0.3);
+  outline: 2px solid var(--primary, #ffb4aa);
+  outline-offset: 1px;
+}
+
 .cnav-test-result {
   display: none;
   margin: 10px 0;
