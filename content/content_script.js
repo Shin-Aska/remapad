@@ -619,8 +619,10 @@
       if (btnIdx === 13) { RemapadKeyboard.moveFocus('down'); return false; }
       if (btnIdx === 14) { RemapadKeyboard.moveFocus('left'); return false; }
       if (btnIdx === 15) { RemapadKeyboard.moveFocus('right'); return false; }
-      if (btnIdx === 0 || btnIdx === 2) { RemapadKeyboard.activateFocus(); return false; }
-      if (btnIdx === 1 || btnIdx === 3) { RemapadKeyboard.close(false); return false; }
+      if (btnIdx === 0) { RemapadKeyboard.activateFocus(); return false; }
+      if (btnIdx === 1) { RemapadKeyboard.close(false); return false; }
+      if (btnIdx === 2) { RemapadKeyboard.close(true); return false; }
+      if (btnIdx === 3) { RemapadKeyboard.pressBackspace(); return false; }
     }
 
     if (quickMapElement) {

@@ -541,12 +541,25 @@
     if (keyboardOpenCallback) keyboardOpenCallback();
   }
 
+  function dispatchEnterOnTarget(target) {
+    if (!target) return;
+    const common = { bubbles: true, cancelable: true, view: window };
+    target.dispatchEvent(new KeyboardEvent('keydown', { ...common, key: 'Enter', code: 'Enter', keyCode: 13, which: 13 }));
+    target.dispatchEvent(new KeyboardEvent('keypress', { ...common, key: 'Enter', code: 'Enter', keyCode: 13, charCode: 13, which: 13 }));
+    target.dispatchEvent(new KeyboardEvent('keyup', { ...common, key: 'Enter', code: 'Enter', keyCode: 13, which: 13 }));
+    if (target.form && target.tagName === 'INPUT') {
+      const submit = target.form.querySelector('button[type="submit"], input[type="submit"]');
+      if (submit) submit.click();
+    }
+  }
+
   function closeGamepadKeyboard(confirm) {
     if (!keyboardOverlay) return;
     if (confirm && keyboardTarget) {
       setNativeValue(keyboardTarget, keyboardValue);
       keyboardTarget.dispatchEvent(new InputEvent('input', { bubbles: true, data: keyboardValue.slice(-1) || null, inputType: 'insertText' }));
       keyboardTarget.dispatchEvent(new Event('change', { bubbles: true }));
+      dispatchEnterOnTarget(keyboardTarget);
     }
     keyboardOverlay.style.display = 'none';
     const target = keyboardTarget;
@@ -617,6 +630,10 @@
     }
     if (el === keyboardConfirmBtn) { closeGamepadKeyboard(true); return; }
     if (el === keyboardCancelBtn) { closeGamepadKeyboard(false); return; }
+  }
+
+  function pressKeyboardBackspace() {
+    handleGamepadKeyboardKey('backspace');
   }
 
   function findSpatialNeighbor(elements, currentIndex, direction) {
@@ -717,6 +734,7 @@
     isOpen: isKeyboardOpen,
     moveFocus: moveKeyboardFocus,
     activateFocus: activateKeyboardFocus,
+    pressBackspace: pressKeyboardBackspace,
     getFocusableElements: getKeyboardFocusableElements,
     setLayout: setKeyboardLayout,
     registerLayouts,
