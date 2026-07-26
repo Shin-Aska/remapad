@@ -1,13 +1,15 @@
 /**
  * Remapad — Content Script
- * Compatible with Chrome and Firefox MV3.
- * Runs on streaming sites. Polls Gamepad API, translates inputs to page actions,
- * and manages the injected bottom HUD mapping overlay.
+ * MV3-compatible classic script (not ES modules). Imports modules from the
+ * global `window.RemapadCS` namespace and owns polling, action dispatch, the
+ * Quick Map picker state machine, keyboard trigger wiring, and aggregate teardown.
  */
 
 ;(function () {
   'use strict';
 
+  // Duplicate injection guard: bail early if this bundle runs again in the
+  // same document, rather than double-wiring listeners, polling, and overlay DOM.
   if (window.__remapadInjected) return;
   window.__remapadInjected = true;
 
@@ -15,6 +17,9 @@
 
   // ─── Constants & Settings ──────────────────────────────────────────────────
 
+  // Lazy lookup of the shared namespace populated by manifest-ordered scripts.
+  // Each module is created here with callbacks the module invokes; ownership of
+  // the state those callbacks read remains in this file.
   const CS = window.RemapadCS || {};
 
   const {
@@ -101,6 +106,9 @@
 
   async function init() {
     try {
+      // Settings and active profile are loaded asynchronously from extension
+      // storage; controllers are only created once because they register DOM
+      // and their callbacks close over mutable state owned here.
       const { isMapped } = await settingsStore.load();
 
       settings = settingsStore.getSettings();
@@ -163,6 +171,9 @@
         setupGamepadPolling();
       }
 
+      // `data-remapad-active` is the cross-world switch read by the MAIN-world
+      // gamepad_blocker; set it only after controllers are ready so pages never
+      // see a gamepad shadow without a working content-script owner.
       if (quickMapAvailable && isMapped) {
         document.documentElement.setAttribute('data-remapad-active', 'true');
         hudController.update();
@@ -186,7 +197,8 @@
     }
   }
 
-  // Listen for settings change
+  // Storage changes from the options page / popup re-run init(). Existing
+  // controllers retain their instances while callback-backed state refreshes.
   api.storage.onChanged.addListener((changes, area) => {
     if (area === 'local') {
       init();
@@ -200,6 +212,9 @@
   function setupGamepadPolling() {
     if (pollInterval) clearInterval(pollInterval);
 
+    // Browser gamepad events are unreliable for continuous state, so register
+    // them only for connection/disconnection logging while the interval poll
+    // drives actual input processing.
     if (!gamepadEventListenersAttached) {
       window.addEventListener('gamepadconnected', onGamepadConnect);
       window.addEventListener('gamepaddisconnected', onGamepadDisconnect);
@@ -323,7 +338,9 @@
       return;
     }
 
-    // Virtual keyboard mode: route stick axes to keyboard focus navigation
+    // Virtual keyboard mode: route stick axes to keyboard focus navigation.
+    // Left stick mirrors D-pad/scroll directions; right stick mirrors the focus
+    // next/prev behavior used by DOM-order navigation.
     if (typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.isOpen()) {
       const timerKey = `axis_${stickId}`;
       if (!axisTimers[timerKey]) {
@@ -430,6 +447,9 @@
 
   // ─── Action Dispatcher ─────────────────────────────────────────────────────
 
+  // Input precedence (highest to lowest): virtual keyboard, Quick Map picker,
+  // HUD navigation, active profile mappings. The Start button may also open
+  // Quick Map when explicitly mapped to `open_options`.
   function onButtonPress(btnIdx) {
     const keyboardOpen = typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.isOpen();
     if (keyboardOpen) {
@@ -798,6 +818,10 @@
 
   // ─── Quick Map ──────────────────────────────────────────────────────────────
 
+  // State machine: button → action → pick → review. Capture-phase pointer
+  // listeners suppress the real click/pointerup so the page control can be
+  // chosen without activating it. `quickMapSuppressClick` /
+  // `quickMapSuppressPointerUp` are one-shot gates reset after each pick.
   function openQuickMap() {
     if (quickMapElement) return;
 
@@ -1225,6 +1249,9 @@
 
   // ─── Aggregate teardown ─────────────────────────────────────────────────────
 
+  // Central cleanup path called on disabled, unavailable, or unmapped paths.
+  // It closes Quick Map, stops modal observation, removes cursor/HUD/styles,
+  // clears the cross-world active flag, and optionally stops polling.
   function removeHUD(stopPolling = true) {
     closeQuickMap();
     stopModalFocusObserver();
@@ -1242,6 +1269,9 @@
 
   // ─── Boot ───────────────────────────────────────────────────────────────────
 
+  // pagehide intentionally performs only transient Quick Map, modal, and
+  // navigation cleanup. removeHUD performs broader UI/controller cleanup with
+  // optional polling shutdown, but does not remove every persistent listener or resource.
   window.addEventListener('pagehide', () => {
     closeQuickMap();
     stopModalFocusObserver();

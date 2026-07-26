@@ -1,3 +1,12 @@
+/**
+ * Remapad — Autoplay Policy Probe
+ * MV3-compatible classic script; exposed via window.RemapadCS.AutoplayService.
+ * Probes native autoplay restrictions and supplements them with a tiny
+ * in-memory WAV probe. Can show at most one blocked-policy warning, including
+ * during proactive initialization; later checkAutoplayAndWarn attempts call
+ * playFn and remain subject to browser policy.
+ */
+
 (function (global) {
   'use strict';
 
@@ -8,6 +17,10 @@
     let autoplayStatus = { supported: false, mediaelement: 'unknown', audiocontext: 'unknown', audio: 'unknown', video: 'unknown', timestamp: 0 };
     let autoplayWarningShown = false;
 
+    // Only one probe runs at a time; the cached promise is returned on every
+    // subsequent call. Native `navigator.getAutoplayPolicy` is consulted first,
+    // but WAV probes still supplement its audio/video results. A non-
+    // NotAllowedError remains treated as allowed to avoid false warnings.
     async function checkAutoplayPolicy() {
       if (autoplayCheckPromise) return autoplayCheckPromise;
       autoplayCheckPromise = (async () => {
@@ -123,6 +136,9 @@
       const status = await checkAutoplayPolicy();
       const blocked = status.mediaelement !== 'allowed';
       console.log('[Remapad] checkAutoplayAndWarn blocked:', blocked, status);
+
+      // Surface one warning on the first blocked attempt; after that, call
+      // playFn and let the browser's autoplay policy determine the outcome.
       if (blocked && !autoplayWarningShown) {
         autoplayWarningShown = true;
         showAutoplayWarning(formatAutoplayWarning(status), injectOverlayStyles);
@@ -158,6 +174,7 @@
       el.id = id;
       el.className = 'remapad-autoplay-warning';
       el.setAttribute('role', 'alert');
+
       el.innerHTML = `
         <div class="remapad-autoplay-warning__inner">
           <svg class="remapad-autoplay-warning__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -177,6 +194,8 @@
       });
 
       requestAnimationFrame(() => el.classList.add('visible'));
+
+      // Auto-dismiss after a short delay; the user can also dismiss manually.
       setTimeout(() => {
         if (el.parentElement) {
           el.classList.remove('visible');

@@ -1,3 +1,11 @@
+/**
+ * Remapad — Site Policy
+ * MV3-compatible classic script; exposed via window.RemapadCS.SitePolicy.
+ * Provides site-specific collection/search config and special back behavior.
+ * Netflix uses `location.replace` to the origin instead of `history.back` so
+ * the SPA reloads its home state cleanly.
+ */
+
 (function (global) {
   'use strict';
 
@@ -11,6 +19,8 @@
     function findSearchTarget() {
       let selector = SITE_SEARCH_SELECTORS[hostname];
       let input = selector ? document.querySelector(selector) : null;
+
+      // If the known site selector misses, fall back to generic search inputs.
       if (!input) {
         input = document.querySelector('input[type="search"], input[placeholder*="Search" i]');
       }

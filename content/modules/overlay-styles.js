@@ -1,3 +1,11 @@
+/**
+ * Remapad — Shared Overlay Styles
+ * MV3-compatible classic script; exposed via window.RemapadCS.OverlayStyles.
+ * Single idempotent stylesheet injected into the page head. It carries CSS for
+ * the HUD, Quick Map, collection HUD/navigation/focus styles, and autoplay
+ * warning. Removal is owned by aggregate teardown only.
+ */
+
 (function (global) {
   'use strict';
 
@@ -475,6 +483,9 @@
     }
 
     function remove() {
+      // The shared stylesheet is torn down only by aggregate teardown. Each
+      // overlay injects it idempotently, so partial removal would leave other
+      // Remapad UI unstyled.
       styleElement?.remove();
       styleElement = null;
     }

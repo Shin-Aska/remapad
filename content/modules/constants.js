@@ -1,6 +1,8 @@
 /**
  * Remapad Content Script — Shared Constants
  * MV3-compatible classic script; exposed via window.RemapadCS.Constants.
+ * Default timings, profiles, glyph maps, DOM action allow-lists, and site
+ * selectors used across the content-script modules.
  */
 
 (function (global) {

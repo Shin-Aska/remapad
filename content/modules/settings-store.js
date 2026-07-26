@@ -1,3 +1,11 @@
+/**
+ * Remapad — Settings Store
+ * MV3-compatible classic script; exposed via window.RemapadCS.SettingsStore.
+ * Loads extension storage, merges defaults while preserving newly added nested
+ * settings, resolves the active profile for the current hostname, and persists
+ * Quick Map button mappings.
+ */
+
 (function (global) {
   'use strict';
 
@@ -32,6 +40,8 @@
     let siteMappingActive = false;
 
     function mergeNavSettings(stored) {
+      // Start from current defaults so newly added nested settings survive.
+      // Then shallow-merge each known subsection, preserving user overrides.
       const merged = structuredClone(DEFAULT_NAV_SETTINGS);
       if (!stored || typeof stored !== 'object') return merged;
 
@@ -112,6 +122,9 @@
       }
 
       siteMappingActive = isMapped;
+
+      // Ensure every button has a value: stored profiles may omit buttons or
+      // come from the legacy `profiles` object, so overlay defaults on top.
       activeProfile = { ...DEFAULT_PROFILE, ...activeProfile };
 
       return { isMapped };
@@ -128,6 +141,8 @@
     function updateWebsiteMappings(mappings) { settings.websiteMappings = mappings; }
 
     async function saveButtonMapping(button, actionValue) {
+      // Re-read storage before writing to reduce stale in-memory overwrites and
+      // preserve the latest mappings observed in storage.
       const data = await api.storage.local.get(['websiteMappings']);
       const websiteMappings = {
         ...(data.websiteMappings && typeof data.websiteMappings === 'object'

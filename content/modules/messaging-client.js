@@ -1,3 +1,12 @@
+/**
+ * Remapad — Messaging Client
+ * MV3-compatible classic script; exposed via window.RemapadCS.MessagingClient.
+ * Thin wrapper around extension runtime messaging. Calls silently tolerate a
+ * missing or disconnected runtime so content-script code keeps running in
+ * isolated / incognito contexts. `requestTrustedClick` forwards trusted-click
+ * intent and coordinates to the background flow.
+ */
+
 (function (global) {
   'use strict';
 

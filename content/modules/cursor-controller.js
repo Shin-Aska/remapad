@@ -1,3 +1,10 @@
+/**
+ * Remapad — Dual Stick Cursor Controller
+ * MV3-compatible classic script; exposed via window.RemapadCS.CursorController.
+ * Owns two independent cursor elements and their DOM target highlights.
+ * Right stick has click priority over left; remove() tears down everything.
+ */
+
 (function (global) {
   'use strict';
 
@@ -128,6 +135,9 @@
       if (!cursor.element) return;
       let element = document.elementFromPoint(cursor.x, cursor.y);
       if (element === cursor.element) element = null;
+
+      // Walk up the tree until a clickable ancestor is found. This deliberately
+      // treats cards and container elements as targets, not just native controls.
       let target = element;
       while (target && !isClickableTarget(target)) {
         target = target.parentElement;
@@ -162,6 +172,9 @@
       const cursor = cursors[stickId];
       if (magnitude > deadzone) {
         const now = performance.now();
+
+        // Cap delta to avoid large jumps when the tab regains focus or the
+        // poll thread stalls; velocity is deadzone-normalized and curved.
         const delta = cursor.lastTime ? Math.min(0.1, (now - cursor.lastTime) / 1000) : POLL_INTERVAL_MS / 1000;
         cursor.lastTime = now;
         const normalizedMagnitude = (magnitude - deadzone) / (1 - deadzone);
@@ -191,6 +204,8 @@
     function click() {
       const rightCursor = cursors.right;
       const leftCursor = cursors.left;
+
+      // Right stick wins when both have a target; otherwise fall back to left.
       const activeCursor = rightCursor.visible && rightCursor.target
         ? rightCursor
         : leftCursor.visible && leftCursor.target

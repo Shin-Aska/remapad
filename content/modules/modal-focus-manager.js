@@ -1,3 +1,10 @@
+/**
+ * Remapad — Modal Focus Manager
+ * MV3-compatible classic script; exposed via window.RemapadCS.ModalFocusManager.
+ * Tracks visible modal dialogs, ranks them by z-index/DOM order, and restores
+ * focus after modal close via a generation-coupled MutationObserver.
+ */
+
 (function (global) {
   'use strict';
 
@@ -22,6 +29,8 @@
       return Array.from(document.querySelectorAll(selector))
         .filter(element => !isRemapadElement(element) && isVisibleElement(element))
         .sort((first, second) => {
+          // Higher z-index wins; ties are broken by later DOM position, which
+          // generally corresponds to the topmost modal in document order.
           const firstZIndex = Number.parseInt(getComputedStyle(first).zIndex, 10) || 0;
           const secondZIndex = Number.parseInt(getComputedStyle(second).zIndex, 10) || 0;
           if (firstZIndex !== secondZIndex) return secondZIndex - firstZIndex;
@@ -89,6 +98,9 @@
       return false;
     }
 
+    // Each tracking/restoration cycle gets a generation number. Stopping the
+    // observer increments the generation, so any in-flight callbacks from a
+    // previous cycle abort instead of acting on stale state.
     function restoreFocusAfterModalClose(previousFocus, modal, callbacks) {
       stopObserver();
       callbacks.resetNavigationState();
@@ -107,6 +119,8 @@
         modalFocusAnimationFrame = null;
         if (generation !== modalFocusGeneration) return;
         if (restoreFocus()) return;
+
+        // Modal removal is often asynchronous; watch for visibility/DOM changes.
         modalFocusObserver = new MutationObserver(restoreFocus);
         modalFocusObserver.observe(document.body, {
           childList: true,

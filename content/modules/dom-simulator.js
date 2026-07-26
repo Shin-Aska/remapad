@@ -1,3 +1,11 @@
+/**
+ * Remapad — DOM Simulator
+ * MV3-compatible classic script; exposed via window.RemapadCS.DomSimulator.
+ * Dispatches synthetic mouse/pointer/keyboard events, toggles media and
+ * fullscreen, validates DOM action payloads, and finds scrollable/focusable
+ * elements. Synthetic events cannot bypass sites that require trusted input.
+ */
+
 (function (global) {
   'use strict';
 
@@ -137,6 +145,9 @@
     async function toggleFullscreen() {
       const isFS = !!getFullscreenElement();
 
+      // Make best-effort fullscreen attempts through site-specific controls,
+      // keyboard events, the background `toggle_window_fullscreen` message,
+      // and native Fullscreen APIs; these are not an ordered fallback chain.
       const allControls = Array.from(document.querySelectorAll(FULLSCREEN_CONTROL_SELECTOR));
       const control = allControls.find(el => isVisibleElement(el)) || allControls[0];
       if (control) {
@@ -204,6 +215,8 @@
 
     function setElementValue(element, value) {
       if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement) {
+        // Use the native value setter when possible; direct assignment can be
+        // intercepted by some framework wrappers and leave the UI stale.
         const prototype = Object.getPrototypeOf(element);
         const valueSetter = Object.getOwnPropertyDescriptor(prototype, 'value')?.set;
         if (valueSetter) valueSetter.call(element, value);
@@ -295,6 +308,8 @@
     }
 
     function getScrollableElement() {
+      // Prefer the scrollable ancestor of the active element so scroll actions
+      // move the right region; fall back to window for body/root scrolling.
       let el = document.activeElement;
       while (el && el !== document.body) {
         const style = getComputedStyle(el);

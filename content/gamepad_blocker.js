@@ -1,3 +1,11 @@
+/**
+ * Remapad — MAIN-world Gamepad Blocker
+ * Injected at document_start so it can wrap navigator.getGamepads and the
+ * window gamepad event listeners before page scripts register their own.
+ * Cross-world visibility is toggled by the isolated content script via the
+ * `data-remapad-active` attribute on `document.documentElement`.
+ */
+
 (() => {
   'use strict';
 
@@ -6,6 +14,10 @@
   const nativeRemoveEventListener = window.removeEventListener;
   const wrappedGamepadListeners = new WeakMap();
 
+  // WeakMap keys are the original listener functions/objects so callers can
+  // remove them later with the same reference. The inner Map keys are
+  // `${eventType}:${capture}` because the same listener can be registered with
+  // different capture values.
   function getWrappedGamepadListener(type, listener, options, create) {
     if (!listener || (typeof listener !== 'function' && typeof listener.handleEvent !== 'function')) {
       return listener;

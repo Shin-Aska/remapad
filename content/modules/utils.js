@@ -1,6 +1,8 @@
 /**
  * Remapad Content Script — Shared Utilities
  * MV3-compatible classic script; exposed via window.RemapadCS.Utils.
+ * General helpers plus keyboard code mapping and an in-memory WAV probe used
+ * by the autoplay service.
  */
 
 (function (global) {
@@ -13,6 +15,8 @@
   function clampIndex(value, min, max) {
     return Math.max(min, Math.min(max, value));
   }
+
+  // ─── String / CSS helpers ───────────────────────────────────────────────────
 
   function escapeHtml(value) {
     return String(value).replace(/[&<>"']/g, char => ({
@@ -53,6 +57,8 @@
     }
     return `rgba(0, 0, 0, ${alpha})`;
   }
+
+  // ─── DOM helpers ──────────────────────────────────────────────────────────────
 
   function isVisibleElement(element) {
     return element.getClientRects().length > 0 && getComputedStyle(element).visibility !== 'hidden';
@@ -149,6 +155,10 @@
     return 0;
   }
 
+  // ─── Keyboard compatibility ───────────────────────────────────────────────────
+
+  // Synthetic keyboard events use both modern `code` values and legacy keyCode/
+  // which for sites that still rely on deprecated properties.
   function dispatchKeyEvent(target, key, code = getKeyboardCode(key), modifiers = {}) {
     const keyCode = getLegacyKeyCode(key);
     const opts = {
@@ -165,6 +175,8 @@
     target.dispatchEvent(new KeyboardEvent('keydown', opts));
     target.dispatchEvent(new KeyboardEvent('keyup', opts));
   }
+
+  // ─── Spatial geometry helpers ─────────────────────────────────────────────────
 
   function rectCenter(rect) {
     return {
@@ -228,6 +240,11 @@
     return Math.abs(targetCenter - preferredInline);
   }
 
+  // ─── Autoplay probe WAV generator ─────────────────────────────────────────────
+
+  // Generates a tiny in-memory WAV data URL for audio/video probes alongside
+  // the native `navigator.getAutoplayPolicy` query. The `muted` flag attenuates
+  // the waveform to near silence.
   function createWavProbeDataUrl(muted = false) {
     const sampleRate = 22050;
     const duration = 0.35;

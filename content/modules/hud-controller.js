@@ -1,9 +1,19 @@
+/**
+ * Remapad — Bottom HUD / Navigation Guide Controller
+ * MV3-compatible classic script; exposed via window.RemapadCS.HudController.
+ * Renders the controller mapping overlay, owns highlight navigation, and
+ * dispatches Edit from either a trusted DOM click or controller-highlight
+ * activation. Input is consumed only while visible.
+ */
+
 (function (global) {
   'use strict';
 
   function create({ utils, constants, overlayStyles, callbacks }) {
     const { escapeHtml } = utils;
     const { GLYPHS, ACTION_LABELS, DEADZONE } = constants;
+    // Item ordering: 16 controller buttons followed by left/right stick labels
+    // and the Edit control. This order drives D-pad left/right highlight motion.
     const hudItems = [
       '0', '1', '2', '3', '4', '5', '6', '7',
       '8', '9', '10', '11', '12', '13', '14', '15',
@@ -75,6 +85,8 @@
         hide();
       });
 
+      // The DOM Edit handler requires a trusted click; controller-highlight
+      // activation invokes the same callback directly without a DOM event.
       hudElement.querySelector('#remapad-hud-edit-btn')?.addEventListener('click', event => {
         if (!event.isTrusted) return;
         callbacks.openSiteMapping();
@@ -127,6 +139,9 @@
       clearTimeout(hudTimeout);
     }
 
+    // While visible, D-pad navigates the highlight, button 0 activates, and
+    // button 1 closes. All consumed input returns true so the caller skips the
+    // active profile action for these buttons.
     function handleButtonPress(btnIdx) {
       if (!hudVisible) return false;
 

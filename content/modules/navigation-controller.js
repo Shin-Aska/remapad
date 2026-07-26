@@ -1,3 +1,10 @@
+/**
+ * Remapad — Navigation Controller
+ * MV3-compatible classic script; exposed via window.RemapadCS.NavigationController.
+ * Manages collection-aware and spatial DOM navigation, the collection HUD,
+ * candidate scoring/beam geometry, and strategy selection/reset.
+ */
+
 (function (global) {
   'use strict';
 
@@ -15,6 +22,9 @@
       escapeHtml
     } = utils;
 
+    // Private collection navigation state. `activeCollectionIndex` and
+    // `activeItemIndex` are indices into the live DOM query; reset clears the
+    // outline class and the collection HUD.
     let activeCollectionIndex = -1;
     let activeItemIndex = -1;
     let activeCollectionEl = null;
@@ -30,6 +40,8 @@
       const config = getCollectionConfig();
       if (!config?.containerSelector) return [];
       try {
+        // Ignore Remapad overlays and validate the selector so a bad config
+        // cannot break navigation elsewhere on the page.
         return Array.from(document.querySelectorAll(config.containerSelector)).filter(
           el => !el.closest('.remapad-hud-container, .remapad-quick-map') && isVisibleElement(el)
         );
@@ -114,6 +126,9 @@
       return text.length > 40 ? text.slice(0, 40) + '…' : text;
     }
 
+    // The collection HUD is created lazily, updated in place while active, and
+    // auto-hidden after a short idle delay. It relies on overlay styles for
+    // its CSS classes.
     function showCNavHUD(collectionIndex, collectionCount, itemIndex, itemCount, collectionLabel) {
       callbacks.injectOverlayStyles();
 
@@ -223,6 +238,9 @@
     function executeCollectionNav(action) {
       const nav = callbacks.getSettings().navSettings;
       const config = getCollectionConfig();
+
+      // Strategy: explicit collection wins; auto uses a collection config if one
+      // exists for the site, otherwise falls back to DOM-order focus movement.
       const useCollection = nav.strategy === 'collection' || (nav.strategy === 'auto' && config);
 
       if (!useCollection) {
@@ -474,6 +492,9 @@
       const useCollection = nav.strategy === 'collection' ||
         (nav.strategy === 'auto' && config);
 
+      // Strategy selection mirrors executeCollectionNav: collection first, then
+      // explicit DOM-order, then spatial beam scoring over all focusable + card
+      // candidates.
       if (useCollection && config) {
         executeCollectionSpatialNav(direction);
       } else if (nav.strategy === 'dom-order') {
@@ -484,6 +505,8 @@
     }
 
     function resetCollectionNavState() {
+      // Clear collection outline, hover states, indices, and the HUD. Safe to
+      // call from teardown or when focus leaves the collection context.
       const config = getCollectionConfig();
       if (config && activeCollectionEl) {
         const items = getCollectionItems(activeCollectionEl);
