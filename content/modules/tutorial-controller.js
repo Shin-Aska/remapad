@@ -10,10 +10,22 @@
 
   // Bump when onboarding content changes so existing users see the revised
   // guidance once without resetting completion for unrelated sites.
-  const TUTORIAL_VERSION = 2;
+  const TUTORIAL_VERSION = 3;
   const STORAGE_KEY = 'siteTutorialVersions';
+  const ACTIVATION_SOUND_OPTIONS = [
+    { value: '__muted__', label: 'No notification (Muted)' },
+    { value: 'access_point', label: 'Access Point' },
+    { value: 'protocol', label: 'Protocol Notification' },
+    { value: 'probe', label: 'Probe Triad' },
+    { value: 'chime', label: 'Sparkling Chime' },
+    { value: 'coin', label: 'Retro Arcade Coin' },
+    { value: 'success', label: 'Victory Flourish' },
+    { value: 'click', label: 'Tactile Click' },
+    { value: 'alert', label: 'Warning Alert' },
+    { value: 'pop', label: 'Bubble Pop' }
+  ];
 
-  function create({ api, hostname, constants, overlayStyles, callbacks }) {
+  function create({ api, hostname, constants, utils, overlayStyles, callbacks }) {
     const { GLYPHS, ACTION_LABELS } = constants;
     let tutorialElement = null;
     let activeStep = 0;
@@ -80,6 +92,39 @@
       return names[callbacks.getIconStyle()] || 'your';
     }
 
+    function getActivationChoice() {
+      const settings = callbacks.getSettings();
+      return settings.muteActivation
+        ? '__muted__'
+        : settings.notificationSound || 'access_point';
+    }
+
+    function renderActivationControls() {
+      const settings = callbacks.getSettings();
+      const selected = getActivationChoice();
+      const volume = typeof settings.notificationVolume === 'number'
+        ? Math.max(0, Math.min(100, settings.notificationVolume))
+        : 50;
+      const options = ACTIVATION_SOUND_OPTIONS.map(option => (
+        `<option value="${option.value}"${option.value === selected ? ' selected' : ''}>${option.label}</option>`
+      )).join('');
+      return `
+        <div class="remapad-tutorial-activation">
+          <label>
+            <span>Activation sound</span>
+            <select data-remapad-activation-sound>${options}</select>
+          </label>
+          <div class="remapad-tutorial-activation-row">
+            <button type="button" data-remapad-activation-preview ${selected === '__muted__' ? 'disabled' : ''}>▶ Preview</button>
+            <label>
+              <span>Volume <output data-remapad-activation-volume-output>${volume}%</output></span>
+              <input type="range" min="0" max="100" value="${volume}" data-remapad-activation-volume>
+            </label>
+          </div>
+          <p class="remapad-tutorial-activation-status" data-remapad-activation-status role="status" aria-live="polite">${selected === '__muted__' ? 'Activation notification is muted.' : 'This choice applies to every mapped website.'}</p>
+        </div>`;
+    }
+
     function buildSteps() {
       const guideButton = findMappedButton('toggle_hud');
       const guideGlyph = getGlyph(guideButton ?? 9);
@@ -129,6 +174,14 @@
               <b>→</b>
               <span><kbd>${escapeHtml(getGlyph(0))}</kbd><small>Confirm</small></span>
             </div>`
+        },
+        {
+          eyebrow: 'Activation notification',
+          title: '“Remapad extension activated”',
+          body: 'The activation sound confirms that Remapad is running on a mapped website. You can customize it later under Miscellaneous Options → Play probe sound on activation, or choose a sound—or no notification—right now.',
+          visual: renderActivationControls(),
+          visualClass: 'remapad-tutorial-visual--activation',
+          activation: true
         }
       ];
     }
@@ -144,7 +197,7 @@
       tutorialElement.innerHTML = `
         <div class="remapad-tutorial-card">
           <button type="button" class="remapad-tutorial-skip" data-remapad-tutorial-close>Skip</button>
-          <div class="remapad-tutorial-visual">${step.visual}</div>
+          <div class="remapad-tutorial-visual${step.visualClass ? ` ${step.visualClass}` : ''}">${step.visual}</div>
           <p class="remapad-tutorial-eyebrow">${step.eyebrow} · ${activeStep + 1}/${steps.length}</p>
           <h2 id="remapad-tutorial-title">${step.title}</h2>
           <p class="remapad-tutorial-copy">${step.body}</p>
@@ -153,10 +206,63 @@
             <div class="remapad-tutorial-dots">${dots}</div>
             <button type="button" class="remapad-tutorial-next" data-remapad-tutorial-next>${activeStep === steps.length - 1 ? 'Done' : 'Next'}</button>
           </div>
-          <p class="remapad-tutorial-gamepad-hint">D-pad ← → to browse · ${getGlyph(0)} confirm · ${getGlyph(1)} close</p>
+          <p class="remapad-tutorial-gamepad-hint">${step.activation ? 'D-pad ↑ ↓ changes sound · ' : 'D-pad ← → to browse · '}${getGlyph(0)} confirm · ${getGlyph(1)} close</p>
         </div>`;
 
       tutorialElement.querySelector('[data-remapad-tutorial-next]')?.focus({ preventScroll: true });
+    }
+
+    function setActivationStatus(message) {
+      const status = tutorialElement?.querySelector('[data-remapad-activation-status]');
+      if (status) status.textContent = message;
+    }
+
+    async function saveActivationSettings(choice, volume) {
+      const currentSettings = callbacks.getSettings();
+      const patch = {};
+      if (choice !== undefined) {
+        patch.muteActivation = choice === '__muted__';
+        if (choice !== '__muted__') patch.notificationSound = choice;
+      }
+      if (volume !== undefined) {
+        patch.notificationVolume = Math.max(0, Math.min(100, volume));
+      }
+      Object.assign(currentSettings, patch);
+      try {
+        await api.storage.local.set(patch);
+        setActivationStatus(patch.muteActivation
+          ? 'No notification selected. Activation sound is now muted.'
+          : 'Activation notification saved globally.');
+      } catch (error) {
+        console.warn('[Remapad CS] Unable to save activation notification:', error);
+        setActivationStatus('Could not save that choice. Try again in Settings.');
+      }
+    }
+
+    function previewActivationSound() {
+      const settings = callbacks.getSettings();
+      if (settings.muteActivation) {
+        setActivationStatus('Choose a sound before previewing.');
+        return;
+      }
+      setActivationStatus('Playing preview…');
+      utils.playNotificationSound(settings.notificationSound || 'access_point', {
+        volume: (typeof settings.notificationVolume === 'number' ? settings.notificationVolume : 50) / 100
+      }).then(() => {
+        setActivationStatus('Preview played. This choice applies globally.');
+      }).catch(error => {
+        console.warn('[Remapad CS] Unable to preview activation notification:', error);
+        setActivationStatus('Your browser blocked the preview, but the setting was saved.');
+      });
+    }
+
+    function cycleActivationChoice(direction) {
+      const select = tutorialElement?.querySelector('[data-remapad-activation-sound]');
+      if (!select) return;
+      const currentIndex = ACTIVATION_SOUND_OPTIONS.findIndex(option => option.value === select.value);
+      const nextIndex = (currentIndex + direction + ACTIVATION_SOUND_OPTIONS.length) % ACTIVATION_SOUND_OPTIONS.length;
+      select.value = ACTIVATION_SOUND_OPTIONS[nextIndex].value;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
     function move(direction) {
@@ -209,6 +315,8 @@
         finishOrAdvance();
       } else if (event.target.closest('[data-remapad-tutorial-prev]')) {
         move(-1);
+      } else if (event.target.closest('[data-remapad-activation-preview]')) {
+        previewActivationSound();
       } else {
         const stepButton = event.target.closest('[data-remapad-tutorial-step]');
         if (stepButton) {
@@ -218,12 +326,47 @@
       }
     }
 
+    function onChange(event) {
+      if (event.target.matches('[data-remapad-activation-sound]')) {
+        const choice = event.target.value;
+        const previewButton = tutorialElement?.querySelector('[data-remapad-activation-preview]');
+        if (previewButton) previewButton.disabled = choice === '__muted__';
+        saveActivationSettings(choice);
+      } else if (event.target.matches('[data-remapad-activation-volume]')) {
+        saveActivationSettings(undefined, Number(event.target.value));
+      }
+    }
+
+    function onInput(event) {
+      if (!event.target.matches('[data-remapad-activation-volume]')) return;
+      const output = tutorialElement?.querySelector('[data-remapad-activation-volume-output]');
+      if (output) output.textContent = `${event.target.value}%`;
+    }
+
     function onKeyDown(event) {
       if (!tutorialElement) return;
       const handledKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Enter', ' ', 'Escape'];
       if (!handledKeys.includes(event.key)) return;
       event.preventDefault();
       event.stopImmediatePropagation();
+      if (event.target.matches('[data-remapad-activation-sound]') &&
+          (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+        cycleActivationChoice(event.key === 'ArrowUp' ? -1 : 1);
+        return;
+      }
+      if (event.target.matches('[data-remapad-activation-volume]') &&
+          event.key.startsWith('Arrow')) {
+        const direction = event.key === 'ArrowDown' || event.key === 'ArrowLeft' ? -1 : 1;
+        event.target.value = String(Math.max(0, Math.min(100, Number(event.target.value) + direction * 5)));
+        event.target.dispatchEvent(new Event('input', { bubbles: true }));
+        event.target.dispatchEvent(new Event('change', { bubbles: true }));
+        return;
+      }
+      const activationStep = buildSteps()[activeStep]?.activation;
+      if (activationStep && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+        cycleActivationChoice(event.key === 'ArrowUp' ? -1 : 1);
+        return;
+      }
       if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') move(-1);
       else if (event.key === 'ArrowRight' || event.key === 'ArrowDown') move(1);
       else if (event.key === 'Escape') close();
@@ -232,7 +375,10 @@
 
     function handleButtonPress(button) {
       if (!tutorialElement) return false;
-      if (button === 12 || button === 14) move(-1);
+      const activationStep = buildSteps()[activeStep]?.activation;
+      if (activationStep && button === 12) cycleActivationChoice(-1);
+      else if (activationStep && button === 13) cycleActivationChoice(1);
+      else if (button === 12 || button === 14) move(-1);
       else if (button === 13 || button === 15) move(1);
       else if (button === 0) finishOrAdvance();
       else if (button === 1 || button === 9) close();
@@ -255,6 +401,8 @@
           tutorialElement.setAttribute('aria-modal', 'true');
           tutorialElement.setAttribute('aria-labelledby', 'remapad-tutorial-title');
           tutorialElement.addEventListener('click', onClick);
+          tutorialElement.addEventListener('change', onChange);
+          tutorialElement.addEventListener('input', onInput);
           document.body.appendChild(tutorialElement);
           document.addEventListener('keydown', onKeyDown, true);
           render();

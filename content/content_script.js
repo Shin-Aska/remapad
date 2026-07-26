@@ -161,6 +161,7 @@
           api,
           hostname: currentHostname,
           constants: CS.Constants,
+          utils: CS.Utils,
           overlayStyles,
           callbacks: {
             getSettings: () => settings,
