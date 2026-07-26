@@ -1411,6 +1411,14 @@ body {
   gap: var(--space-md);
 }
 
+.nav-section-left {
+  order: -2;
+}
+
+.nav-section-right {
+  order: -1;
+}
+
 .nav-section-card {
   padding: var(--space-md);
   display: flex;

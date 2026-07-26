@@ -394,10 +394,10 @@
     const timerKey = `axis_${stickId}`;
     if (axisTimers[timerKey]) return;
 
-    if (mode === 'navigate' || (mode === 'scroll' && action.startsWith('nav_'))) {
+    if (mode === 'navigate') {
       executeAction(action);
     } else if (mode === 'scroll') {
-      executeScrollAction(action, nav.leftStick.scrollAmountPx ?? 150);
+      executeScrollAction(action, stickConfig.scrollAmountPx ?? 150);
     }
 
     axisLastDirections[stickId] = direction;

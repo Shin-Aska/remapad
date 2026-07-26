@@ -67,27 +67,28 @@
     strategy: 'auto',
     rightStick: {
       enabled: true,
-      mode: 'cursor',
+      mode: 'scroll',
       deadzone: 0.3,
       repeatDelayMs: 150,
       repeatAcceleration: true,
       directionMode: 'dominant-axis',
+      scrollAmountPx: 150,
       cursorSpeed: 800,
       cursorColor: '#e50914'
     },
     leftStick: {
       enabled: true,
-      mode: 'scroll',
+      mode: 'cursor',
       deadzone: 0.3,
       scrollAmountPx: 150,
       cursorSpeed: 800,
       cursorColor: '#00a8e1'
     },
     axisMap: {
-      up: { stick: 'right', direction: 'up', action: 'nav_up' },
-      down: { stick: 'right', direction: 'down', action: 'nav_down' },
-      left: { stick: 'right', direction: 'left', action: 'nav_left' },
-      right: { stick: 'right', direction: 'right', action: 'nav_right' }
+      up: { stick: 'right', direction: 'up', action: 'scroll_up' },
+      down: { stick: 'right', direction: 'down', action: 'scroll_down' },
+      left: { stick: 'right', direction: 'left', action: 'scroll_left' },
+      right: { stick: 'right', direction: 'right', action: 'scroll_right' }
     },
     collectionGrid: {
       wrapRows: false,

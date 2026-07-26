@@ -63,8 +63,10 @@
       return global;
     }
 
-    function executeOptionsScroll(action) {
-      const scrollAmount = state.getSettings().navSettings?.leftStick?.scrollAmountPx ?? 150;
+    function executeOptionsScroll(action, configuredAmount) {
+      const nav = state.getSettings().navSettings;
+      const scrollStick = nav?.rightStick?.mode === 'scroll' ? nav.rightStick : nav?.leftStick;
+      const scrollAmount = configuredAmount ?? scrollStick?.scrollAmountPx ?? 150;
       const scrollable = getScrollableElement();
       const scrollBy = (element, top, left) => {
         if (element === global) global.scrollBy({ top, left, behavior: 'auto' });
@@ -228,28 +230,35 @@
         const rightY = gamepad.axes[3] || 0;
         const leftX = gamepad.axes[0] || 0;
         const leftY = gamepad.axes[1] || 0;
-        if (nav.rightStick?.mode === 'cursor') cursor.updateCursor('right', rightX, rightY);
-        else cursor.hideCursor('right');
-        if (nav.leftStick?.mode === 'scroll') {
-          const deadzone = nav.leftStick?.deadzone ?? 0.3;
-          if (Math.hypot(leftX, leftY) > deadzone && Date.now() - lastOptionsActionTime > OPTIONS_NAV_REPEAT_MS) {
-            const action = Math.abs(leftY) >= Math.abs(leftX)
-              ? leftY < 0 ? 'scroll_up' : 'scroll_down'
-              : leftX < 0 ? 'scroll_left' : 'scroll_right';
-            executeOptionsScroll(action);
-            lastOptionsActionTime = Date.now();
-          }
-        } else if (nav.leftStick?.mode === 'cursor') {
-          cursor.updateCursor('left', leftX, leftY);
-        } else {
-          cursor.hideCursor('left');
-        }
+        updateOptionsStick('left', leftX, leftY, nav.leftStick);
+        updateOptionsStick('right', rightX, rightY, nav.rightStick);
       } else {
         cursor.hideCursor('left');
         cursor.hideCursor('right');
       }
       updateNavigationStickViz(gamepad);
       updateOptionsGamepadNav(gamepad, previousSnapshot);
+    }
+
+    function updateOptionsStick(stickId, axisX, axisY, config) {
+      if (config?.mode === 'cursor') {
+        cursor.updateCursor(stickId, axisX, axisY);
+        return;
+      }
+
+      cursor.hideCursor(stickId);
+      if (config?.mode !== 'scroll') return;
+
+      const deadzone = config.deadzone ?? 0.3;
+      if (Math.hypot(axisX, axisY) <= deadzone || Date.now() - lastOptionsActionTime <= OPTIONS_NAV_REPEAT_MS) {
+        return;
+      }
+
+      const action = Math.abs(axisY) >= Math.abs(axisX)
+        ? axisY < 0 ? 'scroll_up' : 'scroll_down'
+        : axisX < 0 ? 'scroll_left' : 'scroll_right';
+      executeOptionsScroll(action, config.scrollAmountPx);
+      lastOptionsActionTime = Date.now();
     }
 
     function bind() {

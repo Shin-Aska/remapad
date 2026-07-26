@@ -57,14 +57,14 @@
     },
     {
       panel: 'navigation',
-      target: 'right-stick',
-      title: 'Right Stick',
-      body: 'Configure the virtual cursor or directional navigation, including speed, deadzone, repeat timing, color, and direction mode.'
+      target: 'left-stick',
+      title: 'Left Stick',
+      body: 'Configure the virtual cursor or directional navigation, including speed, deadzone, repeat timing, color, and direction mode. The default role is the virtual cursor.'
     },
     {
       panel: 'navigation',
-      target: 'left-stick',
-      title: 'Left Stick',
+      target: 'right-stick',
+      title: 'Right Stick',
       body: 'Configure scrolling, navigation, or another cursor. The default role is smooth page scrolling.'
     },
     {
