@@ -7,6 +7,19 @@
   'use strict';
 
   function create({ state, dom, saveSettings }) {
+    function playSoundPreview(presetKey) {
+      try {
+        const createWav = window.RemapadCS?.Utils?.createWavProbeDataUrl;
+        if (!createWav) return;
+        const dataUrl = createWav(false, presetKey);
+        const audio = new Audio(dataUrl);
+        audio.volume = 1.0;
+        audio.play().catch(e => console.warn('[Remapad Options] Play sound preview failed:', e));
+      } catch (err) {
+        console.error('[Remapad Options] Sound preview error:', err);
+      }
+    }
+
     function render() {
       const settings = state.getSettings();
       if (dom.keyboardEnabledToggle) dom.keyboardEnabledToggle.checked = !!settings.keyboardEnabled;
@@ -15,6 +28,8 @@
       if (selectorsInput) selectorsInput.value = (settings.keyboardTriggerSelectors || []).join('\n');
       if (dom.keyboardLayoutSelect) dom.keyboardLayoutSelect.value = settings.keyboardLayout || 'qwerty';
       if (dom.keyboardAutodetectToggle) dom.keyboardAutodetectToggle.checked = !!settings.keyboardAutoDetect;
+      if (dom.muteActivationToggle) dom.muteActivationToggle.checked = !settings.muteActivation;
+      if (dom.notificationSoundSelect) dom.notificationSoundSelect.value = settings.notificationSound || 'probe';
     }
 
     function bind() {
@@ -63,9 +78,22 @@
         });
       }
       dom.muteActivationToggle?.addEventListener('change', () => {
-        state.getSettings().muteActivation = dom.muteActivationToggle.checked;
+        state.getSettings().muteActivation = !dom.muteActivationToggle.checked;
         saveSettings();
       });
+      if (dom.notificationSoundSelect) {
+        dom.notificationSoundSelect.addEventListener('change', () => {
+          state.getSettings().notificationSound = dom.notificationSoundSelect.value;
+          saveSettings();
+          playSoundPreview(dom.notificationSoundSelect.value);
+        });
+      }
+      if (dom.testSoundBtn) {
+        dom.testSoundBtn.addEventListener('click', () => {
+          const selected = dom.notificationSoundSelect ? dom.notificationSoundSelect.value : (state.getSettings().notificationSound || 'probe');
+          playSoundPreview(selected);
+        });
+      }
     }
 
     return { render, bind };

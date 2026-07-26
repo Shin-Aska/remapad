@@ -23,6 +23,8 @@
 
     return {
       muteActivationToggle: get('mute-activation-toggle'),
+      notificationSoundSelect: get('notification-sound-select'),
+      testSoundBtn: get('test-sound-btn'),
       editorSiteSelect: get('editor-site-select'),
       mappingsListEl: get('website-mappings-list'),
       iconStyleListEl: get('icon-style-list'),

@@ -21,7 +21,10 @@
 
   function renderAll() {
     if (dom.muteActivationToggle) {
-      dom.muteActivationToggle.checked = !!state.getSettings().muteActivation;
+      dom.muteActivationToggle.checked = !state.getSettings().muteActivation;
+    }
+    if (dom.notificationSoundSelect) {
+      dom.notificationSoundSelect.value = state.getSettings().notificationSound || 'probe';
     }
     mappingEditor.renderEditorSiteSelect();
     mappingEditor.renderWebsiteMappings();
@@ -34,7 +37,10 @@
 
   async function saveSettings() {
     if (dom.muteActivationToggle) {
-      state.getSettings().muteActivation = dom.muteActivationToggle.checked;
+      state.getSettings().muteActivation = !dom.muteActivationToggle.checked;
+    }
+    if (dom.notificationSoundSelect) {
+      state.getSettings().notificationSound = dom.notificationSoundSelect.value;
     }
     const result = await state.save();
     if (result.ok) {

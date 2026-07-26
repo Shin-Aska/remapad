@@ -56,9 +56,10 @@
         try {
           const audio = document.createElement('audio');
           const isMuted = !!getSettings().muteActivation;
+          const soundPreset = getSettings().notificationSound || 'probe';
           audio.muted = false;
           audio.volume = isMuted ? 0.001 : 1.0;
-          audio.src = createWavProbeDataUrl(isMuted);
+          audio.src = createWavProbeDataUrl(isMuted, soundPreset);
 
           let settled = false;
           const cleanup = () => {
@@ -97,9 +98,10 @@
           const video = document.createElement('video');
           video.setAttribute('playsinline', '');
           const isMuted = !!getSettings().muteActivation;
+          const soundPreset = getSettings().notificationSound || 'probe';
           video.muted = false;
           video.volume = isMuted ? 0.001 : 1.0;
-          video.src = createWavProbeDataUrl(isMuted);
+          video.src = createWavProbeDataUrl(isMuted, soundPreset);
 
           let settled = false;
           const cleanup = () => {

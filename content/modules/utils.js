@@ -240,21 +240,119 @@
     return Math.abs(targetCenter - preferredInline);
   }
 
-  // ─── Autoplay probe WAV generator ─────────────────────────────────────────────
+  // ─── Autoplay probe & UI sound WAV generator ──────────────────────────────────
 
-  // Generates a tiny in-memory WAV data URL for audio/video probes alongside
-  // the native `navigator.getAutoplayPolicy` query. The `muted` flag attenuates
-  // the waveform to near silence.
-  function createWavProbeDataUrl(muted = false) {
-    const sampleRate = 22050;
-    const duration = 0.35;
+  const SOUND_PRESETS = Object.freeze({
+    // Probe (default): 3-note ascending triad (C5 - E5 - C6)
+    probe: {
+      description: 'Ascending 3-note triad arpeggio (C5 - E5 - C6)',
+      duration: 0.35,
+      notes: [
+        { freq: 523.25, start: 0.00, decay: 18, amp: 0.25 },
+        { freq: 659.25, start: 0.07, decay: 18, amp: 0.25 },
+        { freq: 1046.50, start: 0.14, decay: 10, amp: 0.35 }
+      ]
+    },
+    // Chime: Sparkling 4-note chord (C5 - G5 - C6 - E6) with long shimmer decay
+    chime: {
+      description: 'Sparkling 4-note shimmer chord (C5 - G5 - C6 - E6)',
+      duration: 0.45,
+      notes: [
+        { freq: 523.25, start: 0.00, decay: 12, amp: 0.25 },
+        { freq: 783.99, start: 0.06, decay: 12, amp: 0.25 },
+        { freq: 1046.50, start: 0.12, decay: 10, amp: 0.30 },
+        { freq: 1318.51, start: 0.18, decay: 8, amp: 0.30, harmonics: [1.0, 0.4, 0.15] }
+      ]
+    },
+    // Coin: Classic 8-bit retro arcade pickup sound (B5 -> E6 step pitch)
+    coin: {
+      description: 'Retro 2-tone arcade pickup chime (B5 → E6 step pitch)',
+      duration: 0.25,
+      notes: [
+        { freq: 987.77, start: 0.00, decay: 35, amp: 0.30, timbre: 'square' },
+        { freq: 1318.51, start: 0.07, decay: 16, amp: 0.40, timbre: 'square' }
+      ]
+    },
+    // Success: Warm multi-note major chord victory flourish
+    success: {
+      description: 'Warm multi-note major chord victory flourish',
+      duration: 0.50,
+      notes: [
+        { freq: 523.25, start: 0.00, decay: 10, amp: 0.20 },
+        { freq: 659.25, start: 0.03, decay: 10, amp: 0.20 },
+        { freq: 783.99, start: 0.06, decay: 10, amp: 0.25 },
+        { freq: 1046.50, start: 0.09, decay: 8, amp: 0.35, harmonics: [1.0, 0.3, 0.1] }
+      ]
+    },
+    // Click: Crisp ultra-short tactile audio click impulse
+    click: {
+      description: 'Tactile audio click impulse (15ms damped tone)',
+      duration: 0.04,
+      notes: [
+        { freq: 1200, freqEnd: 400, start: 0.00, decay: 120, amp: 0.50, attack: 0.001 }
+      ]
+    },
+    // Alert: Dual-tone harmonic warning chime (A4 + Eb5 tritone)
+    alert: {
+      description: 'Dual-tone harmonic warning chime (A4 + E♭5 tritone)',
+      duration: 0.40,
+      notes: [
+        { freq: 440.00, start: 0.00, decay: 12, amp: 0.30 },
+        { freq: 622.25, start: 0.00, decay: 12, amp: 0.30 },
+        { freq: 440.00, start: 0.18, decay: 14, amp: 0.25 },
+        { freq: 622.25, start: 0.18, decay: 14, amp: 0.25 }
+      ]
+    },
+    // Pop: Ascending pitch-bent bubble pop
+    pop: {
+      description: 'Pitch-bent ascending bubble pop (300Hz → 900Hz sweep)',
+      duration: 0.12,
+      notes: [
+        { freq: 300, freqEnd: 900, start: 0.00, decay: 45, amp: 0.45, attack: 0.002 }
+      ]
+    }
+  });
+
+  /**
+   * Generates a tiny in-memory PCM WAV data URL for audio/video probes alongside
+   * native autoplay policy queries or for UI sound feedback.
+   *
+   * Signatures:
+   *   createWavProbeDataUrl(muted?: boolean, presetName?: string)
+   *   createWavProbeDataUrl(presetName?: string)
+   *   createWavProbeDataUrl(options?: { muted?: boolean, preset?: string, duration?: number, volume?: number, sampleRate?: number })
+   */
+  function createWavProbeDataUrl(mutedOrOptions = false, presetName = 'probe') {
+    let muted = false;
+    let presetKey = 'probe';
+    let customDuration = null;
+    let volumeMult = 1.0;
+    let sampleRate = 22050;
+
+    if (typeof mutedOrOptions === 'boolean') {
+      muted = mutedOrOptions;
+      presetKey = presetName || 'probe';
+    } else if (typeof mutedOrOptions === 'string') {
+      presetKey = mutedOrOptions;
+    } else if (mutedOrOptions && typeof mutedOrOptions === 'object') {
+      muted = !!mutedOrOptions.muted;
+      presetKey = mutedOrOptions.preset || presetName || 'probe';
+      if (typeof mutedOrOptions.duration === 'number') customDuration = mutedOrOptions.duration;
+      if (typeof mutedOrOptions.volume === 'number') volumeMult = mutedOrOptions.volume;
+      if (typeof mutedOrOptions.sampleRate === 'number') sampleRate = mutedOrOptions.sampleRate;
+    }
+
+    const preset = SOUND_PRESETS[presetKey] || SOUND_PRESETS.probe;
+    const duration = customDuration || preset.duration || 0.35;
     const numSamples = Math.floor(sampleRate * duration);
     const headerSize = 44;
     const buffer = new ArrayBuffer(headerSize + numSamples * 2);
     const view = new DataView(buffer);
+
     const writeString = (offset, str) => {
       for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
     };
+
     writeString(0, 'RIFF');
     view.setUint32(4, 36 + numSamples * 2, true);
     writeString(8, 'WAVE');
@@ -269,13 +367,8 @@
     writeString(36, 'data');
     view.setUint32(40, numSamples * 2, true);
 
-    const ampMult = muted ? 0.0001 : 1.0;
-
-    const notes = [
-      { freq: 523.25, start: 0.00, decay: 18, amp: 0.25 * ampMult },
-      { freq: 659.25, start: 0.07, decay: 18, amp: 0.25 * ampMult },
-      { freq: 1046.50, start: 0.14, decay: 10, amp: 0.35 * ampMult }
-    ];
+    const ampMult = (muted ? 0.0001 : 1.0) * volumeMult;
+    const notes = preset.notes || SOUND_PRESETS.probe.notes;
 
     let offset = 44;
     for (let i = 0; i < numSamples; i++) {
@@ -285,24 +378,48 @@
         const note = notes[n];
         if (t >= note.start) {
           const dt = t - note.start;
-          const attack = Math.min(1.0, dt / 0.005);
-          const env = attack * Math.exp(-dt * note.decay);
-          const rad = 2 * Math.PI * note.freq * dt;
-          const wave = Math.sin(rad) + 0.25 * Math.sin(2 * rad) + 0.1 * Math.sin(3 * rad);
-          sampleVal += wave * env * note.amp;
+          const noteDur = note.duration || (duration - note.start);
+          if (dt <= noteDur) {
+            const attackTime = note.attack || 0.005;
+            const attack = Math.min(1.0, dt / attackTime);
+            const env = attack * Math.exp(-dt * (note.decay || 18));
+
+            let freq = note.freq;
+            if (typeof note.freqEnd === 'number') {
+              const progress = Math.min(1.0, dt / (note.duration || 0.1));
+              freq = note.freq + (note.freqEnd - note.freq) * progress;
+            }
+
+            const rad = 2 * Math.PI * freq * dt;
+            let wave = 0;
+
+            if (note.timbre === 'square') {
+              wave = Math.sin(rad) + (1 / 3) * Math.sin(3 * rad) + (1 / 5) * Math.sin(5 * rad);
+            } else {
+              const harmonics = note.harmonics || [1.0, 0.25, 0.1];
+              for (let h = 0; h < harmonics.length; h++) {
+                wave += harmonics[h] * Math.sin((h + 1) * rad);
+              }
+            }
+
+            sampleVal += wave * env * (note.amp || 0.25) * ampMult;
+          }
         }
       }
       sampleVal = Math.max(-1, Math.min(1, sampleVal));
       view.setInt16(offset, sampleVal * 32767, true);
       offset += 2;
     }
+
     const bytes = new Uint8Array(buffer);
     let binary = '';
     const chunkSize = 0x8000;
     for (let i = 0; i < bytes.length; i += chunkSize) {
       binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
     }
-    return 'data:audio/wav;base64,' + global.btoa(binary);
+
+    const btoaFn = (typeof globalThis !== 'undefined' && globalThis.btoa) ? globalThis.btoa.bind(globalThis) : global.btoa;
+    return 'data:audio/wav;base64,' + btoaFn(binary);
   }
 
   const Utils = {
@@ -326,7 +443,8 @@
     primaryEdgeDistance,
     orthogonalEdgeDistance,
     anchorDistance,
-    createWavProbeDataUrl
+    createWavProbeDataUrl,
+    SOUND_PRESETS
   };
 
   global.RemapadCS = global.RemapadCS || {};

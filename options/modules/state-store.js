@@ -37,6 +37,7 @@
       },
       navSettings: structuredClone(DEFAULT_NAV_SETTINGS),
       muteActivation: false,
+      notificationSound: 'probe',
       keyboardEnabled: true,
       keyboardLayout: 'qwerty',
       keyboardAutoDetect: true,
@@ -91,13 +92,14 @@
     async function load() {
       try {
         const data = await api.storage.local.get([
-          'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'siteCollections', 'navSettings', 'muteActivation', 'keyboardEnabled', 'keyboardLayout', 'keyboardAutoDetect', 'keyboardTriggerMode', 'keyboardTriggerSelectors', 'siteKeyboardLayouts', 'siteKeyboardTriggerModes', 'siteKeyboardTriggerSelectors', 'customKeyboardLayouts'
+          'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'siteCollections', 'navSettings', 'muteActivation', 'notificationSound', 'keyboardEnabled', 'keyboardLayout', 'keyboardAutoDetect', 'keyboardTriggerMode', 'keyboardTriggerSelectors', 'siteKeyboardLayouts', 'siteKeyboardTriggerModes', 'siteKeyboardTriggerSelectors', 'customKeyboardLayouts'
         ]);
 
         if (data.iconStyle) settings.iconStyle = data.iconStyle;
         if (data.enabledSites) settings.enabledSites = data.enabledSites;
         if (data.globalEnabled !== undefined) settings.globalEnabled = data.globalEnabled;
         if (data.muteActivation !== undefined) settings.muteActivation = data.muteActivation;
+        if (data.notificationSound) settings.notificationSound = data.notificationSound;
         if (data.keyboardEnabled !== undefined) settings.keyboardEnabled = data.keyboardEnabled;
         if (data.keyboardLayout) settings.keyboardLayout = data.keyboardLayout;
         if (data.keyboardAutoDetect !== undefined) settings.keyboardAutoDetect = data.keyboardAutoDetect;
@@ -184,6 +186,7 @@
           siteCollections: settings.siteCollections,
           navSettings: settings.navSettings,
           muteActivation: settings.muteActivation,
+          notificationSound: settings.notificationSound,
           keyboardEnabled: settings.keyboardEnabled,
           keyboardLayout: settings.keyboardLayout,
           keyboardAutoDetect: settings.keyboardAutoDetect,

@@ -58,7 +58,7 @@
       </button>
       <button class="tab-btn" id="tab-btn-keyboard" role="tab" aria-selected="false" aria-controls="tab-panel-keyboard">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;flex-shrink:0"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M8 14h8"/></svg>
-        Keyboard
+        Miscellaneous Options
       </button>
     </div>
 
@@ -768,10 +768,10 @@
           <div class="nav-title-group">
             <h2 class="nav-panel-title">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;display:block"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M8 14h8"/></svg>
-              Keyboard
+              Miscellaneous Options
             </h2>
             <p class="nav-panel-subtitle">
-              Configure Remapad's on-screen virtual keyboard. Per-site layout overrides live in the Controller tab.
+              Configure Remapad's on-screen virtual keyboard and extension audio settings. Per-site layout overrides live in the Controller tab.
             </p>
           </div>
         </div>
@@ -859,16 +859,35 @@
                 </div>
               </section>
 
-              <!-- Mute extension activation (moved from Controller tab) -->
+              <!-- Extension probe & notification sound controls -->
               <section class="card nav-section-card">
                 <div class="nav-section-header">
-                  <div class="nav-section-title">Mute extension activation</div>
+                  <div class="nav-section-title">Play probe sound on activation</div>
                   <label class="switch">
                     <input type="checkbox" id="mute-activation-toggle">
                     <span class="switch-track"></span>
                   </label>
                 </div>
-                <p class="nav-hint">Silence the probe chime Remapad plays when checking autoplay permissions on a page.</p>
+                <p class="nav-hint">Play a sound chime when Remapad probes autoplay permissions on page load. Toggle ON to play sound (unmuted); toggle OFF to mute.</p>
+                <div class="nav-control-group" style="margin-top: 14px;">
+                  <div class="nav-control" style="flex: 1;">
+                    <label class="nav-field-label" for="notification-sound-select">Sound Preset</label>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                      <select id="notification-sound-select" class="nav-select" style="flex: 1;">
+                        <option value="probe">Probe Triad (Default)</option>
+                        <option value="chime">Sparkling Chime</option>
+                        <option value="coin">Retro Arcade Coin</option>
+                        <option value="success">Victory Flourish</option>
+                        <option value="click">Tactile Click</option>
+                        <option value="alert">Warning Alert</option>
+                        <option value="pop">Bubble Pop</option>
+                      </select>
+                      <button type="button" id="test-sound-btn" class="btn btn-secondary" title="Play selected sound preset" style="display: flex; align-items: center; gap: 6px; padding: 6px 14px;">
+                        <span>▶</span> <span>Preview</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </section>
 
             </div>
@@ -958,6 +977,7 @@
 <div class="gamepad-select-overlay" id="gamepad-select-overlay" style="display:none"></div>
 
 <script src="../shared/keyboard.js"></script>
+<script src="../content/modules/utils.js"></script>
 <script src="modules/constants.js"></script>
 <script src="modules/utils.js"></script>
 <script src="modules/dom.js"></script>
