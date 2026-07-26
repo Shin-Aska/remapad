@@ -3,7 +3,7 @@
   "name": "Remapad — Gamepad Browser Controller",
   "short_name": "Remapad",
   "version": "1.0.0",
-  "description": "Navigate streaming sites (Netflix, YouTube, Prime Video, Twitch, Disney+, Hulu, Max) with your gamepad controller. Map buttons, customize profiles, and enjoy a cinematic browsing experience.",
+  "description": "Navigate websites with your gamepad controller. Map buttons, customize profiles. Design mainly for streaming sites like Netflix and Primevideo",
   "homepage_url": "https://gitlab.com/ShinAska/remapad",
   "author": "Richard Louie Orilla",
   "developer": {
