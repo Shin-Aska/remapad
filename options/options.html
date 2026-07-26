@@ -862,13 +862,16 @@
               <!-- Extension probe & notification sound controls -->
               <section class="card nav-section-card">
                 <div class="nav-section-header">
-                  <div class="nav-section-title">Play probe sound on activation</div>
+                  <div class="nav-section-title" style="display: flex; align-items: center; gap: 10px;">
+                    <span>Play probe sound on activation</span>
+                    <span class="global-tag">Global Setting</span>
+                  </div>
                   <label class="switch">
                     <input type="checkbox" id="mute-activation-toggle">
                     <span class="switch-track"></span>
                   </label>
                 </div>
-                <p class="nav-hint">Play a sound chime when Remapad probes autoplay permissions on page load. Toggle ON to play sound (unmuted); toggle OFF to mute.</p>
+                <p class="nav-hint">Play a sound chime when Remapad probes autoplay permissions on page load. (Global Setting: applies across all websites). Toggle ON to play sound (unmuted); toggle OFF to mute.</p>
                 <div class="nav-control-group" style="margin-top: 14px; display: flex; gap: 16px; align-items: flex-start;">
                   <div class="nav-control" style="flex: 1;">
                     <label class="nav-field-label" for="notification-sound-select">Sound Preset</label>
