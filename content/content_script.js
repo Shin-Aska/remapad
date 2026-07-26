@@ -32,7 +32,7 @@
     GLYPHS,
     DOM_ACTION_OPERATIONS,
     TOGGLEABLE_DOM_ATTRIBUTES,
-    SITE_SEARCH_SELECTORS,
+    SITE_SEARCH_CONFIGS,
     FULLSCREEN_CONTROL_SELECTOR,
     WEBSITE_MAPPINGS_DEFAULT,
     SITE_COLLECTIONS_DEFAULT,
@@ -700,11 +700,23 @@
         break;
       }
       case 'search': {
-        const input = sitePolicy.findSearchTarget();
-        if (input) {
-          input.focus();
-          input.select();
-        }
+        const nav = settings.navSettings;
+        const searchCursor = nav?.rightStick?.mode === 'cursor'
+          ? 'right'
+          : nav?.leftStick?.mode === 'cursor'
+            ? 'left'
+            : 'right';
+        sitePolicy.openSearch(settings, {
+          pointAt: element => cursorController.pointAt(searchCursor, element),
+          press: (element, point) => {
+            const targetPoint = point || cursorController.pointAt(searchCursor, element);
+            if (!targetPoint) return;
+            domSimulator.ensureWindowFocus();
+            domSimulator.simulateClickAt(element, targetPoint.x, targetPoint.y, { keepHover: true });
+          }
+        }).catch(error => {
+          console.warn('[Remapad CS] Unable to open search:', error);
+        });
         break;
       }
       case 'focus_next': {
@@ -1292,22 +1304,34 @@
     if (!isSiteActive()) return false;
 
     if (msg?.type === 'COUNT_SELECTORS') {
-      const { containerSelector, itemSelector } = msg;
+      const { containerSelector, itemSelector, searchTriggerSelector, searchInputSelector } = msg;
       let containerCount = 0;
       let itemCount = 0;
+      let searchTriggerCount = 0;
+      let searchInputCount = 0;
       let error = null;
       try {
-        const containers = Array.from(document.querySelectorAll(containerSelector || ''));
+        const containers = containerSelector
+          ? Array.from(document.querySelectorAll(containerSelector))
+          : [];
         containerCount = containers.filter(el => isVisibleElement(el)).length;
-        if (itemSelector) {
+        if (containerSelector && itemSelector) {
           containers.forEach(c => {
             itemCount += Array.from(c.querySelectorAll(itemSelector)).filter(el => isVisibleElement(el)).length;
           });
         }
+        if (searchTriggerSelector) {
+          searchTriggerCount = Array.from(document.querySelectorAll(searchTriggerSelector))
+            .filter(el => isVisibleElement(el)).length;
+        }
+        if (searchInputSelector) {
+          searchInputCount = Array.from(document.querySelectorAll(searchInputSelector))
+            .filter(el => isVisibleElement(el)).length;
+        }
       } catch (e) {
         error = e.message;
       }
-      sendResponse({ containerCount, itemCount, error });
+      sendResponse({ containerCount, itemCount, searchTriggerCount, searchInputCount, error });
       return true;
     }
 

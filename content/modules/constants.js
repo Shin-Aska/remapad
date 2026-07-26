@@ -89,7 +89,7 @@
   const ACTION_LABELS = {
     click: 'Select',
     back: 'Back',
-    search: 'Search',
+    search: 'Open Search',
     fullscreen: 'Fullscreen',
     toggle_play: 'Play/Pause',
     scroll_up: 'Scroll Up',
@@ -139,14 +139,32 @@
     'autoplay'
   ]);
 
-  const SITE_SEARCH_SELECTORS = {
-    'youtube.com': '#search-input input, input#search',
-    'netflix.com': '.searchTab, [data-uia="search-tab"], input[type="text"]',
-    'primevideo.com': '[data-testid="search-field"], .nav-search-field input',
-    'twitch.tv': '[data-a-target="search-input"]',
-    'disneyplus.com': '[data-testid="search-icon"], input[type="search"]',
-    'hulu.com': '.NavSearch-searchInput, [placeholder*="Search"]',
-    'max.com': '[data-testid="search-bar-input"]'
+  const SITE_SEARCH_CONFIGS = {
+    'youtube.com': {
+      inputSelector: '#search-input input, input#search'
+    },
+    'netflix.com': {
+      triggerSelector: '.searchTab, [data-uia="search-tab"]',
+      inputSelector: 'input[type="search"], input[data-uia*="search" i]'
+    },
+    'primevideo.com': {
+      triggerSelector: 'button[aria-label*="search" i], [data-testid*="search" i][role="button"]',
+      inputSelector: '[data-testid="search-field"] input, .nav-search-field input, input[type="search"]'
+    },
+    'twitch.tv': {
+      inputSelector: '[data-a-target="search-input"]'
+    },
+    'disneyplus.com': {
+      triggerSelector: '[data-testid="search-icon"], button[aria-label*="search" i]',
+      inputSelector: 'input[type="search"], [role="searchbox"]'
+    },
+    'hulu.com': {
+      inputSelector: '.NavSearch-searchInput, input[placeholder*="Search" i]'
+    },
+    'max.com': {
+      triggerSelector: 'button[aria-label*="search" i]',
+      inputSelector: '[data-testid="search-bar-input"], input[type="search"]'
+    }
   };
 
   const FULLSCREEN_CONTROL_SELECTOR = [
@@ -181,11 +199,15 @@
   const SITE_COLLECTIONS_DEFAULT = {
     'netflix.com': {
       containerSelector: '.lolomoRow',
-      itemSelector: '.title-card-container'
+      itemSelector: '.title-card-container',
+      searchTriggerSelector: '.searchTab, [data-uia="search-tab"]',
+      searchInputSelector: 'input[type="search"], input[data-uia*="search" i]'
     },
     'primevideo.com': {
       containerSelector: '[data-testid="grid-lockup"], ._1h3rtFr, .wv_A6',
-      itemSelector: '[data-testid="card"], ._1t8qyG2, .P2TLe'
+      itemSelector: '[data-testid="card"], ._1t8qyG2, .P2TLe',
+      searchTriggerSelector: 'button[aria-label*="search" i], [data-testid*="search" i][role="button"]',
+      searchInputSelector: '[data-testid="search-field"] input, .nav-search-field input, input[type="search"]'
     }
   };
 
@@ -207,7 +229,7 @@
     ACTION_LABELS,
     DOM_ACTION_OPERATIONS,
     TOGGLEABLE_DOM_ATTRIBUTES,
-    SITE_SEARCH_SELECTORS,
+    SITE_SEARCH_CONFIGS,
     FULLSCREEN_CONTROL_SELECTOR,
     WEBSITE_MAPPINGS_DEFAULT,
     SITE_COLLECTIONS_DEFAULT,

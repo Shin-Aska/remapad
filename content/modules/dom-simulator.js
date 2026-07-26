@@ -39,7 +39,8 @@
       } catch (e) {}
     }
 
-    function simulateClickAt(el, x, y) {
+    function simulateClickAt(el, x, y, simulationOptions = {}) {
+      const keepHover = !!simulationOptions.keepHover;
       const opts = {
         bubbles: true,
         cancelable: true,
@@ -65,8 +66,10 @@
         el.dispatchEvent(new PointerEvent('pointerup', { ...pointerOpts, buttons: 0 }));
         el.dispatchEvent(new MouseEvent('mouseup', opts));
         el.click();
-        el.dispatchEvent(new PointerEvent('pointerout', pointerOpts));
-        el.dispatchEvent(new PointerEvent('pointerleave', pointerOpts));
+        if (!keepHover) {
+          el.dispatchEvent(new PointerEvent('pointerout', pointerOpts));
+          el.dispatchEvent(new PointerEvent('pointerleave', pointerOpts));
+        }
       } else {
         el.dispatchEvent(new MouseEvent('mouseover', opts));
         el.dispatchEvent(new MouseEvent('mouseenter', opts));
@@ -74,8 +77,10 @@
         el.dispatchEvent(new MouseEvent('mousedown', opts));
         el.dispatchEvent(new MouseEvent('mouseup', opts));
         el.click();
-        el.dispatchEvent(new MouseEvent('mouseout', opts));
-        el.dispatchEvent(new MouseEvent('mouseleave', opts));
+        if (!keepHover) {
+          el.dispatchEvent(new MouseEvent('mouseout', opts));
+          el.dispatchEvent(new MouseEvent('mouseleave', opts));
+        }
       }
     }
 

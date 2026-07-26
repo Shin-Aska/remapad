@@ -28,11 +28,15 @@
       siteCollections: {
         'netflix.com': {
           containerSelector: '.lolomoRow',
-          itemSelector: '.title-card-container'
+          itemSelector: '.title-card-container',
+          searchTriggerSelector: '.searchTab, [data-uia="search-tab"]',
+          searchInputSelector: 'input[type="search"], input[data-uia*="search" i]'
         },
         'primevideo.com': {
           containerSelector: '[data-testid="grid-lockup"], ._1h3rtFr, .wv_A6',
-          itemSelector: '[data-testid="card"], ._1t8qyG2, .P2TLe'
+          itemSelector: '[data-testid="card"], ._1t8qyG2, .P2TLe',
+          searchTriggerSelector: 'button[aria-label*="search" i], [data-testid*="search" i][role="button"]',
+          searchInputSelector: '[data-testid="search-field"] input, .nav-search-field input, input[type="search"]'
         }
       },
       navSettings: structuredClone(DEFAULT_NAV_SETTINGS),
@@ -111,7 +115,18 @@
         if (data.siteKeyboardTriggerModes && typeof data.siteKeyboardTriggerModes === 'object') settings.siteKeyboardTriggerModes = data.siteKeyboardTriggerModes;
         if (data.siteKeyboardTriggerSelectors && typeof data.siteKeyboardTriggerSelectors === 'object') settings.siteKeyboardTriggerSelectors = data.siteKeyboardTriggerSelectors;
         if (data.customKeyboardLayouts) settings.customKeyboardLayouts = data.customKeyboardLayouts;
-        if (data.siteCollections && typeof data.siteCollections === 'object') settings.siteCollections = data.siteCollections;
+        if (data.siteCollections && typeof data.siteCollections === 'object') {
+          const builtInCollections = settings.siteCollections;
+          settings.siteCollections = Object.fromEntries(
+            Object.entries(data.siteCollections).map(([site, config]) => [
+              site,
+              {
+                ...(builtInCollections[site] || {}),
+                ...(config && typeof config === 'object' ? config : {})
+              }
+            ])
+          );
+        }
         if (data.navSettings && typeof data.navSettings === 'object') settings.navSettings = mergeNavSettings(data.navSettings);
 
         if (data.profiles && Object.keys(data.profiles).length > 0) {

@@ -108,7 +108,7 @@
     { value: 'none', label: '-- Unmapped --' },
     { value: 'click', label: 'Select / Click' },
     { value: 'back', label: 'Go Back' },
-    { value: 'search', label: 'Search Bar' },
+    { value: 'search', label: 'Open Search' },
     { value: 'fullscreen', label: 'Toggle Fullscreen' },
     { value: 'toggle_play', label: 'Play / Pause' },
     { value: 'scroll_up', label: 'Scroll Up' },

@@ -4,55 +4,54 @@
   "short_name": "Remapad",
   "version": "1.0.0",
   "description": "Navigate streaming sites (Netflix, YouTube, Prime Video, Twitch, Disney+, Hulu, Max) with your gamepad controller. Map buttons, customize profiles, and enjoy a cinematic browsing experience.",
-  "author": "Remapad",
-
+  "homepage_url": "https://gitlab.com/ShinAska/remapad",
+  "author": "Richard Louie Orilla",
+  "developer": {
+    "name": "Richard Louie Orilla",
+    "url": "https://www.richardorilla.website"
+  },
   "icons": {
-    "16":  "icons/icon-16.png",
-    "32":  "icons/icon-32.png",
-    "48":  "icons/icon-48.png",
-    "96":  "icons/icon-96.png",
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "96": "icons/icon-96.png",
     "128": "icons/icon-128.png"
   },
-
   "action": {
     "default_popup": "popup/popup.html",
     "default_icon": {
-      "16":  "icons/icon-16.png",
-      "32":  "icons/icon-32.png",
-      "48":  "icons/icon-48.png",
-      "96":  "icons/icon-96.png",
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "96": "icons/icon-96.png",
       "128": "icons/icon-128.png"
     },
     "default_title": "Remapad Gamepad Controller"
   },
-
   "options_ui": {
     "page": "options/options.html",
     "open_in_tab": true
   },
-
   "background": {
-    "scripts": ["background/service_worker.js"],
+    "scripts": [
+      "background/service_worker.js"
+    ],
     "service_worker": "background/service_worker.js"
   },
-
   "permissions": [
     "storage",
     "tabs",
     "activeTab",
     "scripting"
   ],
-
   "host_permissions": [
     "*://*/*"
   ],
-
   "browser_specific_settings": {
     "gecko": {
       "id": "remapad@extension",
       "strict_min_version": "128.0"
     }
   },
-
   "default_locale": "en_US"
 }

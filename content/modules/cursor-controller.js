@@ -12,8 +12,8 @@
     const { clamp, hexToRgba, isRemapadElement } = utils;
     const { POLL_INTERVAL_MS, DEADZONE, CURSOR_SPEED_PX_PER_SEC } = constants;
     const cursors = {
-      left: { element: null, target: null, x: 0, y: 0, visible: false },
-      right: { element: null, target: null, x: 0, y: 0, visible: false }
+      left: { element: null, target: null, x: 0, y: 0, visible: false, pinnedUntil: 0 },
+      right: { element: null, target: null, x: 0, y: 0, visible: false, pinnedUntil: 0 }
     };
     let cursorStyleElement = null;
 
@@ -98,16 +98,18 @@
       cursor.target = null;
     }
 
-    function hide(stickId) {
+    function hide(stickId, force = false) {
       const cursor = cursors[stickId];
+      if (!force && cursor.pinnedUntil > performance.now()) return;
       cursor.element?.classList.remove('visible');
       cursor.visible = false;
+      cursor.pinnedUntil = 0;
       clearTarget(stickId);
     }
 
     function remove() {
-      hide('left');
-      hide('right');
+      hide('left', true);
+      hide('right', true);
       cursors.left.element?.remove();
       cursors.right.element?.remove();
       cursors.left.element = null;
@@ -171,6 +173,7 @@
       show(stickId);
       const cursor = cursors[stickId];
       if (magnitude > deadzone) {
+        cursor.pinnedUntil = 0;
         const now = performance.now();
 
         // Cap delta to avoid large jumps when the tab regains focus or the
@@ -192,6 +195,39 @@
         cursor.element.style.boxShadow = `0 0 0 2px ${hexToRgba(color, 0.4)}, 0 4px 16px rgba(0, 0, 0, 0.5)`;
       }
       updateTarget(stickId);
+    }
+
+    function pointAt(stickId, element, holdMs = 1500) {
+      if (!cursors[stickId] || !(element instanceof Element)) return null;
+      const initialRect = element.getBoundingClientRect();
+      if (
+        initialRect.bottom < 0 || initialRect.top > global.innerHeight ||
+        initialRect.right < 0 || initialRect.left > global.innerWidth
+      ) {
+        element.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'center' });
+      }
+
+      const rect = element.getBoundingClientRect();
+      const x = clamp(rect.left + rect.width / 2, 0, global.innerWidth);
+      const y = clamp(rect.top + rect.height / 2, 0, global.innerHeight);
+      show(stickId);
+      const cursor = cursors[stickId];
+      clearTarget(stickId);
+      cursor.x = x;
+      cursor.y = y;
+      cursor.pinnedUntil = performance.now() + Math.max(0, holdMs);
+      cursor.target = element;
+
+      const nav = callbacks.getSettings().navSettings;
+      const stickConfig = stickId === 'left' ? nav?.leftStick : nav?.rightStick;
+      const color = (stickConfig?.cursorColor || '').trim() || defaultColor(stickId);
+      cursor.element.style.transform = `translate(${x}px, ${y}px)`;
+      cursor.element.style.backgroundColor = hexToRgba(color, 0.85);
+      cursor.element.style.boxShadow = `0 0 0 2px ${hexToRgba(color, 0.4)}, 0 4px 16px rgba(0, 0, 0, 0.5)`;
+      element.style.setProperty('--remapad-cursor-color', hexToRgba(color, 0.7));
+      element.classList.add('remapad-cursor-target');
+      domSimulator.dispatchHoverEvents(element, true);
+      return { x, y, stickId };
     }
 
     function hasActiveTarget() {
@@ -245,7 +281,7 @@
       cursors.right.y = clamp(cursors.right.y, 0, global.innerHeight);
     }
 
-    return { update, hide, remove, hasActiveTarget, click, getElements, handleResize };
+    return { update, hide, remove, pointAt, hasActiveTarget, click, getElements, handleResize };
   }
 
   global.RemapadCS = global.RemapadCS || {};
