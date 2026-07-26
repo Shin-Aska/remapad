@@ -97,9 +97,16 @@
   let keyboardIgnoreFocusTarget = null;
   let keyboardIgnoreFocusUntil = 0;
   let siteMappingActive = false;
+  let activePageListenersAttached = false;
 
   function resolveIconStyle() {
     return controllerStyle.resolve(settings.iconStyle);
+  }
+
+  function isSiteActive() {
+    if (!siteMappingActive) return false;
+    if (!settings.globalEnabled) return false;
+    return settings.enabledSites[currentHostname] !== false;
   }
 
   // ─── Initialisation ─────────────────────────────────────────────────────────
@@ -163,23 +170,14 @@
         });
       }
 
-      setupKeyboardFocusTrigger();
-
-      const quickMapAvailable = settingsStore.isQuickMapAvailable();
-
-      if (quickMapAvailable) {
+      if (isSiteActive()) {
+        setupActivePageListeners();
         setupGamepadPolling();
-      }
-
-      // `data-remapad-active` is the cross-world switch read by the MAIN-world
-      // gamepad_blocker; set it only after controllers are ready so pages never
-      // see a gamepad shadow without a working content-script owner.
-      if (quickMapAvailable && isMapped) {
+        document.dispatchEvent(new CustomEvent('remapad:activate'));
         document.documentElement.setAttribute('data-remapad-active', 'true');
         hudController.update();
       } else {
-        document.documentElement.removeAttribute('data-remapad-active');
-        removeHUD(!quickMapAvailable);
+        removeHUD(true);
       }
 
       if (!isStorageUpdate) {
@@ -254,6 +252,8 @@
   }
 
   function processGamepad(gp) {
+    if (!isSiteActive()) return;
+
     const previous = controllerStyle.getDetected();
     controllerStyle.update(gp.id);
     if (controllerStyle.getDetected() !== previous && settings.iconStyle === 'auto') {
@@ -453,6 +453,8 @@
   // HUD navigation, active profile mappings. The Start button may also open
   // Quick Map when explicitly mapped to `open_options`.
   function onButtonPress(btnIdx) {
+    if (!isSiteActive()) return false;
+
     const keyboardOpen = typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.isOpen();
     if (keyboardOpen) {
       if (btnIdx === 12) { RemapadKeyboard.moveFocus('up'); return false; }
@@ -484,13 +486,12 @@
       return false;
     }
 
-    if (!siteMappingActive) return false;
-
     executeAction(action);
     return true;
   }
 
   function onButtonRelease(btnIdx) {
+    if (!isSiteActive()) return;
     if (quickMapElement) return;
 
     const action = activeProfile[btnIdx.toString()];
@@ -546,6 +547,7 @@
   }
 
   function executeAction(action) {
+    if (!isSiteActive()) return;
     console.log('[Remapad CS] Executing action:', action);
 
     if (typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.isOpen()) {
@@ -825,6 +827,7 @@
   // chosen without activating it. `quickMapSuppressClick` /
   // `quickMapSuppressPointerUp` are one-shot gates reset after each pick.
   function openQuickMap() {
+    if (!isSiteActive()) return;
     if (quickMapElement) return;
 
     overlayStyles.inject();
@@ -1135,9 +1138,7 @@
 
   function isKeyboardContextActive() {
     if (!settings.keyboardEnabled || typeof RemapadKeyboard === 'undefined') return false;
-    if (!settings.globalEnabled) return false;
-    if (settings.enabledSites[currentHostname] === false) return false;
-    return siteMappingActive;
+    return isSiteActive();
   }
 
   function maybeOpenKeyboard(el, x, y) {
@@ -1181,18 +1182,25 @@
     return true;
   }
 
+  function onKeyboardFocusIn(event) {
+    const mode = getEffectiveKeyboardTriggerMode();
+    if (mode !== 'focus' && mode !== 'both') return;
+    const target = event.target;
+    if (!target || target.closest('.remapad-keyboard-overlay')) return;
+    if (target === keyboardIgnoreFocusTarget && Date.now() < keyboardIgnoreFocusUntil) return;
+    maybeOpenKeyboard(target, null, null);
+  }
+
   function setupKeyboardFocusTrigger() {
     if (keyboardFocusSetupDone) return;
     keyboardFocusSetupDone = true;
+    document.addEventListener('focusin', onKeyboardFocusIn, true);
+  }
 
-    document.addEventListener('focusin', (event) => {
-      const mode = getEffectiveKeyboardTriggerMode();
-      if (mode !== 'focus' && mode !== 'both') return;
-      const target = event.target;
-      if (!target || target.closest('.remapad-keyboard-overlay')) return;
-      if (target === keyboardIgnoreFocusTarget && Date.now() < keyboardIgnoreFocusUntil) return;
-      maybeOpenKeyboard(target, null, null);
-    }, true);
+  function removeKeyboardFocusTrigger() {
+    if (!keyboardFocusSetupDone) return;
+    document.removeEventListener('focusin', onKeyboardFocusIn, true);
+    keyboardFocusSetupDone = false;
   }
 
   function resolveNavigatorLayout() {
@@ -1217,6 +1225,7 @@
   }
 
   function activateElementAsClick(el, x, y) {
+    if (!isSiteActive()) return;
     const mode = getEffectiveKeyboardTriggerMode();
     if (mode === 'click' || mode === 'both') {
       if (maybeOpenKeyboard(el, x, y)) return;
@@ -1251,41 +1260,37 @@
 
   // ─── Aggregate teardown ─────────────────────────────────────────────────────
 
-  // Central cleanup path called on disabled, unavailable, or unmapped paths.
-  // It closes Quick Map, stops modal observation, removes cursor/HUD/styles,
-  // clears the cross-world active flag, and optionally stops polling.
-  function removeHUD(stopPolling = true) {
-    closeQuickMap();
-    stopModalFocusObserver();
-    document.documentElement.removeAttribute('data-remapad-active');
-    cursorController?.remove();
-    hudController?.remove();
-    overlayStyles.remove();
-    if (stopPolling && pollInterval) {
+  function stopGamepadPolling() {
+    if (pollInterval) {
       clearInterval(pollInterval);
       pollInterval = null;
     }
-    controllerFocusedElement?.classList.remove('remapad-controller-focus');
-    controllerFocusedElement = null;
+    if (gamepadEventListenersAttached) {
+      window.removeEventListener('gamepadconnected', onGamepadConnect);
+      window.removeEventListener('gamepaddisconnected', onGamepadDisconnect);
+      gamepadEventListenersAttached = false;
+    }
+    Object.values(axisTimers).forEach(timer => clearTimeout(timer));
+    axisTimers = {};
+    axisRepeatCounts = { left: 0, right: 0 };
+    axisLastDirections = { left: null, right: null };
+    prevButtonStates = [];
+    gamepadConnected = false;
   }
 
-  // ─── Boot ───────────────────────────────────────────────────────────────────
-
-  // pagehide intentionally performs only transient Quick Map, modal, and
-  // navigation cleanup. removeHUD performs broader UI/controller cleanup with
-  // optional polling shutdown, but does not remove every persistent listener or resource.
-  window.addEventListener('pagehide', () => {
+  function onPageHide() {
     closeQuickMap();
     stopModalFocusObserver();
     resetNavigationState();
-  });
+  }
 
-  window.addEventListener('resize', () => {
+  function onPageResize() {
     cursorController?.handleResize();
-  });
+  }
 
-  // Handle messages from options page / popup
-  api.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  function onRuntimeMessage(msg, _sender, sendResponse) {
+    if (!isSiteActive()) return false;
+
     if (msg?.type === 'COUNT_SELECTORS') {
       const { containerSelector, itemSelector } = msg;
       let containerCount = 0;
@@ -1312,7 +1317,49 @@
       });
       return true;
     }
-  });
+    return false;
+  }
+
+  function setupActivePageListeners() {
+    setupKeyboardFocusTrigger();
+    if (activePageListenersAttached) return;
+    window.addEventListener('pagehide', onPageHide);
+    window.addEventListener('resize', onPageResize);
+    api.runtime.onMessage.addListener(onRuntimeMessage);
+    activePageListenersAttached = true;
+  }
+
+  function removeActivePageListeners() {
+    removeKeyboardFocusTrigger();
+    if (!activePageListenersAttached) return;
+    window.removeEventListener('pagehide', onPageHide);
+    window.removeEventListener('resize', onPageResize);
+    api.runtime.onMessage.removeListener(onRuntimeMessage);
+    activePageListenersAttached = false;
+  }
+
+  // Central cleanup path called on disabled or unmapped paths. It closes all
+  // transient UI, stops observers and polling, removes listeners and styles,
+  // clears controller state, and tells the MAIN-world shim to restore APIs.
+  function removeHUD(stopPolling = true) {
+    closeQuickMap();
+    stopModalFocusObserver();
+    if (typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.isOpen()) {
+      RemapadKeyboard.close(false);
+    }
+    keyboardOpenTarget = null;
+    removeActivePageListeners();
+    document.documentElement.removeAttribute('data-remapad-active');
+    document.dispatchEvent(new CustomEvent('remapad:deactivate'));
+    cursorController?.remove();
+    hudController?.remove();
+    overlayStyles.remove();
+    if (stopPolling) stopGamepadPolling();
+    controllerFocusedElement?.classList.remove('remapad-controller-focus');
+    controllerFocusedElement = null;
+  }
+
+  // ─── Boot ───────────────────────────────────────────────────────────────────
 
   init();
 })();

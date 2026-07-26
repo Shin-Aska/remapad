@@ -9,10 +9,11 @@
 (() => {
   'use strict';
 
-  const nativeGetGamepads = navigator.getGamepads ? navigator.getGamepads.bind(navigator) : null;
+  const nativeGetGamepads = navigator.getGamepads || null;
   const nativeAddEventListener = window.addEventListener;
   const nativeRemoveEventListener = window.removeEventListener;
   const wrappedGamepadListeners = new WeakMap();
+  let active = true;
 
   // WeakMap keys are the original listener functions/objects so callers can
   // remove them later with the same reference. The inner Map keys are
@@ -33,7 +34,7 @@
     if (!listeners || !listeners.has(key)) {
       if (!create) return null;
       listeners.set(key, function wrappedGamepadListener(event) {
-        if (document.documentElement.getAttribute('data-remapad-active') === 'true') {
+        if (active && document.documentElement.getAttribute('data-remapad-active') === 'true') {
           event.stopImmediatePropagation();
           return;
         }
@@ -46,26 +47,49 @@
     return listeners.get(key);
   }
 
-  if (nativeGetGamepads) {
-    navigator.getGamepads = function getGamepads() {
-      if (document.documentElement.getAttribute('data-remapad-active') === 'true') {
-        return [null, null, null, null];
-      }
-      return nativeGetGamepads();
-    };
+  function remapadGetGamepads() {
+    if (active && document.documentElement.getAttribute('data-remapad-active') === 'true') {
+      return [null, null, null, null];
+    }
+    return nativeGetGamepads.call(navigator);
   }
 
-  window.addEventListener = function addEventListener(type, listener, options) {
+  function remapadAddEventListener(type, listener, options) {
     if (type === 'gamepadconnected' || type === 'gamepaddisconnected') {
       return nativeAddEventListener.call(window, type, getWrappedGamepadListener(type, listener, options, true), options);
     }
     return nativeAddEventListener.call(window, type, listener, options);
-  };
+  }
 
-  window.removeEventListener = function removeEventListener(type, listener, options) {
+  function remapadRemoveEventListener(type, listener, options) {
     if (type === 'gamepadconnected' || type === 'gamepaddisconnected') {
       return nativeRemoveEventListener.call(window, type, getWrappedGamepadListener(type, listener, options, false) || listener, options);
     }
     return nativeRemoveEventListener.call(window, type, listener, options);
-  };
+  }
+
+  function activate() {
+    active = true;
+    if (nativeGetGamepads) navigator.getGamepads = remapadGetGamepads;
+    window.addEventListener = remapadAddEventListener;
+    window.removeEventListener = remapadRemoveEventListener;
+  }
+
+  function deactivate() {
+    active = false;
+    document.documentElement.removeAttribute('data-remapad-active');
+    if (nativeGetGamepads && navigator.getGamepads === remapadGetGamepads) {
+      navigator.getGamepads = nativeGetGamepads;
+    }
+    if (window.addEventListener === remapadAddEventListener) {
+      window.addEventListener = nativeAddEventListener;
+    }
+    if (window.removeEventListener === remapadRemoveEventListener) {
+      window.removeEventListener = nativeRemoveEventListener;
+    }
+  }
+
+  activate();
+  nativeAddEventListener.call(document, 'remapad:activate', activate);
+  nativeAddEventListener.call(document, 'remapad:deactivate', deactivate);
 })();

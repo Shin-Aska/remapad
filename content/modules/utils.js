@@ -451,25 +451,32 @@
    * For file-based presets ('access_point', 'protocol'), returns an array of URLs
    * starting with .ogg first, then falling back to .mp3, then synthesized WAV.
    */
-  function getNotificationAudioSources(presetName = 'access_point', muted = false) {
+  async function getNotificationAudioSources(presetName = 'access_point', muted = false) {
     const key = presetName || 'access_point';
     const preset = SOUND_PRESETS[key] || SOUND_PRESETS.access_point || SOUND_PRESETS.probe;
 
     if (preset && preset.file) {
-      const getUrl = (path) => {
-        if (typeof chrome !== 'undefined' && chrome.runtime && typeof chrome.runtime.getURL === 'function') {
-          return chrome.runtime.getURL(path);
-        }
-        if (typeof browser !== 'undefined' && browser.runtime && typeof browser.runtime.getURL === 'function') {
-          return browser.runtime.getURL(path);
-        }
-        return '/' + path;
-      };
-
-      const fileName = preset.file;
+      const runtime = typeof chrome !== 'undefined' && chrome.runtime
+        ? chrome.runtime
+        : typeof browser !== 'undefined' && browser.runtime
+          ? browser.runtime
+          : null;
+      let embeddedSources = [];
+      if (runtime?.sendMessage) {
+        try {
+          const response = await runtime.sendMessage({
+            type: 'GET_NOTIFICATION_SOURCES',
+            preset: preset.file
+          });
+          if (Array.isArray(response?.sources)) {
+            embeddedSources = response.sources.filter(source => (
+              typeof source === 'string' && source.startsWith('data:audio/')
+            ));
+          }
+        } catch (_) {}
+      }
       return [
-        getUrl(`assets/notifications/${fileName}.ogg`),
-        getUrl(`assets/notifications/${fileName}.mp3`),
+        ...embeddedSources,
         createWavProbeDataUrl(muted, key)
       ];
     }
@@ -480,8 +487,8 @@
   /**
    * Plays a notification sound preset trying .ogg first, then .mp3, then synthesized WAV.
    */
-  function playNotificationSound(presetName = 'access_point', options = {}) {
-    const sources = getNotificationAudioSources(presetName, options.muted);
+  async function playNotificationSound(presetName = 'access_point', options = {}) {
+    const sources = await getNotificationAudioSources(presetName, options.muted);
     const audio = new Audio();
     audio.volume = typeof options.volume === 'number' ? options.volume : 0.5;
 

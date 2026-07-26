@@ -36,61 +36,15 @@
     "service_worker": "background/service_worker.js"
   },
 
-  "content_scripts": [
-    {
-      "matches": [
-        "*://*/*"
-      ],
-      "js": ["content/gamepad_blocker.js"],
-      "run_at": "document_start",
-      "world": "MAIN"
-    },
-    {
-      "matches": [
-        "*://*/*"
-      ],
-      "js": [
-        "shared/language-detector.js",
-        "shared/keyboard.js",
-        "content/modules/constants.js",
-        "content/modules/utils.js",
-        "content/modules/messaging-client.js",
-        "content/modules/controller-style.js",
-        "content/modules/settings-store.js",
-        "content/modules/site-policy.js",
-        "content/modules/dom-simulator.js",
-        "content/modules/cursor-controller.js",
-        "content/modules/autoplay-service.js",
-        "content/modules/modal-focus-manager.js",
-        "content/modules/navigation-controller.js",
-        "content/modules/overlay-styles.js",
-        "content/modules/hud-controller.js",
-        "content/content_script.js"
-      ],
-      "run_at": "document_idle"
-    }
-  ],
-
   "permissions": [
     "storage",
     "tabs",
-    "activeTab"
+    "activeTab",
+    "scripting"
   ],
 
   "host_permissions": [
     "*://*/*"
-  ],
-
-  "web_accessible_resources": [
-    {
-      "resources": [
-        "assets/notifications/*.ogg",
-        "assets/notifications/*.mp3"
-      ],
-      "matches": [
-        "*://*/*"
-      ]
-    }
   ],
 
   "browser_specific_settings": {

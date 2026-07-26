@@ -116,7 +116,7 @@
         } else {
           settings.defaultMapping = { ...DEFAULT_PROFILE };
         }
-        if (data.websiteMappings && Object.keys(data.websiteMappings).length > 0) {
+        if (data.websiteMappings && typeof data.websiteMappings === 'object') {
           settings.websiteMappings = data.websiteMappings;
         } else {
           settings.websiteMappings = { ...WEBSITE_MAPPINGS_DEFAULT };

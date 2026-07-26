@@ -56,8 +56,8 @@
       for (const srcUrl of sources) {
         const sourceEl = document.createElement('source');
         sourceEl.src = srcUrl;
-        if (srcUrl.endsWith('.ogg')) sourceEl.type = 'audio/ogg';
-        else if (srcUrl.endsWith('.mp3')) sourceEl.type = 'audio/mpeg';
+        if (srcUrl.endsWith('.ogg') || srcUrl.startsWith('data:audio/ogg') || srcUrl.startsWith('data:audio/opus')) sourceEl.type = 'audio/ogg';
+        else if (srcUrl.endsWith('.mp3') || srcUrl.startsWith('data:audio/mpeg') || srcUrl.startsWith('data:audio/mp3')) sourceEl.type = 'audio/mpeg';
         else if (srcUrl.startsWith('data:audio/wav')) sourceEl.type = 'audio/wav';
         mediaEl.appendChild(sourceEl);
       }
@@ -66,25 +66,29 @@
       }
     }
 
-    function probeAudioAutoplay() {
+    async function probeAudioAutoplay() {
+      const currentSettings = getSettings();
+      const isMuted = !!currentSettings.muteActivation;
+      const soundPreset = currentSettings.notificationSound || 'access_point';
+      const sources = isMuted
+        ? [createWavProbeDataUrl(true, 'probe')]
+        : (typeof getNotificationAudioSources === 'function')
+          ? await getNotificationAudioSources(soundPreset, false)
+          : [createWavProbeDataUrl(false, soundPreset)];
+
       return new Promise(resolve => {
         try {
           const audio = document.createElement('audio');
-          const isMuted = !!getSettings().muteActivation;
-          const soundPreset = getSettings().notificationSound || 'access_point';
 
           if (isMuted) {
             audio.muted = true;
             audio.volume = 0;
-            audio.src = createWavProbeDataUrl(true, 'probe');
+            audio.src = sources[0];
           } else {
             audio.muted = false;
-            const volSetting = getSettings().notificationVolume;
+            const volSetting = currentSettings.notificationVolume;
             const targetVolume = (typeof volSetting === 'number' ? volSetting : 50) / 100;
             audio.volume = targetVolume;
-            const sources = (typeof getNotificationAudioSources === 'function')
-              ? getNotificationAudioSources(soundPreset, false)
-              : [createWavProbeDataUrl(false, soundPreset)];
             attachAudioSources(audio, sources);
           }
 

@@ -132,11 +132,13 @@
 
     function remove() {
       hudHighlightedIndex = -1;
+      hudVisible = false;
       if (hudElement) {
         hudElement.remove();
         hudElement = null;
       }
       clearTimeout(hudTimeout);
+      hudTimeout = null;
     }
 
     // While visible, D-pad navigates the highlight, button 0 activates, and
