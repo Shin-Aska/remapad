@@ -485,6 +485,12 @@ body {
   border-color: rgba(255, 255, 255, 0.15);
   transform: scale(1.05);
 }
+.editor-callout:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  background: rgba(39, 39, 39, 0.95);
+  border-color: var(--primary);
+}
 .editor-callout.right {
   flex-direction: row-reverse;
 }

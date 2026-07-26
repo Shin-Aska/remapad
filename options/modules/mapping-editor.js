@@ -234,6 +234,23 @@
       activeCalloutBtn = null;
     }
 
+    function openDropdownForCallout(callout) {
+      if (!callout) return;
+      activeCalloutBtn = callout.dataset.btn;
+      const currentAction = getActiveMapping()[activeCalloutBtn] || 'none';
+      dom.actionSelect.value = currentAction.startsWith('click_element:') ? 'click_element'
+        : currentAction.startsWith('hover_element:') ? 'hover_element'
+          : currentAction.startsWith('press_key:') ? 'press_key'
+            : currentAction.startsWith('focus_element:') ? 'focus_element'
+              : currentAction.startsWith('dom_action:') ? 'dom_action'
+                : currentAction;
+      const rect = callout.getBoundingClientRect();
+      const parentRect = callout.offsetParent.getBoundingClientRect();
+      dom.actionDropdown.style.top = `${rect.top - parentRect.top + callout.offsetHeight + 6}px`;
+      dom.actionDropdown.style.left = `${rect.left - parentRect.left}px`;
+      dom.actionDropdown.style.display = 'block';
+    }
+
     function bind() {
       ACTION_OPTIONS.forEach(option => {
         const element = document.createElement('option');
@@ -248,22 +265,18 @@
         renderWebsiteMappings();
       });
       document.querySelectorAll('.editor-callout').forEach(callout => {
-        if (!callout.hasAttribute('tabindex')) callout.setAttribute('tabindex', '-1');
+        callout.setAttribute('role', 'button');
+        callout.setAttribute('tabindex', '0');
+        callout.setAttribute('aria-label', `Remap ${callout.querySelector('.callout-btn-name')?.textContent || `button ${callout.dataset.btn}`}`);
         callout.addEventListener('click', event => {
           event.stopPropagation();
-          activeCalloutBtn = callout.dataset.btn;
-          const currentAction = getActiveMapping()[activeCalloutBtn] || 'none';
-          dom.actionSelect.value = currentAction.startsWith('click_element:') ? 'click_element'
-            : currentAction.startsWith('hover_element:') ? 'hover_element'
-              : currentAction.startsWith('press_key:') ? 'press_key'
-                : currentAction.startsWith('focus_element:') ? 'focus_element'
-                  : currentAction.startsWith('dom_action:') ? 'dom_action'
-                    : currentAction;
-          const rect = callout.getBoundingClientRect();
-          const parentRect = callout.offsetParent.getBoundingClientRect();
-          dom.actionDropdown.style.top = `${rect.top - parentRect.top + callout.offsetHeight + 6}px`;
-          dom.actionDropdown.style.left = `${rect.left - parentRect.left}px`;
-          dom.actionDropdown.style.display = 'block';
+          openDropdownForCallout(callout);
+        });
+        callout.addEventListener('keydown', event => {
+          if (event.key !== 'Enter' && event.key !== ' ') return;
+          event.preventDefault();
+          event.stopPropagation();
+          openDropdownForCallout(callout);
         });
       });
       dom.actionSelect.addEventListener('change', async () => {
