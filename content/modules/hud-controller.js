@@ -10,7 +10,6 @@
   'use strict';
 
   function create({ utils, constants, overlayStyles, callbacks }) {
-    const { escapeHtml } = utils;
     const { GLYPHS, ACTION_LABELS, DEADZONE } = constants;
     // Item ordering: 16 controller buttons followed by left/right stick labels
     // and the Edit control. This order drives D-pad left/right highlight motion.
@@ -45,39 +44,68 @@
 
       const currentGlyphs = GLYPHS[callbacks.getIconStyle()] || GLYPHS.playstation;
       const activeProfile = callbacks.getActiveProfile();
-      const items = standardButtons.map((btnIdx, arrayIndex) => {
+      const row = document.createElement('div');
+      row.className = 'remapad-hud-row';
+      standardButtons.forEach((btnIdx, arrayIndex) => {
         const action = activeProfile[btnIdx];
-        const glyph = escapeHtml(currentGlyphs[btnIdx] || btnIdx);
-        const label = escapeHtml(formatActionLabel(action, btnIdx));
         const unmapped = !action || action === 'none';
         const isHighlighted = arrayIndex === hudHighlightedIndex;
-        return `
-          <div class="remapad-hud-item${unmapped ? ' remapad-hud-item--unmapped' : ''}${isHighlighted ? ' highlighted' : ''}" data-hud-selectable>
-            <span class="remapad-hud-glyph">${glyph}</span>
-            <span class="remapad-hud-label">${label}</span>
-          </div>
-        `;
-      }).join('');
+        const item = document.createElement('div');
+        item.className = `remapad-hud-item${unmapped ? ' remapad-hud-item--unmapped' : ''}${isHighlighted ? ' highlighted' : ''}`;
+        item.dataset.hudSelectable = '';
+        const glyph = document.createElement('span');
+        glyph.className = 'remapad-hud-glyph';
+        glyph.textContent = currentGlyphs[btnIdx] || btnIdx;
+        const label = document.createElement('span');
+        label.className = 'remapad-hud-label';
+        label.textContent = formatActionLabel(action, btnIdx);
+        item.append(glyph, label);
+        row.appendChild(item);
+      });
 
-      const lsHighlighted = hudHighlightedIndex === 16;
-      const rsHighlighted = hudHighlightedIndex === 17;
+      const stickLabels = {
+        cursor: 'Virtual cursor',
+        navigate: '2D navigation',
+        scroll: 'Scroll',
+        disabled: 'Disabled'
+      };
+      const navSettings = callbacks.getSettings()?.navSettings || {};
+      const sticks = document.createElement('div');
+      sticks.className = 'remapad-hud-sticks';
+      sticks.setAttribute('aria-label', 'Stick controls');
+      [
+        { glyph: 'LS', mode: navSettings.leftStick?.mode, index: 16 },
+        { glyph: 'RS', mode: navSettings.rightStick?.mode, index: 17 }
+      ].forEach(stick => {
+        const item = document.createElement('div');
+        item.className = `remapad-hud-stick${hudHighlightedIndex === stick.index ? ' highlighted' : ''}`;
+        item.dataset.hudSelectable = '';
+        const glyph = document.createElement('span');
+        glyph.className = 'remapad-hud-glyph';
+        glyph.textContent = stick.glyph;
+        const label = document.createElement('span');
+        label.className = 'remapad-hud-label';
+        label.textContent = stickLabels[stick.mode] || 'Disabled';
+        item.append(glyph, label);
+        sticks.appendChild(item);
+      });
+      row.appendChild(sticks);
+
       const editHighlighted = hudHighlightedIndex === 18;
-      const stickItems = `
-        <div class="remapad-hud-sticks" aria-label="Stick controls">
-        <div class="remapad-hud-stick${lsHighlighted ? ' highlighted' : ''}" data-hud-selectable>
-          <span class="remapad-hud-glyph">LS</span>
-          <span class="remapad-hud-label">Scroll</span>
-        </div>
-        <div class="remapad-hud-stick${rsHighlighted ? ' highlighted' : ''}" data-hud-selectable>
-          <span class="remapad-hud-glyph">RS↑↓</span>
-          <span class="remapad-hud-label">Focus</span>
-        </div>
-        </div>
-      `;
-      let innerHtml = `<div class="remapad-hud-row">${items}${stickItems}</div>`;
-      innerHtml += `<button class="remapad-hud-edit${editHighlighted ? ' highlighted' : ''}" id="remapad-hud-edit-btn" type="button" data-hud-selectable>Edit</button>`;
-      innerHtml += '<button class="remapad-hud-close" id="remapad-hud-close-btn" type="button" title="Hide this guide" aria-label="Hide controller guide">✕</button>';
-      hudElement.innerHTML = innerHtml;
+      const editButton = document.createElement('button');
+      editButton.className = `remapad-hud-edit${editHighlighted ? ' highlighted' : ''}`;
+      editButton.id = 'remapad-hud-edit-btn';
+      editButton.type = 'button';
+      editButton.dataset.hudSelectable = '';
+      editButton.textContent = 'Edit';
+      const closeButton = document.createElement('button');
+      closeButton.className = 'remapad-hud-close';
+      closeButton.id = 'remapad-hud-close-btn';
+      closeButton.type = 'button';
+      closeButton.title = 'Hide this guide';
+      closeButton.setAttribute('aria-label', 'Hide controller guide');
+      closeButton.textContent = '✕';
+      hudElement.replaceChildren(row, editButton, closeButton);
 
       hudElement.querySelector('#remapad-hud-close-btn')?.addEventListener('click', event => {
         event.stopPropagation();

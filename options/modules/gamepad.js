@@ -18,22 +18,43 @@
     let testMode = false;
     let testTimer = null;
     let activeGamepadIndex = null;
+    const gamepadSnapshots = new Map();
 
-    function hasActiveInput(gamepad) {
-      return gamepad.buttons.some(button => button.pressed || button.value > 0.5)
-        || gamepad.axes.some(axis => Math.abs(axis) > 0.2);
+    function getInputActivity(gamepad) {
+      const previous = gamepadSnapshots.get(gamepad.index);
+      const buttons = gamepad.buttons.map(button => button.pressed || button.value > 0.5);
+      const axes = [...gamepad.axes];
+      gamepadSnapshots.set(gamepad.index, { buttons, axes });
+
+      // A pressed button can be the first event that makes Chromium expose a
+      // gamepad, so treat it as activity even before a baseline exists.
+      if (!previous) return buttons.some(Boolean) ? 2 : 0;
+
+      const buttonPressed = buttons.some((pressed, index) => pressed && !previous.buttons[index]);
+      if (buttonPressed) return 2;
+      const axisDelta = Math.max(0, ...axes.map((axis, index) => Math.abs(axis - (previous.axes[index] ?? axis))));
+      return axisDelta > 0.08 ? axisDelta : 0;
     }
 
     function selectActiveGamepad(gamepads) {
       const connected = [...gamepads].filter(gamepad => gamepad && gamepad.connected);
       if (!connected.length) {
         activeGamepadIndex = null;
+        gamepadSnapshots.clear();
         return null;
       }
 
       // Chromium can expose more than one entry for the same Windows device.
-      // Follow the entry producing input instead of permanently choosing slot 0.
-      const producingInput = connected.find(hasActiveInput);
+      // Compare samples so an inactive DirectInput/XInput entry whose resting
+      // axes are not zero cannot masquerade as the controller being used.
+      const connectedIndexes = new Set(connected.map(gamepad => gamepad.index));
+      for (const index of gamepadSnapshots.keys()) {
+        if (!connectedIndexes.has(index)) gamepadSnapshots.delete(index);
+      }
+      const producingInput = connected
+        .map(gamepad => ({ gamepad, activity: getInputActivity(gamepad) }))
+        .reduce((best, candidate) => candidate.activity > best.activity ? candidate : best, { gamepad: null, activity: 0 })
+        .gamepad;
       const previous = connected.find(gamepad => gamepad.index === activeGamepadIndex);
       const preferred = producingInput
         || previous

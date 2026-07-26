@@ -209,7 +209,12 @@
         button.style.alignItems = 'center';
         button.style.gap = '8px';
         if (colorInput.value.toLowerCase() === color.toLowerCase()) button.classList.add('gamepad-select-option-selected');
-        button.innerHTML = `<span style="width:16px;height:16px;border-radius:3px;background:${color};border:1px solid rgba(255,255,255,0.2);flex-shrink:0"></span><span>${color}</span>`;
+        const swatch = document.createElement('span');
+        swatch.style.cssText = 'width:16px;height:16px;border-radius:3px;border:1px solid rgba(255,255,255,0.2);flex-shrink:0';
+        swatch.style.background = color;
+        const label = document.createElement('span');
+        label.textContent = color;
+        button.append(swatch, label);
         button.dataset.value = color;
         button.addEventListener('click', event => {
           event.stopPropagation();

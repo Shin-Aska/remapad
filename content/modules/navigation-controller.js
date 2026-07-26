@@ -18,8 +18,7 @@
       primaryEdgeDistance,
       orthogonalEdgeDistance,
       anchorDistance,
-      isVisibleElement,
-      escapeHtml
+      isVisibleElement
     } = utils;
 
     // Private collection navigation state. `activeCollectionIndex` and
@@ -141,35 +140,61 @@
         requestAnimationFrame(() => cnavHudElement?.classList.add('visible'));
       }
 
+      cnavHudElement.innerHTML = `
+        <div class="remapad-cnav-left">
+          <svg class="remapad-cnav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        </div>
+        <div class="remapad-cnav-right"></div>
+      `;
+      const left = cnavHudElement.querySelector('.remapad-cnav-left');
+      const right = cnavHudElement.querySelector('.remapad-cnav-right');
+
+      const rowPosition = document.createElement('span');
+      rowPosition.className = 'remapad-cnav-pos';
+      rowPosition.append(
+        document.createTextNode(`Row ${collectionIndex + 1} `),
+        Object.assign(document.createElement('span'), { className: 'remapad-cnav-of', textContent: 'of' }),
+        document.createTextNode(` ${collectionCount}`)
+      );
+      left.appendChild(rowPosition);
+      if (collectionLabel) {
+        const label = document.createElement('span');
+        label.className = 'remapad-cnav-label';
+        label.textContent = collectionLabel;
+        left.appendChild(label);
+      }
+
       const MAX_DOTS = 12;
-      let dotsHtml = '';
       if (itemCount > 0 && itemIndex >= 0) {
         const dotCount = Math.min(itemCount, MAX_DOTS);
         const dotActive = itemCount <= MAX_DOTS
           ? itemIndex
           : Math.round((itemIndex / (itemCount - 1)) * (MAX_DOTS - 1));
+        const dots = document.createElement('div');
+        dots.className = 'remapad-cnav-dots';
         for (let i = 0; i < dotCount; i++) {
-          dotsHtml += `<span class="remapad-cnav-dot${i === dotActive ? ' active' : ''}"></span>`;
+          const dot = document.createElement('span');
+          dot.className = `remapad-cnav-dot${i === dotActive ? ' active' : ''}`;
+          dots.appendChild(dot);
         }
+        right.appendChild(dots);
       }
 
-      const rowLabel = collectionLabel ? `<span class="remapad-cnav-label">${escapeHtml(collectionLabel)}</span>` : '';
-      const rowPos = `<span class="remapad-cnav-pos">Row ${collectionIndex + 1} <span class="remapad-cnav-of">of</span> ${collectionCount}</span>`;
-      const itemPos = itemIndex >= 0 && itemCount > 0
-        ? `<span class="remapad-cnav-item">Item ${itemIndex + 1} <span class="remapad-cnav-of">of</span> ${itemCount}</span>`
-        : (itemCount > 0 ? `<span class="remapad-cnav-item remapad-cnav-item--hint">${itemCount} item${itemCount !== 1 ? 's' : ''}</span>` : '');
-
-      cnavHudElement.innerHTML = `
-        <div class="remapad-cnav-left">
-          <svg class="remapad-cnav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-          ${rowPos}
-          ${rowLabel}
-        </div>
-        <div class="remapad-cnav-right">
-          ${dotsHtml ? `<div class="remapad-cnav-dots">${dotsHtml}</div>` : ''}
-          ${itemPos}
-        </div>
-      `;
+      if (itemIndex >= 0 && itemCount > 0) {
+        const itemPosition = document.createElement('span');
+        itemPosition.className = 'remapad-cnav-item';
+        itemPosition.append(
+          document.createTextNode(`Item ${itemIndex + 1} `),
+          Object.assign(document.createElement('span'), { className: 'remapad-cnav-of', textContent: 'of' }),
+          document.createTextNode(` ${itemCount}`)
+        );
+        right.appendChild(itemPosition);
+      } else if (itemCount > 0) {
+        const itemHint = document.createElement('span');
+        itemHint.className = 'remapad-cnav-item remapad-cnav-item--hint';
+        itemHint.textContent = `${itemCount} item${itemCount !== 1 ? 's' : ''}`;
+        right.appendChild(itemHint);
+      }
 
       clearTimeout(cnavHudTimeout);
       cnavHudTimeout = setTimeout(() => hideCNavHUD(), 2500);

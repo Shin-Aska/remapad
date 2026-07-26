@@ -57,6 +57,7 @@
     } else {
       showToast('Error saving settings: ' + result.error.message);
     }
+    return result.ok;
   }
 
   const modal = Options.ConfigModal.create({ constants: Options.Constants, dom });
@@ -79,6 +80,7 @@
     saveSettings
   });
   const mappingEditor = Options.MappingEditor.create({
+    api,
     state,
     constants: Options.Constants,
     utils: Options.Utils,

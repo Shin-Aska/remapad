@@ -15,7 +15,7 @@
 
 <p align="center">
   <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-ea4335">
-  <img alt="Firefox 128+" src="https://img.shields.io/badge/Firefox-128%2B-ff7139">
+  <img alt="Firefox 140+" src="https://img.shields.io/badge/Firefox-140%2B-ff7139">
   <img alt="Chrome 111+" src="https://img.shields.io/badge/Chrome-111%2B-4285f4">
   <img alt="No runtime dependencies" src="https://img.shields.io/badge/runtime_dependencies-none-2ea44f">
   <img alt="GPL-3.0-only" src="https://img.shields.io/badge/license-GPL--3.0--only-blue">
@@ -37,18 +37,9 @@ direct DOM actions.
 
 ![Remapad visual controller mapping editor](docs/assets/controller-mapping.png)
 
-<table>
-  <tr>
-    <td width="50%">
-      <strong>Type from the couch</strong><br><br>
-      <img src="docs/assets/virtualkeyboard.png" alt="Remapad on-screen virtual keyboard">
-    </td>
-    <td width="50%">
-      <strong>Learn controls in context</strong><br><br>
-      <img src="docs/assets/navigation-tutorial.png" alt="Remapad gamepad navigation tutorial">
-    </td>
-  </tr>
-</table>
+### Type from the couch
+
+![Remapad on-screen virtual keyboard](docs/assets/virtualkeyboard.png)
 
 ## What makes Remapad useful
 
@@ -79,7 +70,7 @@ and no bundler.
 ### Requirements
 
 - Git
-- Firefox 128+ and/or a Chromium-based browser 111+
+- Firefox 140+ and/or a Chromium-based browser 111+
 - Bash with Python 3, **or** PowerShell
 - A standard USB or Bluetooth gamepad for input testing
 
@@ -226,11 +217,18 @@ connection type, and tested websites.
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the complete validation checklist and
 merge-request guidance.
 
+Preparing a store release? Use the
+[Chrome and Firefox release checklist](docs/release-checklist.md) and the
+[store listing notes](docs/store-listing.md).
+
 ## Permissions and privacy
 
-Remapad stores configuration in the browser’s local extension storage. It
-requests broad host access because users can add mappings for arbitrary domains,
-and those mappings require runtime script registration and page interaction.
+Remapad stores configuration in the browser’s local extension storage. Netflix
+and Prime Video are built-in profiles; access to any other site is requested
+only when the user adds that domain.
+
+Remapad has no analytics, advertising, telemetry, or remote code. See the
+[privacy policy](PRIVACY.md) for the complete data-handling statement.
 
 If you contribute a new permission or network dependency, document why it is
 required and keep its scope as narrow as possible.

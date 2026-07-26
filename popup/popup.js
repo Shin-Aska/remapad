@@ -32,6 +32,37 @@ const WEBSITE_MAPPINGS_DEFAULT = {
   'primevideo.com': { ...DEFAULT_PROFILE },
 };
 
+function createGlobeIcon(size) {
+  const namespace = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(namespace, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '2');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  svg.style.width = `${size}px`;
+  svg.style.height = `${size}px`;
+  svg.style.color = 'var(--on-surface-variant)';
+
+  const circle = document.createElementNS(namespace, 'circle');
+  circle.setAttribute('cx', '12');
+  circle.setAttribute('cy', '12');
+  circle.setAttribute('r', '10');
+
+  const equator = document.createElementNS(namespace, 'line');
+  equator.setAttribute('x1', '2');
+  equator.setAttribute('y1', '12');
+  equator.setAttribute('x2', '22');
+  equator.setAttribute('y2', '12');
+
+  const meridian = document.createElementNS(namespace, 'path');
+  meridian.setAttribute('d', 'M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z');
+
+  svg.append(circle, equator, meridian);
+  return svg;
+}
+
 // ─── State ────────────────────────────────────────────────────────────────────
 
 let currentHostname = '';
@@ -248,21 +279,7 @@ function renderShortcuts() {
     badge.style.overflow = 'hidden';
     badge.title = domain;
 
-    const faviconUrl = `https://www.google.com/s2/favicons?sz=64&domain=${domain}`;
-
-    badge.innerHTML = `
-      <img src="${faviconUrl}" style="width:20px;height:20px;border-radius:2px;display:block">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;display:none;color:var(--on-surface-variant)"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-    `;
-
-    const faviconImg = badge.querySelector('img');
-    const fallbackSvg = badge.querySelector('svg');
-    if (faviconImg && fallbackSvg) {
-      faviconImg.addEventListener('error', () => {
-        faviconImg.style.display = 'none';
-        fallbackSvg.style.display = 'block';
-      });
-    }
+    badge.appendChild(createGlobeIcon(20));
 
     badge.addEventListener('click', () => {
       const url = domain.startsWith('http') ? domain : `https://${domain}`;

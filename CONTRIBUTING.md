@@ -18,7 +18,7 @@ You need:
 - Git
 - Python 3, used by the build scripts for manifest validation and ZIP creation
 - Either Bash or PowerShell
-- Firefox 128+ and/or a Chromium-based browser 111+ for manual testing
+- Firefox 140+ and/or a Chromium-based browser 111+ for manual testing
 - A standard USB or Bluetooth gamepad for changes to controller behavior
 
 Clone your fork and create a focused branch:
@@ -81,6 +81,11 @@ in each affected browser and verify:
 
 Include the browsers, versions, controller, operating system, and sites you
 tested in the merge request.
+
+For store releases, follow the complete
+[release checklist](docs/release-checklist.md). Google Chrome 137 and later
+ignore command-line unpacked-extension loading, so Chrome release testing must
+use **Developer mode → Load unpacked**.
 
 ## Making changes
 

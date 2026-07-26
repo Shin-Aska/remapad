@@ -370,12 +370,18 @@
     const cancelGlyph = keyboardShortcutGlyphs.cancel;
     const backspaceGlyph = keyboardShortcutGlyphs.backspace;
     if (confirmGlyph) {
-      keyboardConfirmBtn.innerHTML = `Confirm <span class="remapad-keyboard-shortcut">${confirmGlyph}</span>`;
+      const shortcut = document.createElement('span');
+      shortcut.className = 'remapad-keyboard-shortcut';
+      shortcut.textContent = confirmGlyph;
+      keyboardConfirmBtn.replaceChildren(document.createTextNode('Confirm '), shortcut);
     } else {
       keyboardConfirmBtn.textContent = 'Confirm';
     }
     if (cancelGlyph) {
-      keyboardCancelBtn.innerHTML = `Cancel <span class="remapad-keyboard-shortcut">${cancelGlyph}</span>`;
+      const shortcut = document.createElement('span');
+      shortcut.className = 'remapad-keyboard-shortcut';
+      shortcut.textContent = cancelGlyph;
+      keyboardCancelBtn.replaceChildren(document.createTextNode('Cancel '), shortcut);
     } else {
       keyboardCancelBtn.textContent = 'Cancel';
     }
@@ -384,9 +390,18 @@
       if (!backspaceKey.querySelector('.remapad-keyboard-shortcut')) {
         const label = backspaceKey.querySelector('.remapad-keyboard-key-label') || backspaceKey;
         if (label === backspaceKey) {
-          backspaceKey.innerHTML = `<span class="remapad-keyboard-key-label">${label.textContent}</span><span class="remapad-keyboard-shortcut">${backspaceGlyph}</span>`;
+          const labelSpan = document.createElement('span');
+          labelSpan.className = 'remapad-keyboard-key-label';
+          labelSpan.textContent = label.textContent;
+          const shortcut = document.createElement('span');
+          shortcut.className = 'remapad-keyboard-shortcut';
+          shortcut.textContent = backspaceGlyph;
+          backspaceKey.replaceChildren(labelSpan, shortcut);
         } else {
-          backspaceKey.insertAdjacentHTML('beforeend', `<span class="remapad-keyboard-shortcut">${backspaceGlyph}</span>`);
+          const shortcut = document.createElement('span');
+          shortcut.className = 'remapad-keyboard-shortcut';
+          shortcut.textContent = backspaceGlyph;
+          backspaceKey.appendChild(shortcut);
         }
       }
     }

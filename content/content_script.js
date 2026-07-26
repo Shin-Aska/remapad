@@ -100,6 +100,7 @@
   let siteMappingActive = false;
   let activePageListenersAttached = false;
   let activeGamepadIndex = null;
+  const gamepadSnapshots = new Map();
 
   function resolveIconStyle() {
     return controllerStyle.resolve(settings.iconStyle);
@@ -132,6 +133,7 @@
           callbacks: {
             getActiveProfile: () => activeProfile,
             getIconStyle: resolveIconStyle,
+            getSettings: () => settings,
             openSiteMapping: () => messagingClient.openSiteMapping(),
             executeAction
           }
@@ -255,21 +257,40 @@
     hudController?.hide();
   }
 
-  function hasActiveGamepadInput(gamepad) {
-    return gamepad.buttons.some(button => button.pressed || button.value > 0.5)
-      || gamepad.axes.some(axis => Math.abs(axis) > 0.2);
+  function getGamepadInputActivity(gamepad) {
+    const previous = gamepadSnapshots.get(gamepad.index);
+    const buttons = gamepad.buttons.map(button => button.pressed || button.value > 0.5);
+    const axes = [...gamepad.axes];
+    gamepadSnapshots.set(gamepad.index, { buttons, axes });
+
+    // The first pressed button may be what makes Chromium expose the device.
+    if (!previous) return buttons.some(Boolean) ? 2 : 0;
+
+    const buttonPressed = buttons.some((pressed, index) => pressed && !previous.buttons[index]);
+    if (buttonPressed) return 2;
+    const axisDelta = Math.max(0, ...axes.map((axis, index) => Math.abs(axis - (previous.axes[index] ?? axis))));
+    return axisDelta > 0.08 ? axisDelta : 0;
   }
 
   function selectActiveGamepad(gamepads) {
     const connected = [...gamepads].filter(gamepad => gamepad && gamepad.connected);
     if (!connected.length) {
       activeGamepadIndex = null;
+      gamepadSnapshots.clear();
       return null;
     }
 
-    // Chromium may expose duplicate Windows gamepad entries. Keep the current
-    // entry until another connected entry demonstrates that it has live input.
-    const producingInput = connected.find(hasActiveGamepadInput);
+    // Chromium may expose duplicate Windows gamepad entries. Compare samples
+    // so a disconnected device with a non-zero resting axis cannot win merely
+    // because it occupies an earlier Gamepad API slot.
+    const connectedIndexes = new Set(connected.map(gamepad => gamepad.index));
+    for (const index of gamepadSnapshots.keys()) {
+      if (!connectedIndexes.has(index)) gamepadSnapshots.delete(index);
+    }
+    const producingInput = connected
+      .map(gamepad => ({ gamepad, activity: getGamepadInputActivity(gamepad) }))
+      .reduce((best, candidate) => candidate.activity > best.activity ? candidate : best, { gamepad: null, activity: 0 })
+      .gamepad;
     const previous = connected.find(gamepad => gamepad.index === activeGamepadIndex);
     const preferred = producingInput
       || previous
@@ -1047,46 +1068,73 @@
     if (!quickMapElement || !quickMapState) return;
 
     const glyphs = GLYPHS[resolveIconStyle()] || GLYPHS.playstation;
-    const glyph = quickMapState.button === null ? '' : escapeHtml(glyphs[quickMapState.button] || quickMapState.button);
-    const selectedButton = quickMapState.button === null
-      ? ''
-      : `<span class="remapad-quick-map-button">${glyph}</span>`;
-    let content = '';
-
-    if (quickMapState.phase === 'button') {
-      content = '<p class="remapad-quick-map-instruction">Press the controller button to map. Press Start to cancel.</p>';
-    } else if (quickMapState.phase === 'action') {
-      content = `
-        <p class="remapad-quick-map-instruction">${selectedButton} Choose what the button should do.</p>
-        <div class="remapad-quick-map-actions" role="group" aria-label="Choose an action">
-          <button type="button" class="remapad-quick-map-action" data-remapad-action="click">Click</button>
-          <button type="button" class="remapad-quick-map-action" data-remapad-action="focus">Focus</button>
-          <button type="button" class="remapad-quick-map-action" data-remapad-action="hover">Hover</button>
-        </div>`;
-    } else if (quickMapState.phase === 'pick') {
-      content = `
-        <p class="remapad-quick-map-instruction">${selectedButton} Move over a page control, then press it. It will not activate.</p>
-        <p class="remapad-quick-map-hint">Start cancels. Remapad controls are ignored.</p>`;
-    } else {
-      content = `
-        <p class="remapad-quick-map-instruction">${selectedButton} ${escapeHtml(quickMapState.action)} target ready.</p>
-        <code class="remapad-quick-map-selector">${escapeHtml(quickMapState.selector)}</code>`;
-    }
+    const glyph = quickMapState.button === null ? '' : glyphs[quickMapState.button] || quickMapState.button;
 
     quickMapElement.innerHTML = `
       <header class="remapad-quick-map-header">
         <div>
-          <p class="remapad-quick-map-kicker">QUICK MAP · ${escapeHtml(currentHostname)}</p>
+          <p class="remapad-quick-map-kicker"></p>
           <h2 id="remapad-quick-map-title">Map a page control</h2>
         </div>
         <button type="button" class="remapad-quick-map-close" data-remapad-cancel aria-label="Cancel Quick Map">×</button>
       </header>
-      <div class="remapad-quick-map-body">${content}</div>
-      <p class="remapad-quick-map-live" role="status" aria-live="polite">${escapeHtml(quickMapState.message || '')}</p>
+      <div class="remapad-quick-map-body"></div>
+      <p class="remapad-quick-map-live" role="status" aria-live="polite"></p>
       <footer class="remapad-quick-map-footer">
         <button type="button" class="remapad-quick-map-cancel" data-remapad-cancel>Cancel</button>
-        <button type="button" class="remapad-quick-map-save" data-remapad-save ${quickMapState.phase === 'review' ? '' : 'disabled'}>Save</button>
+        <button type="button" class="remapad-quick-map-save" data-remapad-save>Save</button>
       </footer>`;
+    quickMapElement.querySelector('.remapad-quick-map-kicker').textContent = `QUICK MAP · ${currentHostname}`;
+    quickMapElement.querySelector('.remapad-quick-map-live').textContent = quickMapState.message || '';
+    quickMapElement.querySelector('[data-remapad-save]').disabled = quickMapState.phase !== 'review';
+    const body = quickMapElement.querySelector('.remapad-quick-map-body');
+    const instruction = document.createElement('p');
+    instruction.className = 'remapad-quick-map-instruction';
+    const selectedButton = () => {
+      if (quickMapState.button === null) return null;
+      const button = document.createElement('span');
+      button.className = 'remapad-quick-map-button';
+      button.textContent = glyph;
+      return button;
+    };
+
+    if (quickMapState.phase === 'button') {
+      instruction.textContent = 'Press the controller button to map. Press Start to cancel.';
+      body.appendChild(instruction);
+    } else if (quickMapState.phase === 'action') {
+      const button = selectedButton();
+      if (button) instruction.appendChild(button);
+      instruction.append(document.createTextNode(' Choose what the button should do.'));
+      const actions = document.createElement('div');
+      actions.className = 'remapad-quick-map-actions';
+      actions.setAttribute('role', 'group');
+      actions.setAttribute('aria-label', 'Choose an action');
+      for (const [action, label] of [['click', 'Click'], ['focus', 'Focus'], ['hover', 'Hover']]) {
+        const actionButton = document.createElement('button');
+        actionButton.type = 'button';
+        actionButton.className = 'remapad-quick-map-action';
+        actionButton.dataset.remapadAction = action;
+        actionButton.textContent = label;
+        actions.appendChild(actionButton);
+      }
+      body.append(instruction, actions);
+    } else if (quickMapState.phase === 'pick') {
+      const button = selectedButton();
+      if (button) instruction.appendChild(button);
+      instruction.append(document.createTextNode(' Move over a page control, then press it. It will not activate.'));
+      const hint = document.createElement('p');
+      hint.className = 'remapad-quick-map-hint';
+      hint.textContent = 'Start cancels. Remapad controls are ignored.';
+      body.append(instruction, hint);
+    } else {
+      const button = selectedButton();
+      if (button) instruction.appendChild(button);
+      instruction.append(document.createTextNode(` ${quickMapState.action} target ready.`));
+      const selector = document.createElement('code');
+      selector.className = 'remapad-quick-map-selector';
+      selector.textContent = quickMapState.selector;
+      body.append(instruction, selector);
+    }
   }
 
   function getQuickMapCandidate(target) {
@@ -1303,7 +1351,6 @@
     domSimulator.ensureWindowFocus();
     domSimulator.simulateClickAt(el, x, y);
     simulateKeyboardActivate(el);
-    messagingClient.requestTrustedClick(x, y);
     const video = domSimulator.findVideoUnderPoint(x, y, cursorController.getElements());
     if (video) {
       autoplayService.checkAutoplayAndWarn(() => domSimulator.toggleVideoPlay(video), overlayStyles.inject);
@@ -1346,6 +1393,8 @@
     axisLastDirections = { left: null, right: null };
     prevButtonStates = [];
     gamepadConnected = false;
+    activeGamepadIndex = null;
+    gamepadSnapshots.clear();
   }
 
   function onPageHide() {

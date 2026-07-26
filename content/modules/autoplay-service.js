@@ -11,7 +11,7 @@
   'use strict';
 
   function create({ utils, getSettings }) {
-    const { createWavProbeDataUrl, getNotificationAudioSources, escapeHtml } = utils;
+    const { createWavProbeDataUrl, getNotificationAudioSources } = utils;
 
     let autoplayCheckPromise = null;
     let autoplayStatus = { supported: false, mediaelement: 'unknown', audiocontext: 'unknown', audio: 'unknown', video: 'unknown', timestamp: 0 };
@@ -211,12 +211,13 @@
           <svg class="remapad-autoplay-warning__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
           </svg>
-          <div class="remapad-autoplay-warning__text">
-            <strong>${escapeHtml(title)}</strong> — ${escapeHtml(message)}
-          </div>
+          <div class="remapad-autoplay-warning__text"><strong></strong></div>
           <button class="remapad-autoplay-warning__close" aria-label="Dismiss">×</button>
         </div>
       `;
+      const warningText = el.querySelector('.remapad-autoplay-warning__text');
+      warningText.querySelector('strong').textContent = title;
+      warningText.append(document.createTextNode(` — ${message}`));
       document.body.appendChild(el);
 
       el.querySelector('.remapad-autoplay-warning__close').addEventListener('click', () => {

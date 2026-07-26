@@ -7,7 +7,7 @@
 (function (global) {
   'use strict';
 
-  function create({ state, constants, utils, dom, modal, renderAll, saveSettings, showToast, onDocumentClick }) {
+  function create({ api, state, constants, utils, dom, modal, renderAll, saveSettings, showToast, onDocumentClick }) {
     const {
       RESERVED_OPTIONS_KEY,
       FRIENDLY_NAMES,
@@ -17,7 +17,7 @@
       ACTION_OPTIONS,
       BUTTON_NAMES
     } = constants;
-    const { escapeHtml, getFriendlyLabel, parseDomain } = utils;
+    const { getFriendlyLabel, parseDomain, ensureSitePermission, removeSitePermission } = utils;
     let activeCalloutBtn = null;
 
     function getActiveMapping() {
@@ -60,36 +60,32 @@
         const siteLayout = settings.siteKeyboardLayouts[domain] || 'auto';
         const siteMode = settings.siteKeyboardTriggerModes[domain];
         const siteSelectors = settings.siteKeyboardTriggerSelectors[domain] || [];
-        const selectStyle = 'flex:1;min-width:0;width:0;box-sizing:border-box;background:var(--surface-container);color:var(--on-surface);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:4px 8px;font-size:11px;outline:none;font-family:var(--font-body);cursor:pointer';
-        const textareaStyle = 'width:100%;max-width:100%;box-sizing:border-box;background:var(--surface-container);color:var(--on-surface);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:6px 8px;font-size:11px;outline:none;font-family:var(--font-label);resize:vertical';
         const row = document.createElement('div');
         row.className = 'mapping-row' + (isSelected ? ' selected-site' : '');
         row.innerHTML = `
           <div class="mapping-row-main" style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;overflow:hidden;width:100%;box-sizing:border-box">
             <div class="mapping-row-left" tabindex="-1" style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;overflow:hidden">
-              <img class="site-favicon-img" src="https://www.google.com/s2/favicons?sz=32&domain=${domain}" style="width:16px;height:16px;border-radius:2px;display:block;flex-shrink:0">
-              <svg class="fallback-globe-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:none;color:var(--on-surface-variant);flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              <svg class="fallback-globe-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;color:var(--on-surface-variant);flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
               <div style="display:flex;align-items:baseline;gap:4px;min-width:0;overflow:hidden;flex:1">
-                <span style="font-family:var(--font-body);font-size:13px;font-weight:500;color:var(--on-surface);flex-shrink:0;white-space:nowrap">${escapeHtml(getFriendlyLabel(domain, FRIENDLY_NAMES))}</span>
-                <span style="font-family:var(--font-body);font-size:11px;color:var(--on-surface-variant);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1" title="${escapeHtml(domain)}">(${escapeHtml(domain)})</span>
+                <span class="mapping-site-name" style="font-family:var(--font-body);font-size:13px;font-weight:500;color:var(--on-surface);flex-shrink:0;white-space:nowrap"></span>
+                <span class="mapping-site-domain" style="font-family:var(--font-body);font-size:11px;color:var(--on-surface-variant);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1"></span>
               </div>
             </div>
             <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-              <button class="delete-site-btn" data-site="${domain}" style="background:none;border:none;color:var(--error);cursor:pointer;padding:4px;display:flex;align-items:center;opacity:0.7;transition:opacity 0.2s" title="Remove site mapping"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>
+              <button class="delete-site-btn" style="background:none;border:none;color:var(--error);cursor:pointer;padding:4px;display:flex;align-items:center;opacity:0.7;transition:opacity 0.2s" title="Remove site mapping"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>
             </div>
           </div>
-          <div class="mapping-row-keyboard" style="display:${isSelected ? 'flex' : 'none'};flex-direction:column;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.08);width:100%;box-sizing:border-box">
-            <div style="display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box"><span style="font-size:11px;color:var(--on-surface-variant);font-family:var(--font-body);white-space:nowrap;flex-shrink:0">Layout:</span><select class="site-keyboard-layout-select" data-site="${domain}" style="${selectStyle}"><option value="auto" ${siteLayout === 'auto' ? 'selected' : ''}>Auto-detect</option><option value="qwerty" ${siteLayout === 'qwerty' ? 'selected' : ''}>QWERTY</option><option value="dvorak" ${siteLayout === 'dvorak' ? 'selected' : ''}>Dvorak</option><option value="azerty" ${siteLayout === 'azerty' ? 'selected' : ''}>AZERTY</option><option value="german" ${siteLayout === 'german' ? 'selected' : ''}>German (QWERTZ)</option><option value="spanish" ${siteLayout === 'spanish' ? 'selected' : ''}>Spanish</option><option value="russian" ${siteLayout === 'russian' ? 'selected' : ''}>Russian (ЙЦУКЕН)</option><option value="korean" ${siteLayout === 'korean' ? 'selected' : ''}>Korean (Dubeolsik)</option><option value="chinese" ${siteLayout === 'chinese' ? 'selected' : ''}>Chinese (Pinyin)</option><option value="japanese" ${siteLayout === 'japanese' ? 'selected' : ''}>Japanese (Hiragana / Katakana)</option></select></div>
-            <div style="display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box"><span style="font-size:11px;color:var(--on-surface-variant);font-family:var(--font-body);white-space:nowrap;flex-shrink:0">Trigger:</span><select class="site-keyboard-trigger-mode-select" data-site="${domain}" style="${selectStyle}"><option value="" ${!siteMode ? 'selected' : ''}>Use global</option><option value="both" ${siteMode === 'both' ? 'selected' : ''}>On focus and click</option><option value="focus" ${siteMode === 'focus' ? 'selected' : ''}>On focus only</option><option value="click" ${siteMode === 'click' ? 'selected' : ''}>On click only</option><option value="disabled" ${siteMode === 'disabled' ? 'selected' : ''}>Disabled</option></select></div>
-            <div style="display:flex;flex-direction:column;gap:6px;width:100%;box-sizing:border-box"><span style="font-size:11px;color:var(--on-surface-variant);font-family:var(--font-body)">Custom selectors (one per line):</span><textarea class="site-keyboard-trigger-selectors-input" data-site="${domain}" rows="3" style="${textareaStyle}" placeholder="e.g. .search-box, [contenteditable]">${escapeHtml(siteSelectors.join('\n'))}</textarea><button class="btn-secondary site-keyboard-trigger-selectors-save" data-site="${domain}" style="align-self:flex-start;font-size:11px;padding:5px 12px;margin-top:2px">Save Selectors</button></div>
+          <div class="mapping-row-keyboard" style="flex-direction:column;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.08);width:100%;box-sizing:border-box">
+            <div style="display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box"><span style="font-size:11px;color:var(--on-surface-variant);font-family:var(--font-body);white-space:nowrap;flex-shrink:0">Layout:</span><select class="site-keyboard-layout-select" style="flex:1;min-width:0;width:0;box-sizing:border-box;background:var(--surface-container);color:var(--on-surface);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:4px 8px;font-size:11px;outline:none;font-family:var(--font-body);cursor:pointer"><option value="auto">Auto-detect</option><option value="qwerty">QWERTY</option><option value="dvorak">Dvorak</option><option value="azerty">AZERTY</option><option value="german">German (QWERTZ)</option><option value="spanish">Spanish</option><option value="russian">Russian (ЙЦУКЕН)</option><option value="korean">Korean (Dubeolsik)</option><option value="chinese">Chinese (Pinyin)</option><option value="japanese">Japanese (Hiragana / Katakana)</option></select></div>
+            <div style="display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box"><span style="font-size:11px;color:var(--on-surface-variant);font-family:var(--font-body);white-space:nowrap;flex-shrink:0">Trigger:</span><select class="site-keyboard-trigger-mode-select" style="flex:1;min-width:0;width:0;box-sizing:border-box;background:var(--surface-container);color:var(--on-surface);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:4px 8px;font-size:11px;outline:none;font-family:var(--font-body);cursor:pointer"><option value="">Use global</option><option value="both">On focus and click</option><option value="focus">On focus only</option><option value="click">On click only</option><option value="disabled">Disabled</option></select></div>
+            <div style="display:flex;flex-direction:column;gap:6px;width:100%;box-sizing:border-box"><span style="font-size:11px;color:var(--on-surface-variant);font-family:var(--font-body)">Custom selectors (one per line):</span><textarea class="site-keyboard-trigger-selectors-input" rows="3" style="width:100%;max-width:100%;box-sizing:border-box;background:var(--surface-container);color:var(--on-surface);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:6px 8px;font-size:11px;outline:none;font-family:var(--font-label);resize:vertical" placeholder="e.g. .search-box, [contenteditable]"></textarea><button class="btn-secondary site-keyboard-trigger-selectors-save" style="align-self:flex-start;font-size:11px;padding:5px 12px;margin-top:2px">Save Selectors</button></div>
           </div>`;
 
-        const favicon = row.querySelector('.site-favicon-img');
-        const fallback = row.querySelector('.fallback-globe-svg');
-        if (favicon && fallback) favicon.addEventListener('error', () => {
-          favicon.style.display = 'none';
-          fallback.style.display = 'block';
-        });
+        row.querySelector('.mapping-site-name').textContent = getFriendlyLabel(domain, FRIENDLY_NAMES);
+        const siteDomain = row.querySelector('.mapping-site-domain');
+        siteDomain.textContent = `(${domain})`;
+        siteDomain.title = domain;
+        row.querySelector('.mapping-row-keyboard').style.display = isSelected ? 'flex' : 'none';
         row.querySelector('.mapping-row-main').addEventListener('click', () => {
           state.setSelectedSiteKey(domain);
           dom.editorSiteSelect.value = domain;
@@ -99,6 +95,8 @@
         });
         const layoutSelect = row.querySelector('.site-keyboard-layout-select');
         if (layoutSelect) {
+          layoutSelect.dataset.site = domain;
+          layoutSelect.value = siteLayout;
           layoutSelect.addEventListener('change', event => {
             event.stopPropagation();
             settings.siteKeyboardLayouts[domain] = layoutSelect.value;
@@ -113,6 +111,8 @@
         }
         const triggerModeSelect = row.querySelector('.site-keyboard-trigger-mode-select');
         if (triggerModeSelect) {
+          triggerModeSelect.dataset.site = domain;
+          triggerModeSelect.value = siteMode || '';
           triggerModeSelect.addEventListener('change', event => {
             event.stopPropagation();
             if (triggerModeSelect.value === '') delete settings.siteKeyboardTriggerModes[domain];
@@ -124,6 +124,9 @@
         }
         const selectorsInput = row.querySelector('.site-keyboard-trigger-selectors-input');
         const selectorsSave = row.querySelector('.site-keyboard-trigger-selectors-save');
+        selectorsInput.dataset.site = domain;
+        selectorsInput.value = siteSelectors.join('\n');
+        selectorsSave.dataset.site = domain;
         if (selectorsSave && selectorsInput) selectorsSave.addEventListener('click', event => {
           event.stopPropagation();
           settings.siteKeyboardTriggerSelectors[domain] = selectorsInput.value.split('\n').map(selector => selector.trim()).filter(Boolean);
@@ -131,11 +134,12 @@
           saveSettings();
         });
         const deleteButton = row.querySelector('.delete-site-btn');
+        deleteButton.dataset.site = domain;
         if (domain === RESERVED_OPTIONS_KEY) {
           deleteButton.style.display = 'none';
           deleteButton.disabled = true;
         }
-        deleteButton.addEventListener('click', event => {
+        deleteButton.addEventListener('click', async event => {
           event.stopPropagation();
           if (domain === RESERVED_OPTIONS_KEY) return;
           if (!confirm(`Remove mapping for ${domain}?`)) return;
@@ -145,7 +149,9 @@
           delete settings.siteKeyboardTriggerSelectors[domain];
           if (state.getSelectedSiteKey() === domain) state.setSelectedSiteKey('default');
           state.markUnsaved();
-          renderAll();
+          if (await saveSettings()) {
+            await removeSitePermission(api, domain);
+          }
         });
         dom.mappingsListEl.appendChild(row);
       });
@@ -180,7 +186,46 @@
         const item = document.createElement('div');
         item.className = 'icon-style-item' + (isSelected ? ' selected' : '');
         item.setAttribute('tabindex', '-1');
-        item.innerHTML = `<div class="icon-style-left"><div class="button-glyphs">${style.btns.map(button => `<span class="btn-glyph-badge">${button}</span>`).join('')}</div><div><div class="icon-style-name">${escapeHtml(style.name)}</div><div class="icon-style-sub ${isSelected ? 'profile-active' : 'profile-default'}">${isSelected ? 'Active Layout' : escapeHtml(subtitle)}</div></div></div>${isSelected ? '<svg viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;display:block;flex-shrink:0"><circle cx="12" cy="12" r="10"/><polyline points="20 6 9 17 4 12"/></svg>' : '<svg viewBox="0 0 24 24" fill="none" stroke="var(--on-surface-variant)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;display:block;flex-shrink:0;opacity:0.5"><circle cx="12" cy="12" r="10"/></svg>'}`;
+        const left = document.createElement('div');
+        left.className = 'icon-style-left';
+        const glyphs = document.createElement('div');
+        glyphs.className = 'button-glyphs';
+        style.btns.forEach(button => {
+          const badge = document.createElement('span');
+          badge.className = 'btn-glyph-badge';
+          badge.textContent = button;
+          glyphs.appendChild(badge);
+        });
+        const labels = document.createElement('div');
+        const name = document.createElement('div');
+        name.className = 'icon-style-name';
+        name.textContent = style.name;
+        const sub = document.createElement('div');
+        sub.className = `icon-style-sub ${isSelected ? 'profile-active' : 'profile-default'}`;
+        sub.textContent = isSelected ? 'Active Layout' : subtitle;
+        labels.append(name, sub);
+        left.append(glyphs, labels);
+
+        const namespace = 'http://www.w3.org/2000/svg';
+        const indicator = document.createElementNS(namespace, 'svg');
+        indicator.setAttribute('viewBox', '0 0 24 24');
+        indicator.setAttribute('fill', 'none');
+        indicator.setAttribute('stroke', isSelected ? 'var(--primary)' : 'var(--on-surface-variant)');
+        indicator.setAttribute('stroke-width', isSelected ? '3' : '2');
+        indicator.setAttribute('stroke-linecap', 'round');
+        indicator.setAttribute('stroke-linejoin', 'round');
+        indicator.style.cssText = `width:20px;height:20px;display:block;flex-shrink:0${isSelected ? '' : ';opacity:0.5'}`;
+        const circle = document.createElementNS(namespace, 'circle');
+        circle.setAttribute('cx', '12');
+        circle.setAttribute('cy', '12');
+        circle.setAttribute('r', '10');
+        indicator.appendChild(circle);
+        if (isSelected) {
+          const check = document.createElementNS(namespace, 'polyline');
+          check.setAttribute('points', '20 6 9 17 4 12');
+          indicator.appendChild(check);
+        }
+        item.append(left, indicator);
         item.addEventListener('click', () => {
           settings.iconStyle = style.id;
           state.markUnsaved();
@@ -326,7 +371,7 @@
         populateVisualLabels();
         showToast('Mapping reset to default.');
       });
-      dom.addSiteBtn.addEventListener('click', () => {
+      dom.addSiteBtn.addEventListener('click', async () => {
         const domain = parseDomain(dom.newSiteInput.value);
         if (!domain) return;
         if (!domain.includes('.')) {
@@ -339,7 +384,15 @@
         }
         const settings = state.getSettings();
         if (settings.websiteMappings[domain]) {
-          alert('This website is already mapped!');
+          if (await ensureSitePermission(api, domain)) {
+            showToast(`${domain} is already mapped and has site access.`, 'success');
+          } else {
+            showToast(`Site access was not granted for ${domain}.`);
+          }
+          return;
+        }
+        if (!await ensureSitePermission(api, domain)) {
+          showToast(`Site access was not granted for ${domain}.`);
           return;
         }
         settings.websiteMappings[domain] = { ...settings.defaultMapping };

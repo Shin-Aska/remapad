@@ -205,20 +205,26 @@
     function renderPopover(step) {
       if (!popover) return;
       popover.innerHTML = `
-        <p class="options-tutorial-kicker">OPTIONS TOUR · ${activeStep + 1}/${STEPS.length}</p>
-        <h2 id="options-tutorial-title">${step.title}</h2>
-        <p class="options-tutorial-copy">${step.body}</p>
+        <p class="options-tutorial-kicker"></p>
+        <h2 id="options-tutorial-title"></h2>
+        <p class="options-tutorial-copy"></p>
         <div class="options-tutorial-progress" aria-hidden="true">
-          <span style="width:${((activeStep + 1) / STEPS.length) * 100}%"></span>
+          <span></span>
         </div>
         <div class="options-tutorial-actions">
           <button type="button" class="btn-ghost" data-options-tutorial-skip>Skip tour</button>
           <div>
-            <button type="button" class="btn-ghost" data-options-tutorial-prev ${activeStep === 0 ? 'disabled' : ''}>Back</button>
-            <button type="button" class="btn-primary" data-options-tutorial-next>${activeStep === STEPS.length - 1 ? 'Done' : 'Next'}</button>
+            <button type="button" class="btn-ghost" data-options-tutorial-prev>Back</button>
+            <button type="button" class="btn-primary" data-options-tutorial-next></button>
           </div>
         </div>
         <p class="options-tutorial-hint">Arrow keys or D-pad to move · Enter/A to continue · Escape/B to close</p>`;
+      popover.querySelector('.options-tutorial-kicker').textContent = `OPTIONS TOUR · ${activeStep + 1}/${STEPS.length}`;
+      popover.querySelector('#options-tutorial-title').textContent = step.title;
+      popover.querySelector('.options-tutorial-copy').textContent = step.body;
+      popover.querySelector('.options-tutorial-progress span').style.width = `${((activeStep + 1) / STEPS.length) * 100}%`;
+      popover.querySelector('[data-options-tutorial-prev]').disabled = activeStep === 0;
+      popover.querySelector('[data-options-tutorial-next]').textContent = activeStep === STEPS.length - 1 ? 'Done' : 'Next';
     }
 
     async function showStep(index) {

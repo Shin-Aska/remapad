@@ -63,6 +63,16 @@ function buildMappedMatchPatterns(websiteMappings, enabledSites, globalEnabled) 
   ]);
 }
 
+async function filterGrantedMatchPatterns(matches) {
+  const granted = [];
+  for (const pattern of matches) {
+    if (await api.permissions.contains({ origins: [pattern] })) {
+      granted.push(pattern);
+    }
+  }
+  return granted;
+}
+
 async function syncMappedContentScripts() {
   if (!api.scripting?.registerContentScripts) {
     console.error('[Remapad BG] Dynamic content scripts are unavailable; refusing wildcard injection.');
@@ -73,11 +83,12 @@ async function syncMappedContentScripts() {
   const websiteMappings = data.websiteMappings === undefined
     ? DEFAULT_WEBSITE_MAPPINGS
     : data.websiteMappings;
-  const matches = buildMappedMatchPatterns(
+  const requestedMatches = buildMappedMatchPatterns(
     websiteMappings,
     data.enabledSites,
     data.globalEnabled !== false
   );
+  const matches = await filterGrantedMatchPatterns(requestedMatches);
   const ids = Object.values(REMAPAD_SCRIPT_IDS);
 
   const registered = await api.scripting.getRegisteredContentScripts({ ids });
@@ -178,6 +189,18 @@ api.storage.onChanged.addListener((changes, area) => {
   });
 });
 
+api.permissions.onAdded.addListener(() => {
+  queueMappedContentScriptSync().catch(error => {
+    console.error('[Remapad BG] Unable to apply added site permission:', error);
+  });
+});
+
+api.permissions.onRemoved.addListener(() => {
+  queueMappedContentScriptSync().catch(error => {
+    console.error('[Remapad BG] Unable to apply removed site permission:', error);
+  });
+});
+
 // Also reconcile on service-worker wake in case storage changed while a
 // previous worker instance was unavailable.
 queueMappedContentScriptSync().catch(error => {
@@ -205,16 +228,6 @@ api.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .then(result => sendResponse(result))
       .catch(err => sendResponse({ error: err.message }));
     return true; // Keeps channel open for async response
-  }
-
-  if (message && message.type === 'TRUSTED_CLICK') {
-    isActiveMappedTabSender(sender)
-      .then(active => active
-        ? handleTrustedClick(message, sender)
-        : { error: 'Remapad is inactive on this site.' })
-      .then(result => sendResponse(result))
-      .catch(err => sendResponse({ error: err.message }));
-    return true;
   }
 
   if (message && message.type === 'GET_AUTOPLAY_STATUS') {
@@ -324,54 +337,4 @@ async function handleBrowserAction(action, sender) {
 async function getActiveTab() {
   const tabs = await api.tabs.query({ active: true, currentWindow: true });
   return tabs[0];
-}
-
-async function handleTrustedClick(message, sender) {
-  const tabId = sender.tab?.id;
-  if (!tabId) return { success: false, error: 'No sender tab' };
-
-  const x = Number(message.x);
-  const y = Number(message.y);
-  if (!Number.isFinite(x) || !Number.isFinite(y)) {
-    return { success: false, error: 'Invalid coordinates' };
-  }
-
-  const target = { tabId };
-  try {
-    await api.debugger.attach(target, '1.2');
-
-    await api.debugger.sendCommand(target, 'Input.dispatchMouseEvent', {
-      type: 'mouseMoved',
-      x,
-      y
-    });
-
-    await sleep(50);
-
-    await api.debugger.sendCommand(target, 'Input.dispatchMouseEvent', {
-      type: 'mousePressed',
-      button: 'left',
-      x,
-      y,
-      clickCount: 1
-    });
-
-    await api.debugger.sendCommand(target, 'Input.dispatchMouseEvent', {
-      type: 'mouseReleased',
-      button: 'left',
-      x,
-      y,
-      clickCount: 1
-    });
-
-    await api.debugger.detach(target);
-    return { success: true };
-  } catch (err) {
-    try { await api.debugger.detach(target); } catch (e) {}
-    return { success: false, error: err.message };
-  }
-}
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
 }

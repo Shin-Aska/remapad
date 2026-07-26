@@ -34,11 +34,16 @@
   },
   "permissions": [
     "storage",
-    "tabs",
     "activeTab",
     "scripting"
   ],
   "host_permissions": [
+    "*://netflix.com/*",
+    "*://www.netflix.com/*",
+    "*://primevideo.com/*",
+    "*://www.primevideo.com/*"
+  ],
+  "optional_host_permissions": [
     "*://*/*"
   ],
   "default_locale": "en_US"

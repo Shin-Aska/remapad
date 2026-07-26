@@ -43,12 +43,6 @@
       return glyphs[String(button)] || String(button);
     }
 
-    function escapeHtml(value) {
-      const element = document.createElement('span');
-      element.textContent = String(value);
-      return element.innerHTML;
-    }
-
     function findMappedButton(action) {
       const profile = callbacks.getActiveProfile();
       return Object.keys(profile).find(button => profile[button] === action);
@@ -75,16 +69,6 @@
       return labels[config.mode] || config.mode;
     }
 
-    function renderFaceMappings() {
-      const profile = callbacks.getActiveProfile();
-      return ['0', '1', '2', '3'].map(button => `
-        <div class="remapad-tutorial-mapping">
-          <kbd>${escapeHtml(getGlyph(button))}</kbd>
-          <span>${escapeHtml(formatActionLabel(profile[button]))}</span>
-        </div>
-      `).join('');
-    }
-
     function getControllerName() {
       const names = {
         xbox: 'Xbox',
@@ -101,32 +85,6 @@
         : settings.notificationSound || 'access_point';
     }
 
-    function renderActivationControls() {
-      const settings = callbacks.getSettings();
-      const selected = getActivationChoice();
-      const volume = typeof settings.notificationVolume === 'number'
-        ? Math.max(0, Math.min(100, settings.notificationVolume))
-        : 50;
-      const options = ACTIVATION_SOUND_OPTIONS.map(option => (
-        `<option value="${option.value}"${option.value === selected ? ' selected' : ''}>${option.label}</option>`
-      )).join('');
-      return `
-        <div class="remapad-tutorial-activation">
-          <label>
-            <span>Activation sound</span>
-            <select data-remapad-activation-sound>${options}</select>
-          </label>
-          <div class="remapad-tutorial-activation-row">
-            <button type="button" data-remapad-activation-preview ${selected === '__muted__' ? 'disabled' : ''}>▶ Preview</button>
-            <label>
-              <span>Volume <output data-remapad-activation-volume-output>${volume}%</output></span>
-              <input type="range" min="0" max="100" value="${volume}" data-remapad-activation-volume>
-            </label>
-          </div>
-          <p class="remapad-tutorial-activation-status" data-remapad-activation-status role="status" aria-live="polite">${selected === '__muted__' ? 'Activation notification is muted.' : 'This choice applies to every mapped website.'}</p>
-        </div>`;
-    }
-
     function buildSteps() {
       const guideButton = findMappedButton('toggle_hud');
       const guideGlyph = getGlyph(guideButton ?? 9);
@@ -138,78 +96,210 @@
         {
           eyebrow: 'How navigation works',
           title: 'Two thumbsticks, two simple jobs',
-          body: `By default, the left thumbstick scrolls and the right thumbstick moves a virtual cursor. On this site they are currently set to ${leftMode} and ${rightMode}. You can adjust their mode, cursor speed, and deadzone in Remapad’s navigation settings.`,
-          visual: `
-            <div class="remapad-tutorial-sticks" aria-label="Thumbstick controls">
-              <span><i>LS</i><strong>Scroll</strong></span>
-              <span><i>RS</i><strong>Virtual cursor</strong></span>
-            </div>`
+          body: `By default, the left thumbstick moves a virtual cursor and the right thumbstick scrolls. On this site they are currently set to ${leftMode} and ${rightMode}. You can adjust their mode, cursor speed, and deadzone in Remapad’s navigation settings.`
         },
         {
           eyebrow: 'Current site mapping',
-          title: `Select what you want on ${escapeHtml(hostname)}`,
-          body: `These are the four face-button actions in this site’s active mapping. The labels below use the detected ${controllerName} layout.`,
-          visual: `<div class="remapad-tutorial-mappings">${renderFaceMappings()}</div>`
+          title: `Select what you want on ${hostname}`,
+          body: `These are the four face-button actions in this site’s active mapping. The labels below use the detected ${controllerName} layout.`
         },
         {
           eyebrow: 'Controller layouts',
           title: 'Different symbols, same button positions',
-          body: 'Remapad detects the connected controller and swaps the guide symbols automatically. Xbox uses A/B/X/Y, PlayStation uses ✕/○/□/△, and Nintendo uses B/A/Y/X.',
-          visual: `
-            <div class="remapad-tutorial-layouts" aria-label="Controller face-button layouts">
-              <span><strong>Xbox</strong><i>A</i><i>B</i><i>X</i><i>Y</i></span>
-              <span><strong>PlayStation</strong><i>✕</i><i>○</i><i>□</i><i>△</i></span>
-              <span><strong>Nintendo</strong><i>B</i><i>A</i><i>Y</i><i>X</i></span>
-            </div>`
+          body: 'Remapad detects the connected controller and swaps the guide symbols automatically. Xbox uses A/B/X/Y, PlayStation uses ✕/○/□/△, and Nintendo uses B/A/Y/X.'
         },
         {
           eyebrow: 'Review or edit',
           title: 'Open the Navigation Guide',
           body: guideButton !== undefined
-            ? `Press <kbd>${escapeHtml(guideGlyph)}</kbd> (Start/Menu) to open this site’s Navigation Guide, press D-pad Left twice to highlight Edit, then press <kbd>${escapeHtml(getGlyph(0))}</kbd> to select it.`
-            : `This site does not currently have Navigation Guide mapped. Open Remapad from the extension menu and assign it to <kbd>${escapeHtml(getGlyph(9))}</kbd> (Start/Menu), then highlight Edit in the guide.`,
-          visual: `
-            <div class="remapad-tutorial-edit-flow" aria-label="Open guide, highlight Edit, and confirm">
-              <span><kbd>${escapeHtml(guideGlyph)}</kbd><small>Open guide</small></span>
-              <b>→</b>
-              <span><kbd>← ×2</kbd><small>Highlight Edit</small></span>
-              <b>→</b>
-              <span><kbd>${escapeHtml(getGlyph(0))}</kbd><small>Confirm</small></span>
-            </div>`
+            ? `Press ${guideGlyph} (Start/Menu) to open this site’s Navigation Guide, press D-pad Left twice to highlight Edit, then press ${getGlyph(0)} to select it.`
+            : `This site does not currently have Navigation Guide mapped. Open Remapad from the extension menu and assign it to ${getGlyph(9)} (Start/Menu), then highlight Edit in the guide.`
         },
         {
           eyebrow: 'Activation notification',
           title: '“Remapad extension activated”',
           body: 'The activation sound confirms that Remapad is running on a mapped website. You can customize it later under Miscellaneous Options → Play probe sound on activation, or choose a sound—or no notification—right now.',
-          visual: renderActivationControls(),
           visualClass: 'remapad-tutorial-visual--activation',
           activation: true
         }
       ];
     }
 
+    function appendLabeledValue(parent, wrapperTag, valueTag, value, label) {
+      const wrapper = document.createElement(wrapperTag);
+      const valueElement = document.createElement(valueTag);
+      valueElement.textContent = value;
+      const labelElement = document.createElement('small');
+      labelElement.textContent = label;
+      wrapper.append(valueElement, labelElement);
+      parent.appendChild(wrapper);
+    }
+
+    function renderStepVisual(stepIndex, visual) {
+      visual.replaceChildren();
+      if (stepIndex === 0) {
+        const sticks = document.createElement('div');
+        sticks.className = 'remapad-tutorial-sticks';
+        sticks.setAttribute('aria-label', 'Thumbstick controls');
+        for (const [glyph, label] of [['LS', 'Virtual cursor'], ['RS', 'Scroll']]) {
+          const stick = document.createElement('span');
+          const glyphElement = document.createElement('i');
+          glyphElement.textContent = glyph;
+          const labelElement = document.createElement('strong');
+          labelElement.textContent = label;
+          stick.append(glyphElement, labelElement);
+          sticks.appendChild(stick);
+        }
+        visual.appendChild(sticks);
+      } else if (stepIndex === 1) {
+        const mappings = document.createElement('div');
+        mappings.className = 'remapad-tutorial-mappings';
+        const profile = callbacks.getActiveProfile();
+        for (const button of ['0', '1', '2', '3']) {
+          const mapping = document.createElement('div');
+          mapping.className = 'remapad-tutorial-mapping';
+          const key = document.createElement('kbd');
+          key.textContent = getGlyph(button);
+          const label = document.createElement('span');
+          label.textContent = formatActionLabel(profile[button]);
+          mapping.append(key, label);
+          mappings.appendChild(mapping);
+        }
+        visual.appendChild(mappings);
+      } else if (stepIndex === 2) {
+        const layouts = document.createElement('div');
+        layouts.className = 'remapad-tutorial-layouts';
+        layouts.setAttribute('aria-label', 'Controller face-button layouts');
+        for (const [name, glyphs] of [
+          ['Xbox', ['A', 'B', 'X', 'Y']],
+          ['PlayStation', ['✕', '○', '□', '△']],
+          ['Nintendo', ['B', 'A', 'Y', 'X']]
+        ]) {
+          const row = document.createElement('span');
+          const heading = document.createElement('strong');
+          heading.textContent = name;
+          row.appendChild(heading);
+          glyphs.forEach(glyph => {
+            const item = document.createElement('i');
+            item.textContent = glyph;
+            row.appendChild(item);
+          });
+          layouts.appendChild(row);
+        }
+        visual.appendChild(layouts);
+      } else if (stepIndex === 3) {
+        const flow = document.createElement('div');
+        flow.className = 'remapad-tutorial-edit-flow';
+        flow.setAttribute('aria-label', 'Open guide, highlight Edit, and confirm');
+        const guideButton = findMappedButton('toggle_hud');
+        appendLabeledValue(flow, 'span', 'kbd', getGlyph(guideButton ?? 9), 'Open guide');
+        const firstArrow = document.createElement('b');
+        firstArrow.textContent = '→';
+        flow.appendChild(firstArrow);
+        appendLabeledValue(flow, 'span', 'kbd', '← ×2', 'Highlight Edit');
+        const secondArrow = document.createElement('b');
+        secondArrow.textContent = '→';
+        flow.appendChild(secondArrow);
+        appendLabeledValue(flow, 'span', 'kbd', getGlyph(0), 'Confirm');
+        visual.appendChild(flow);
+      } else {
+        const settings = callbacks.getSettings();
+        const selected = getActivationChoice();
+        const volume = typeof settings.notificationVolume === 'number'
+          ? Math.max(0, Math.min(100, settings.notificationVolume))
+          : 50;
+        const activation = document.createElement('div');
+        activation.className = 'remapad-tutorial-activation';
+        const soundLabel = document.createElement('label');
+        const soundText = document.createElement('span');
+        soundText.textContent = 'Activation sound';
+        const select = document.createElement('select');
+        select.dataset.remapadActivationSound = '';
+        ACTIVATION_SOUND_OPTIONS.forEach(option => {
+          const item = document.createElement('option');
+          item.value = option.value;
+          item.textContent = option.label;
+          select.appendChild(item);
+        });
+        select.value = selected;
+        soundLabel.append(soundText, select);
+
+        const row = document.createElement('div');
+        row.className = 'remapad-tutorial-activation-row';
+        const preview = document.createElement('button');
+        preview.type = 'button';
+        preview.dataset.remapadActivationPreview = '';
+        preview.disabled = selected === '__muted__';
+        preview.textContent = '▶ Preview';
+        const volumeLabel = document.createElement('label');
+        const volumeText = document.createElement('span');
+        volumeText.append(document.createTextNode('Volume '));
+        const output = document.createElement('output');
+        output.dataset.remapadActivationVolumeOutput = '';
+        output.textContent = `${volume}%`;
+        volumeText.appendChild(output);
+        const slider = document.createElement('input');
+        slider.type = 'range';
+        slider.min = '0';
+        slider.max = '100';
+        slider.value = String(volume);
+        slider.dataset.remapadActivationVolume = '';
+        volumeLabel.append(volumeText, slider);
+        row.append(preview, volumeLabel);
+
+        const status = document.createElement('p');
+        status.className = 'remapad-tutorial-activation-status';
+        status.dataset.remapadActivationStatus = '';
+        status.setAttribute('role', 'status');
+        status.setAttribute('aria-live', 'polite');
+        status.textContent = selected === '__muted__'
+          ? 'Activation notification is muted.'
+          : 'This choice applies to every mapped website.';
+        activation.append(soundLabel, row, status);
+        visual.appendChild(activation);
+      }
+    }
+
     function render() {
       if (!tutorialElement) return;
       const steps = buildSteps();
       const step = steps[activeStep];
-      const dots = steps.map((_, index) => (
-        `<button type="button" class="remapad-tutorial-dot${index === activeStep ? ' active' : ''}" data-remapad-tutorial-step="${index}" aria-label="Go to tutorial step ${index + 1}"${index === activeStep ? ' aria-current="step"' : ''}></button>`
-      )).join('');
-
       tutorialElement.innerHTML = `
         <div class="remapad-tutorial-card">
           <button type="button" class="remapad-tutorial-skip" data-remapad-tutorial-close>Skip</button>
-          <div class="remapad-tutorial-visual${step.visualClass ? ` ${step.visualClass}` : ''}">${step.visual}</div>
-          <p class="remapad-tutorial-eyebrow">${step.eyebrow} · ${activeStep + 1}/${steps.length}</p>
-          <h2 id="remapad-tutorial-title">${step.title}</h2>
-          <p class="remapad-tutorial-copy">${step.body}</p>
+          <div class="remapad-tutorial-visual"></div>
+          <p class="remapad-tutorial-eyebrow"></p>
+          <h2 id="remapad-tutorial-title"></h2>
+          <p class="remapad-tutorial-copy"></p>
           <div class="remapad-tutorial-controls">
-            <button type="button" class="remapad-tutorial-back" data-remapad-tutorial-prev ${activeStep === 0 ? 'disabled' : ''}>Back</button>
-            <div class="remapad-tutorial-dots">${dots}</div>
-            <button type="button" class="remapad-tutorial-next" data-remapad-tutorial-next>${activeStep === steps.length - 1 ? 'Done' : 'Next'}</button>
+            <button type="button" class="remapad-tutorial-back" data-remapad-tutorial-prev>Back</button>
+            <div class="remapad-tutorial-dots"></div>
+            <button type="button" class="remapad-tutorial-next" data-remapad-tutorial-next></button>
           </div>
-          <p class="remapad-tutorial-gamepad-hint">${step.activation ? 'D-pad ↑ ↓ changes sound · ' : 'D-pad ← → to browse · '}${getGlyph(0)} confirm · ${getGlyph(1)} close</p>
+          <p class="remapad-tutorial-gamepad-hint"></p>
         </div>`;
+
+      const visual = tutorialElement.querySelector('.remapad-tutorial-visual');
+      if (step.visualClass) visual.classList.add(step.visualClass);
+      renderStepVisual(activeStep, visual);
+      tutorialElement.querySelector('.remapad-tutorial-eyebrow').textContent = `${step.eyebrow} · ${activeStep + 1}/${steps.length}`;
+      tutorialElement.querySelector('#remapad-tutorial-title').textContent = step.title;
+      tutorialElement.querySelector('.remapad-tutorial-copy').textContent = step.body;
+      tutorialElement.querySelector('[data-remapad-tutorial-prev]').disabled = activeStep === 0;
+      tutorialElement.querySelector('[data-remapad-tutorial-next]').textContent = activeStep === steps.length - 1 ? 'Done' : 'Next';
+      tutorialElement.querySelector('.remapad-tutorial-gamepad-hint').textContent =
+        `${step.activation ? 'D-pad ↑ ↓ changes sound · ' : 'D-pad ← → to browse · '}${getGlyph(0)} confirm · ${getGlyph(1)} close`;
+
+      const dots = tutorialElement.querySelector('.remapad-tutorial-dots');
+      steps.forEach((_, index) => {
+        const dot = document.createElement('button');
+        dot.type = 'button';
+        dot.className = `remapad-tutorial-dot${index === activeStep ? ' active' : ''}`;
+        dot.dataset.remapadTutorialStep = String(index);
+        dot.setAttribute('aria-label', `Go to tutorial step ${index + 1}`);
+        if (index === activeStep) dot.setAttribute('aria-current', 'step');
+        dots.appendChild(dot);
+      });
 
       tutorialElement.querySelector('[data-remapad-tutorial-next]')?.focus({ preventScroll: true });
     }

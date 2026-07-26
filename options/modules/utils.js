@@ -28,6 +28,21 @@
     return domain.replace(/^www\./, '');
   }
 
+  function getSiteOriginPatterns(domain) {
+    return [`*://${domain}/*`, `*://www.${domain}/*`];
+  }
+
+  function ensureSitePermission(api, domain) {
+    // Call request directly from the click handler so Chrome and Firefox retain
+    // the transient user gesture required by the permissions API. Browsers
+    // resolve true without another prompt when access is already granted.
+    return api.permissions.request({ origins: getSiteOriginPatterns(domain) });
+  }
+
+  async function removeSitePermission(api, domain) {
+    return api.permissions.remove({ origins: getSiteOriginPatterns(domain) });
+  }
+
   function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
   }
@@ -52,5 +67,14 @@
   }
 
   global.RemapadOptions = global.RemapadOptions || {};
-  global.RemapadOptions.Utils = { escapeHtml, getFriendlyLabel, parseDomain, clamp, hexToRgba };
+  global.RemapadOptions.Utils = {
+    escapeHtml,
+    getFriendlyLabel,
+    parseDomain,
+    getSiteOriginPatterns,
+    ensureSitePermission,
+    removeSitePermission,
+    clamp,
+    hexToRgba
+  };
 })(typeof window !== 'undefined' ? window : globalThis);

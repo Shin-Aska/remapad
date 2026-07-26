@@ -3,8 +3,7 @@
  * MV3-compatible classic script; exposed via window.RemapadCS.MessagingClient.
  * Thin wrapper around extension runtime messaging. Calls silently tolerate a
  * missing or disconnected runtime so content-script code keeps running in
- * isolated / incognito contexts. `requestTrustedClick` forwards trusted-click
- * intent and coordinates to the background flow.
+ * isolated / incognito contexts.
  */
 
 (function (global) {
@@ -23,13 +22,7 @@
       } catch (_) {}
     }
 
-    function requestTrustedClick(x, y) {
-      try {
-        api.runtime.sendMessage({ type: 'TRUSTED_CLICK', x, y }, () => {});
-      } catch (_) {}
-    }
-
-    return { browserAction, openSiteMapping, requestTrustedClick };
+    return { browserAction, openSiteMapping };
   }
 
   global.RemapadCS = global.RemapadCS || {};

@@ -7,7 +7,7 @@
   'use strict';
 
   function create({ api, state, constants, utils, showToast, saveSettings }) {
-    const { escapeHtml, getFriendlyLabel, parseDomain } = utils;
+    const { getFriendlyLabel, parseDomain, ensureSitePermission } = utils;
     const { FRIENDLY_NAMES } = constants;
 
     function render() {
@@ -29,29 +29,53 @@
         listEl.innerHTML = '<p style="font-size:12px;color:var(--on-surface-variant);font-family:var(--font-body);text-align:center;padding:16px 0">No sites configured yet.<br>Add one below.</p>';
         return;
       }
-      listEl.innerHTML = sites.map(site => {
+      listEl.replaceChildren();
+      sites.forEach(site => {
         const config = settings.siteCollections[site];
         const hasCollection = !!(config?.containerSelector && config?.itemSelector);
         const hasSearch = !!(config?.searchTriggerSelector || config?.searchInputSelector);
         const isConfigured = hasCollection || hasSearch;
         const isActive = site === selectedSite;
-        return `
-          <button class="cnav-site-item${isActive ? ' active' : ''}" data-site="${escapeHtml(site)}">
-            <span class="cnav-site-status${isConfigured ? ' configured' : ''}" title="${isConfigured ? 'Configured' : 'Empty — needs selectors'}"></span>
-            <span class="cnav-site-label">
-              <span class="cnav-site-name">${escapeHtml(getFriendlyLabel(site, FRIENDLY_NAMES))}</span>
-              <span class="cnav-site-domain">${escapeHtml(site)}</span>
-            </span>
-            <button class="btn-ghost cnav-site-delete" data-site="${escapeHtml(site)}" title="Remove" style="padding:2px 6px;font-size:14px;color:var(--on-surface-variant);flex-shrink:0;border:0;background:transparent;cursor:pointer;line-height:1">✕</button>
-          </button>
-        `;
-      }).join('');
+        const item = document.createElement('div');
+        item.className = `cnav-site-item${isActive ? ' active' : ''}`;
+        item.dataset.site = site;
+        item.setAttribute('role', 'button');
+        item.tabIndex = 0;
+
+        const status = document.createElement('span');
+        status.className = `cnav-site-status${isConfigured ? ' configured' : ''}`;
+        status.title = isConfigured ? 'Configured' : 'Empty — needs selectors';
+        const label = document.createElement('span');
+        label.className = 'cnav-site-label';
+        const name = document.createElement('span');
+        name.className = 'cnav-site-name';
+        name.textContent = getFriendlyLabel(site, FRIENDLY_NAMES);
+        const domain = document.createElement('span');
+        domain.className = 'cnav-site-domain';
+        domain.textContent = site;
+        label.append(name, domain);
+        const deleteButton = document.createElement('button');
+        deleteButton.className = 'btn-ghost cnav-site-delete';
+        deleteButton.dataset.site = site;
+        deleteButton.title = 'Remove';
+        deleteButton.style.cssText = 'padding:2px 6px;font-size:14px;color:var(--on-surface-variant);flex-shrink:0;border:0;background:transparent;cursor:pointer;line-height:1';
+        deleteButton.textContent = '✕';
+        item.append(status, label, deleteButton);
+        listEl.appendChild(item);
+      });
       listEl.querySelectorAll('.cnav-site-item').forEach(button => {
-        button.addEventListener('click', event => {
+        const selectSite = event => {
           if (event.target.closest('.cnav-site-delete')) return;
           state.setSelectedCollectionSite(button.dataset.site);
           renderSitesList();
           renderEditor();
+        };
+        button.addEventListener('click', selectSite);
+        button.addEventListener('keydown', event => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            selectSite(event);
+          }
         });
       });
       listEl.querySelectorAll('.cnav-site-delete').forEach(button => {
@@ -90,19 +114,19 @@
       editorEl.innerHTML = `
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
           <div>
-            <div style="font-family:var(--font-headline);font-size:17px;font-weight:700;color:var(--on-surface)">${escapeHtml(getFriendlyLabel(selectedSite, FRIENDLY_NAMES))}</div>
-            <div style="font-size:12px;color:var(--on-surface-variant);font-family:var(--font-body);margin-top:1px">${escapeHtml(selectedSite)}</div>
+            <div id="cnav-site-title" style="font-family:var(--font-headline);font-size:17px;font-weight:700;color:var(--on-surface)"></div>
+            <div id="cnav-site-domain" style="font-size:12px;color:var(--on-surface-variant);font-family:var(--font-body);margin-top:1px"></div>
           </div>
           <button id="cnav-delete-btn" class="btn-ghost" style="color:var(--error);font-size:12px">Remove Site</button>
         </div>
         <div style="margin-bottom:16px">
           <label class="cnav-field-label" for="cnav-container-input">Container Selector <span style="opacity:0.5;font-weight:400;text-transform:none">(rows / shelves)</span></label>
-          <input type="text" id="cnav-container-input" class="cnav-input" placeholder="e.g. .lolomoRow, [data-testid=&quot;row&quot;]" value="${escapeHtml(config.containerSelector || '')}">
+          <input type="text" id="cnav-container-input" class="cnav-input" placeholder="e.g. .lolomoRow, [data-testid=&quot;row&quot;]">
           <p style="font-size:11px;color:var(--on-surface-variant);font-family:var(--font-body);margin:4px 0 0;line-height:1.4">Matches each horizontal shelf or group of items.</p>
         </div>
         <div style="margin-bottom:16px">
           <label class="cnav-field-label" for="cnav-item-input">Item Selector <span style="opacity:0.5;font-weight:400;text-transform:none">(cards within a row)</span></label>
-          <input type="text" id="cnav-item-input" class="cnav-input" placeholder="e.g. .title-card-container, [data-testid=&quot;card&quot;]" value="${escapeHtml(config.itemSelector || '')}">
+          <input type="text" id="cnav-item-input" class="cnav-input" placeholder="e.g. .title-card-container, [data-testid=&quot;card&quot;]">
           <p style="font-size:11px;color:var(--on-surface-variant);font-family:var(--font-body);margin:4px 0 0;line-height:1.4">Matches individual cards scoped inside a matched container.</p>
         </div>
         <div style="margin:22px 0 14px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.08)">
@@ -111,12 +135,12 @@
         </div>
         <div style="margin-bottom:16px">
           <label class="cnav-field-label" for="cnav-search-trigger-input">Search Trigger Selector <span style="opacity:0.5;font-weight:400;text-transform:none">(icon / button)</span></label>
-          <input type="text" id="cnav-search-trigger-input" class="cnav-input" placeholder="e.g. button[aria-label*=&quot;search&quot; i]" value="${escapeHtml(config.searchTriggerSelector || '')}">
+          <input type="text" id="cnav-search-trigger-input" class="cnav-input" placeholder="e.g. button[aria-label*=&quot;search&quot; i]">
           <p style="font-size:11px;color:var(--on-surface-variant);font-family:var(--font-body);margin:4px 0 0;line-height:1.4">Clicked when the search input is initially hidden. Leave empty when the input is always visible.</p>
         </div>
         <div style="margin-bottom:16px">
           <label class="cnav-field-label" for="cnav-search-input-input">Search Input Selector <span style="opacity:0.5;font-weight:400;text-transform:none">(text field)</span></label>
-          <input type="text" id="cnav-search-input-input" class="cnav-input" placeholder="e.g. input[type=&quot;search&quot;], [role=&quot;searchbox&quot;]" value="${escapeHtml(config.searchInputSelector || '')}">
+          <input type="text" id="cnav-search-input-input" class="cnav-input" placeholder="e.g. input[type=&quot;search&quot;], [role=&quot;searchbox&quot;]">
           <p style="font-size:11px;color:var(--on-surface-variant);font-family:var(--font-body);margin:4px 0 0;line-height:1.4">Focused after the trigger opens search; Remapad’s virtual keyboard can then appear.</p>
         </div>
         <div class="cnav-test-result" id="cnav-test-result"></div>
@@ -125,6 +149,12 @@
           <button id="cnav-save-btn" class="btn-primary" style="font-size:13px">Save</button>
         </div>
       `;
+      document.getElementById('cnav-site-title').textContent = getFriendlyLabel(selectedSite, FRIENDLY_NAMES);
+      document.getElementById('cnav-site-domain').textContent = selectedSite;
+      document.getElementById('cnav-container-input').value = config.containerSelector || '';
+      document.getElementById('cnav-item-input').value = config.itemSelector || '';
+      document.getElementById('cnav-search-trigger-input').value = config.searchTriggerSelector || '';
+      document.getElementById('cnav-search-input-input').value = config.searchInputSelector || '';
       document.getElementById('cnav-delete-btn')?.addEventListener('click', () => {
         if (!confirm(`Remove navigation and search config for ${selectedSite}?`)) return;
         delete settings.siteCollections[selectedSite];
@@ -216,13 +246,21 @@
     }
 
     function bind({ addButton, input, saveAllButton }) {
-      addButton?.addEventListener('click', () => {
+      addButton?.addEventListener('click', async () => {
         const domain = parseDomain(input?.value || '');
         if (!domain || !domain.includes('.')) {
           alert('Please enter a valid website domain (e.g. disneyplus.com).');
           return;
         }
         const settings = state.getSettings();
+        if (!await ensureSitePermission(api, domain)) {
+          showToast(`Site access was not granted for ${domain}.`);
+          return;
+        }
+        if (!settings.websiteMappings[domain]) {
+          settings.websiteMappings[domain] = { ...settings.defaultMapping };
+          settings.siteKeyboardLayouts[domain] = 'auto';
+        }
         if (!settings.siteCollections[domain]) {
           settings.siteCollections[domain] = {
             containerSelector: '',
