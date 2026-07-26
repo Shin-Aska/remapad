@@ -2,7 +2,7 @@
  * Remapad — Shared Overlay Styles
  * MV3-compatible classic script; exposed via window.RemapadCS.OverlayStyles.
  * Single idempotent stylesheet injected into the page head. It carries CSS for
- * the HUD, Quick Map, collection HUD/navigation/focus styles, and autoplay
+ * the HUD, tutorial, Quick Map, collection HUD/navigation/focus styles, and autoplay
  * warning. Removal is owned by aggregate teardown only.
  */
 
@@ -303,10 +303,303 @@
          cursor: not-allowed !important;
          opacity: 0.45 !important;
        }
-        .remapad-picker-target {
+       .remapad-picker-target {
            outline: 3px solid #00a8e1 !important;
           outline-offset: 3px !important;
           box-shadow: 0 0 12px rgba(0, 167, 223, 0.7) !important;
+        }
+        .remapad-tutorial {
+          position: fixed !important;
+          inset: 0 !important;
+          z-index: 2147483647 !important;
+          display: grid !important;
+          place-items: center !important;
+          box-sizing: border-box !important;
+          padding: 24px !important;
+          background: rgba(0, 0, 0, 0.68) !important;
+          backdrop-filter: blur(8px) !important;
+          -webkit-backdrop-filter: blur(8px) !important;
+          font-family: 'Geist', 'Inter', -apple-system, sans-serif !important;
+        }
+        .remapad-tutorial *, .remapad-tutorial *::before, .remapad-tutorial *::after {
+          box-sizing: border-box !important;
+        }
+        .remapad-tutorial-card {
+          position: relative !important;
+          width: min(520px, 100%) !important;
+          min-height: 440px !important;
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: center !important;
+          padding: 44px 44px 28px !important;
+          overflow: hidden !important;
+          border: 1px solid rgba(255, 255, 255, 0.12) !important;
+          border-radius: 24px !important;
+          background: rgba(18, 18, 18, 0.97) !important;
+          color: #f7f2f1 !important;
+          box-shadow: 0 28px 80px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(229, 9, 20, 0.12) !important;
+          text-align: center !important;
+        }
+        .remapad-tutorial-skip {
+          position: absolute !important;
+          top: 18px !important;
+          right: 20px !important;
+          border: 0 !important;
+          background: transparent !important;
+          color: rgba(255, 255, 255, 0.58) !important;
+          font: 600 12px/20px 'Geist', 'Inter', sans-serif !important;
+          cursor: pointer !important;
+        }
+        .remapad-tutorial-visual {
+          height: 112px !important;
+          display: grid !important;
+          place-items: center !important;
+          margin-bottom: 18px !important;
+          color: #fff !important;
+        }
+        .remapad-tutorial-action-icon {
+          width: 88px !important;
+          height: 88px !important;
+          display: grid !important;
+          place-items: center !important;
+          border: 2px solid rgba(229, 9, 20, 0.72) !important;
+          border-radius: 50% !important;
+          background: rgba(229, 9, 20, 0.14) !important;
+          box-shadow: 0 0 40px rgba(229, 9, 20, 0.24) !important;
+          font-size: 40px !important;
+        }
+        .remapad-tutorial-sticks {
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          gap: 54px !important;
+        }
+        .remapad-tutorial-sticks span {
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: center !important;
+          gap: 8px !important;
+        }
+        .remapad-tutorial-sticks i {
+          width: 68px !important;
+          height: 68px !important;
+          display: grid !important;
+          place-items: center !important;
+          border: 2px solid rgba(229, 9, 20, 0.72) !important;
+          border-radius: 50% !important;
+          background: radial-gradient(circle, #3b3b3b 0 42%, #242424 44% 100%) !important;
+          box-shadow: 0 0 32px rgba(229, 9, 20, 0.18) !important;
+          font: normal 800 15px/1 'Geist', sans-serif !important;
+        }
+        .remapad-tutorial-sticks strong {
+          color: rgba(255, 255, 255, 0.72) !important;
+          font-size: 11px !important;
+        }
+        .remapad-tutorial-mappings {
+          width: min(420px, 100%) !important;
+          display: grid !important;
+          grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          gap: 10px !important;
+        }
+        .remapad-tutorial-mapping {
+          min-width: 0 !important;
+          display: flex !important;
+          align-items: center !important;
+          gap: 10px !important;
+          padding: 10px 12px !important;
+          border: 1px solid rgba(255, 255, 255, 0.09) !important;
+          border-radius: 12px !important;
+          background: rgba(255, 255, 255, 0.045) !important;
+          text-align: left !important;
+        }
+        .remapad-tutorial-mapping kbd {
+          width: 30px !important;
+          height: 30px !important;
+          padding: 0 !important;
+          flex: 0 0 30px !important;
+          align-items: center !important;
+          border-color: rgba(229, 9, 20, 0.55) !important;
+        }
+        .remapad-tutorial-mapping span {
+          overflow: hidden !important;
+          color: rgba(255, 255, 255, 0.82) !important;
+          font-size: 11px !important;
+          font-weight: 650 !important;
+          line-height: 15px !important;
+          text-overflow: ellipsis !important;
+        }
+        .remapad-tutorial-layouts {
+          width: min(390px, 100%) !important;
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 8px !important;
+        }
+        .remapad-tutorial-layouts span {
+          display: grid !important;
+          grid-template-columns: minmax(94px, 1fr) repeat(4, 30px) !important;
+          align-items: center !important;
+          gap: 7px !important;
+          text-align: left !important;
+        }
+        .remapad-tutorial-layouts strong {
+          color: rgba(255, 255, 255, 0.65) !important;
+          font-size: 11px !important;
+        }
+        .remapad-tutorial-layouts i {
+          width: 28px !important;
+          height: 28px !important;
+          display: grid !important;
+          place-items: center !important;
+          border: 1px solid rgba(255, 255, 255, 0.15) !important;
+          border-radius: 50% !important;
+          background: #343434 !important;
+          color: #fff !important;
+          font: normal 800 11px/1 'Geist', sans-serif !important;
+        }
+        .remapad-tutorial-edit-flow {
+          width: min(430px, 100%) !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          gap: 12px !important;
+        }
+        .remapad-tutorial-edit-flow span {
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: center !important;
+          gap: 7px !important;
+        }
+        .remapad-tutorial-edit-flow kbd {
+          min-width: 48px !important;
+          min-height: 34px !important;
+          align-items: center !important;
+        }
+        .remapad-tutorial-edit-flow small {
+          color: rgba(255, 255, 255, 0.55) !important;
+          font-size: 9px !important;
+          white-space: nowrap !important;
+        }
+        .remapad-tutorial-edit-flow b {
+          color: rgba(255, 255, 255, 0.24) !important;
+          font-size: 18px !important;
+        }
+        .remapad-tutorial-dpad {
+          width: 104px !important;
+          display: grid !important;
+          grid-template-columns: repeat(3, 32px) !important;
+          grid-template-rows: repeat(3, 32px) !important;
+          gap: 4px !important;
+        }
+        .remapad-tutorial-dpad i {
+          display: grid !important;
+          place-items: center !important;
+          border-radius: 8px !important;
+          background: #343434 !important;
+          color: #fff !important;
+          font: normal 700 16px/1 sans-serif !important;
+          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
+        }
+        .remapad-tutorial-dpad i:nth-child(1) { grid-column: 2 !important; }
+        .remapad-tutorial-dpad i:nth-child(2) { grid-column: 1 !important; grid-row: 2 !important; }
+        .remapad-tutorial-dpad i:nth-child(3) { grid-column: 2 !important; grid-row: 2 !important; color: #e50914 !important; }
+        .remapad-tutorial-dpad i:nth-child(4) { grid-column: 3 !important; grid-row: 2 !important; }
+        .remapad-tutorial-dpad i:nth-child(5) { grid-column: 2 !important; grid-row: 3 !important; }
+        .remapad-tutorial-eyebrow {
+          margin: 0 0 8px !important;
+          color: #ff8a86 !important;
+          font: 700 11px/16px 'Geist', Consolas, monospace !important;
+          letter-spacing: 0.1em !important;
+          text-transform: uppercase !important;
+        }
+        .remapad-tutorial h2 {
+          margin: 0 !important;
+          color: #fff !important;
+          font-size: 25px !important;
+          line-height: 32px !important;
+          font-weight: 750 !important;
+        }
+        .remapad-tutorial-copy {
+          min-height: 72px !important;
+          margin: 12px 0 22px !important;
+          color: rgba(255, 255, 255, 0.7) !important;
+          font-size: 14px !important;
+          line-height: 24px !important;
+        }
+        .remapad-tutorial kbd {
+          min-width: 24px !important;
+          display: inline-flex !important;
+          justify-content: center !important;
+          padding: 2px 7px !important;
+          border: 1px solid rgba(255, 255, 255, 0.18) !important;
+          border-radius: 999px !important;
+          background: #343434 !important;
+          color: #fff !important;
+          font: 750 11px/18px 'Geist', Consolas, monospace !important;
+          box-shadow: none !important;
+        }
+        .remapad-tutorial-controls {
+          width: 100% !important;
+          display: grid !important;
+          grid-template-columns: 84px 1fr 84px !important;
+          align-items: center !important;
+          gap: 12px !important;
+        }
+        .remapad-tutorial-back, .remapad-tutorial-next {
+          height: 38px !important;
+          border-radius: 10px !important;
+          font: 700 12px/1 'Geist', 'Inter', sans-serif !important;
+          cursor: pointer !important;
+        }
+        .remapad-tutorial-back {
+          border: 1px solid rgba(255, 255, 255, 0.12) !important;
+          background: #2d2d2d !important;
+          color: #fff !important;
+        }
+        .remapad-tutorial-back:disabled { opacity: 0 !important; pointer-events: none !important; }
+        .remapad-tutorial-next {
+          border: 0 !important;
+          background: #e50914 !important;
+          color: #fff !important;
+        }
+        .remapad-tutorial-back:focus-visible, .remapad-tutorial-next:focus-visible,
+        .remapad-tutorial-skip:focus-visible, .remapad-tutorial-dot:focus-visible {
+          outline: 2px solid #00a8e1 !important;
+          outline-offset: 3px !important;
+        }
+        .remapad-tutorial-dots {
+          display: flex !important;
+          justify-content: center !important;
+          gap: 8px !important;
+        }
+        .remapad-tutorial-dot {
+          width: 8px !important;
+          height: 8px !important;
+          padding: 0 !important;
+          border: 0 !important;
+          border-radius: 50% !important;
+          background: rgba(255, 255, 255, 0.22) !important;
+          cursor: pointer !important;
+        }
+        .remapad-tutorial-dot.active {
+          width: 22px !important;
+          border-radius: 999px !important;
+          background: #e50914 !important;
+        }
+        .remapad-tutorial-gamepad-hint {
+          margin: 18px 0 0 !important;
+          color: rgba(255, 255, 255, 0.38) !important;
+          font: 600 10px/16px 'Geist', Consolas, monospace !important;
+          letter-spacing: 0.03em !important;
+        }
+        @media (max-width: 560px), (max-height: 560px) {
+          .remapad-tutorial { padding: 12px !important; }
+          .remapad-tutorial-card { min-height: 0 !important; padding: 34px 24px 20px !important; }
+          .remapad-tutorial-visual { height: 80px !important; margin-bottom: 10px !important; transform: scale(0.78) !important; }
+          .remapad-tutorial-copy { min-height: 0 !important; margin-bottom: 14px !important; }
+          .remapad-tutorial-gamepad-hint { margin-top: 12px !important; }
+          .remapad-tutorial-sticks { gap: 34px !important; }
+          .remapad-tutorial-edit-flow { gap: 7px !important; }
+          .remapad-tutorial-edit-flow b { display: none !important; }
         }
         .remapad-active-collection {
           outline: 2px solid rgba(229, 9, 20, 0.7) !important;

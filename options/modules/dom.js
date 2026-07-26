@@ -27,6 +27,8 @@
       notificationVolumeSlider: get('notification-volume-slider'),
       notificationVolumeVal: get('notification-volume-val'),
       testSoundBtn: get('test-sound-btn'),
+      resetWebsiteTutorialToggle: get('reset-website-tutorial-toggle'),
+      resetOptionsTutorialToggle: get('reset-options-tutorial-toggle'),
       editorSiteSelect: get('editor-site-select'),
       mappingsListEl: get('website-mappings-list'),
       iconStyleListEl: get('icon-style-list'),

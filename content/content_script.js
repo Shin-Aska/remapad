@@ -71,6 +71,7 @@
   const autoplayService = CS.AutoplayService?.create({ utils: CS.Utils, getSettings: () => settings });
   const modalFocusManager = CS.ModalFocusManager?.create({ utils: CS.Utils });
   let hudController;
+  let tutorialController;
   let navigationController;
   let cursorController;
 
@@ -155,6 +156,21 @@
         });
       }
 
+      if (!tutorialController) {
+        tutorialController = CS.TutorialController.create({
+          api,
+          hostname: currentHostname,
+          constants: CS.Constants,
+          overlayStyles,
+          callbacks: {
+            getSettings: () => settings,
+            getActiveProfile: () => activeProfile,
+            getIconStyle: resolveIconStyle,
+            isSiteActive
+          }
+        });
+      }
+
       if (!cursorController) {
         cursorController = CS.CursorController.create({
           utils: CS.Utils,
@@ -176,6 +192,7 @@
         document.dispatchEvent(new CustomEvent('remapad:activate'));
         document.documentElement.setAttribute('data-remapad-active', 'true');
         hudController.update();
+        tutorialController.showIfNeeded();
       } else {
         removeHUD(true);
       }
@@ -280,6 +297,14 @@
       }
       prevButtonStates[idx] = isPressed;
     });
+
+    // Tutorial is modal: button presses are routed above and axes must not
+    // scroll, navigate, or move a cursor on the underlying site while it is open.
+    if (tutorialController?.isVisible()) {
+      cursorController.hide('left');
+      cursorController.hide('right');
+      return;
+    }
 
     const nav = settings.navSettings;
 
@@ -449,11 +474,13 @@
 
   // ─── Action Dispatcher ─────────────────────────────────────────────────────
 
-  // Input precedence (highest to lowest): virtual keyboard, Quick Map picker,
-  // HUD navigation, active profile mappings. The Start button may also open
-  // Quick Map when explicitly mapped to `open_options`.
+  // Input precedence (highest to lowest): tutorial, virtual keyboard, Quick Map
+  // picker, HUD navigation, active profile mappings. The Start button may also
+  // open Quick Map when explicitly mapped to `open_options`.
   function onButtonPress(btnIdx) {
     if (!isSiteActive()) return false;
+
+    if (tutorialController?.handleButtonPress(btnIdx)) return false;
 
     const keyboardOpen = typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.isOpen();
     if (keyboardOpen) {
@@ -492,6 +519,7 @@
 
   function onButtonRelease(btnIdx) {
     if (!isSiteActive()) return;
+    if (tutorialController?.isVisible()) return;
     if (quickMapElement) return;
 
     const action = activeProfile[btnIdx.toString()];
@@ -1366,6 +1394,7 @@
   // transient UI, stops observers and polling, removes listeners and styles,
   // clears controller state, and tells the MAIN-world shim to restore APIs.
   function removeHUD(stopPolling = true) {
+    tutorialController?.close({ remember: false });
     closeQuickMap();
     stopModalFocusObserver();
     if (typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.isOpen()) {

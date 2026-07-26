@@ -80,7 +80,7 @@
 
   function isRemapadElement(target) {
     if (!(target instanceof Element)) return false;
-    return Boolean(target.closest('.remapad-quick-map, .remapad-hud-container, .remapad-keyboard-overlay'));
+    return Boolean(target.closest('.remapad-quick-map, .remapad-hud-container, .remapad-keyboard-overlay, .remapad-tutorial'));
   }
 
   function getKeyboardCode(key) {

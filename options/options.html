@@ -43,7 +43,7 @@
     </div>
 
     <!-- ── Tab Bar ──────────────────────────────────────────────────────────── -->
-    <div class="tab-bar" role="tablist">
+    <div class="tab-bar" role="tablist" data-options-tutorial="tabs">
       <button class="tab-btn active" id="tab-btn-controller" role="tab" aria-selected="true" aria-controls="tab-panel-controller">
         <svg viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px;display:block;flex-shrink:0"><path d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-10 7H8v3H6v-3H3v-2h3V8h2v3h3v2zm4.5 3c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm3-3c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
         Controller
@@ -70,7 +70,7 @@
         <div class="left-col">
 
           <!-- Controller Status -->
-          <section class="card">
+          <section class="card" data-options-tutorial="controller-status">
             <div class="controller-header">
               <div class="card-title">Controller Status</div>
               <span class="status-badge disconnected" id="status-badge">
@@ -98,7 +98,7 @@
           </section>
 
           <!-- Website Mappings -->
-          <section class="card">
+          <section class="card" data-options-tutorial="website-mappings">
             <div class="card-title">Website Mappings</div>
             <div class="mapping-list-options" id="website-mappings-list">
               <!-- Filled by JS -->
@@ -111,7 +111,7 @@
           </section>
 
           <!-- Icon Style -->
-          <section class="card">
+          <section class="card" data-options-tutorial="icon-layout">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:var(--space-sm)">
               <!-- Inline Palette SVG -->
               <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;display:block"><path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 14.7255 3.09032 17.1962 4.85857 19C5.01438 19.1558 5.09228 19.2337 5.12903 19.3243C5.16578 19.4149 5.15545 19.5168 5.1348 19.7207L5.05051 20.5517C4.98188 21.2281 5.3789 21.8687 6.01579 22.1001C6.10862 22.1339 6.2086 22.15 6.30722 22.15H12Z"/><circle cx="7.5" cy="10.5" r="1.5" fill="currentColor"/><circle cx="11.5" cy="7.5" r="1.5" fill="currentColor"/><circle cx="16.5" cy="9.5" r="1.5" fill="currentColor"/><circle cx="15.5" cy="14.5" r="1.5" fill="currentColor"/></svg>
@@ -126,7 +126,7 @@
 
         <!-- ── Right Column — Mapping Editor ────────────────────────────────── -->
         <div class="right-col">
-          <section class="card mapping-editor-card">
+          <section class="card mapping-editor-card" data-options-tutorial="mapping-editor">
 
             <div class="editor-header">
               <div>
@@ -381,7 +381,7 @@
 
         <div class="nav-body">
             <aside class="nav-sidebar">
-            <section class="card nav-sticks-card">
+            <section class="card nav-sticks-card" data-options-tutorial="live-sticks">
               <div class="card-title">Live Sticks</div>
               <div class="nav-sticks-grid">
                 <div class="nav-stick-col">
@@ -423,7 +423,7 @@
               </div>
             </section>
 
-            <section class="card nav-general-card">
+            <section class="card nav-general-card" data-options-tutorial="navigation-general">
               <div class="card-title" style="margin-bottom:12px">General</div>
 
               <div class="nav-control">
@@ -450,7 +450,7 @@
           <main class="nav-editor" id="nav-editor-panel">
             <div class="nav-config-grid">
 
-              <section class="card nav-section-card nav-section-right">
+              <section class="card nav-section-card nav-section-right" data-options-tutorial="right-stick">
                 <div class="nav-section-header">
                   <div class="nav-section-title">Right Stick</div>
                   <label class="switch">
@@ -519,7 +519,7 @@
                 </div>
               </section>
 
-              <section class="card nav-section-card nav-section-left">
+              <section class="card nav-section-card nav-section-left" data-options-tutorial="left-stick">
                 <div class="nav-section-header">
                   <div class="nav-section-title">Left Stick</div>
                   <label class="switch">
@@ -579,7 +579,7 @@
                 </div>
               </section>
 
-              <section class="card nav-section-card nav-direction-card">
+              <section class="card nav-section-card nav-direction-card" data-options-tutorial="direction-map">
                 <div class="nav-section-header">
                   <div class="nav-section-title">Direction Map</div>
                 </div>
@@ -667,7 +667,7 @@
                 </div>
               </section>
 
-              <section class="card nav-section-card nav-collection-card">
+              <section class="card nav-section-card nav-collection-card" data-options-tutorial="collection-grid">
                 <div class="nav-section-header">
                   <div class="nav-section-title">Collection Grid</div>
                 </div>
@@ -713,7 +713,7 @@
       <div class="cnav-panel">
 
         <!-- Intro banner -->
-        <div class="cnav-intro card">
+        <div class="cnav-intro card" data-options-tutorial="collection-intro">
           <div style="display:flex;align-items:flex-start;gap:16px">
             <div style="flex-shrink:0;width:40px;height:40px;background:rgba(229,9,20,0.12);border:1px solid rgba(229,9,20,0.25);border-radius:10px;display:flex;align-items:center;justify-content:center">
               <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
@@ -731,7 +731,7 @@
         <div class="cnav-body">
 
           <!-- Left: site list -->
-          <aside class="cnav-sidebar card">
+          <aside class="cnav-sidebar card" data-options-tutorial="collection-sites">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
               <div class="card-title" style="margin-bottom:0">Sites</div>
               <button id="cnav-save-all-btn" class="btn-secondary" style="font-size:12px;padding:5px 14px">Save All</button>
@@ -748,7 +748,7 @@
           </aside>
 
           <!-- Right: editor -->
-          <main class="cnav-editor card" id="cnav-editor-panel">
+          <main class="cnav-editor card" id="cnav-editor-panel" data-options-tutorial="collection-editor">
             <!-- Filled by JS renderCollectionConfig() -->
             <div class="cnav-empty-state">
               <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:48px;height:48px"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
@@ -781,7 +781,7 @@
             <div class="nav-config-grid" style="grid-template-columns:1fr">
 
               <!-- Master switch -->
-              <section class="card nav-section-card">
+              <section class="card nav-section-card" data-options-tutorial="virtual-keyboard">
                 <div class="nav-section-header">
                   <div class="nav-section-title">Virtual Keyboard</div>
                   <label class="switch">
@@ -793,7 +793,7 @@
               </section>
 
               <!-- Trigger mode -->
-              <section class="card nav-section-card">
+              <section class="card nav-section-card" data-options-tutorial="keyboard-trigger">
                 <div class="nav-section-header">
                   <div class="nav-section-title">Trigger Mode</div>
                 </div>
@@ -812,7 +812,7 @@
               </section>
 
               <!-- Custom trigger selectors -->
-              <section class="card nav-section-card">
+              <section class="card nav-section-card" data-options-tutorial="custom-triggers">
                 <div class="nav-section-header">
                   <div class="nav-section-title">Custom Trigger Selectors</div>
                 </div>
@@ -827,7 +827,7 @@
               </section>
 
               <!-- Default layout -->
-              <section class="card nav-section-card">
+              <section class="card nav-section-card" data-options-tutorial="keyboard-layout">
                 <div class="nav-section-header">
                   <div class="nav-section-title">Default Layout</div>
                 </div>
@@ -860,7 +860,7 @@
               </section>
 
               <!-- Extension probe & notification sound controls -->
-              <section class="card nav-section-card">
+              <section class="card nav-section-card" data-options-tutorial="probe-sound">
                 <div class="nav-section-header">
                   <div class="nav-section-title" style="display: flex; align-items: center; gap: 10px;">
                     <span>Play probe sound on activation</span>
@@ -898,6 +898,38 @@
                       <span id="notification-volume-val" class="nav-val-badge">50%</span>
                     </div>
                     <input type="range" id="notification-volume-slider" class="nav-slider" min="0" max="100" value="50" style="margin-top: 8px; width: 100%;">
+                  </div>
+                </div>
+              </section>
+
+              <!-- Tutorial reset controls -->
+              <section class="card nav-section-card" data-options-tutorial="tutorial-resets">
+                <div class="nav-section-header">
+                  <div class="nav-section-title" style="display:flex;align-items:center;gap:10px">
+                    <span>Tutorial</span>
+                    <span class="global-tag">Global Setting</span>
+                  </div>
+                </div>
+                <div class="tutorial-reset-list">
+                  <div class="tutorial-reset-row">
+                    <div>
+                      <div class="tutorial-reset-title">Reset website tutorial</div>
+                      <p class="nav-hint">Show the injected welcome and controller guide again on mapped websites.</p>
+                    </div>
+                    <label class="switch" title="Reset website tutorial">
+                      <input type="checkbox" id="reset-website-tutorial-toggle">
+                      <span class="switch-track"></span>
+                    </label>
+                  </div>
+                  <div class="tutorial-reset-row">
+                    <div>
+                      <div class="tutorial-reset-title">Reset settings option tutorial</div>
+                      <p class="nav-hint">Restart the guided tour of this Options screen.</p>
+                    </div>
+                    <label class="switch" title="Reset settings option tutorial">
+                      <input type="checkbox" id="reset-options-tutorial-toggle">
+                      <span class="switch-track"></span>
+                    </label>
                   </div>
                 </div>
               </section>
@@ -1001,6 +1033,7 @@
 <script src="modules/virtual-cursor.js"></script>
 <script src="modules/mapping-editor.js"></script>
 <script src="modules/tabs.js"></script>
+<script src="modules/options-tutorial.js"></script>
 <script src="modules/gamepad.js"></script>
 <script src="options.js"></script>
 </body>

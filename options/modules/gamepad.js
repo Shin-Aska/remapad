@@ -8,7 +8,7 @@
 (function (global) {
   'use strict';
 
-  function create({ state, constants, utils, dom, mappingEditor, cursor, modal, switchOptionsTab }) {
+  function create({ state, constants, utils, dom, mappingEditor, cursor, modal, optionsTutorial, switchOptionsTab }) {
     const { RESERVED_OPTIONS_KEY, BUTTON_NAMES, OPTIONS_NAV_REPEAT_MS } = constants;
     const { clamp } = utils;
     let previousPressed = [];
@@ -215,6 +215,12 @@
       if (rightThumb) {
         rightThumb.setAttribute('cx', (265 + (gamepad.axes[2] || 0) * 8).toString());
         rightThumb.setAttribute('cy', (185 + (gamepad.axes[3] || 0) * 8).toString());
+      }
+      if (optionsTutorial?.handleGamepad(gamepad, previousSnapshot)) {
+        cursor.hideCursor('left');
+        cursor.hideCursor('right');
+        updateNavigationStickViz(gamepad);
+        return;
       }
       const nav = state.getSettings().navSettings;
       if (nav?.enabled) {

@@ -43,7 +43,7 @@
         // Ignore Remapad overlays and validate the selector so a bad config
         // cannot break navigation elsewhere on the page.
         return Array.from(document.querySelectorAll(config.containerSelector)).filter(
-          el => !el.closest('.remapad-hud-container, .remapad-quick-map') && isVisibleElement(el)
+          el => !el.closest('.remapad-hud-container, .remapad-quick-map, .remapad-tutorial') && isVisibleElement(el)
         );
       } catch (e) {
         console.warn('[Remapad CS] Invalid containerSelector:', config.containerSelector, e);
@@ -370,7 +370,7 @@
       const focusables = domSimulator.getFocusableElements();
       const mediaCards = Array.from(document.querySelectorAll(
         '[data-testid="card"], [data-testid*="title" i], .title-card, .title-card-container'
-      )).filter(el => isVisibleElement(el) && !el.closest('.remapad-hud-container, .remapad-quick-map'));
+      )).filter(el => isVisibleElement(el) && !el.closest('.remapad-hud-container, .remapad-quick-map, .remapad-tutorial'));
 
       const modal = modalFocusManager.getOpenModals()[0];
       let all = [...focusables, ...mediaCards];

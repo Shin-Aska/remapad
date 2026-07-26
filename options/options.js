@@ -90,6 +90,7 @@
     onDocumentClick: cursor.handleDocumentClick
   });
   const tabs = Options.Tabs.create({ collectionSettings, navigationSettings, keyboardSettings });
+  const optionsTutorial = Options.OptionsTutorial.create({ api, showToast });
   const gamepad = Options.Gamepad.create({
     state,
     constants: Options.Constants,
@@ -98,6 +99,7 @@
     mappingEditor,
     cursor,
     modal,
+    optionsTutorial,
     switchOptionsTab: tabs.switchBy
   });
 
@@ -112,6 +114,7 @@
     input: dom.collectionNewSiteInput,
     saveAllButton: dom.collectionSaveAllBtn
   });
+  optionsTutorial.bindResetControls(dom);
 
   (async () => {
     const loadResult = await state.load();
@@ -119,5 +122,6 @@
     tabs.init();
     navigationSettings.bind();
     gamepad.startPolling();
+    optionsTutorial.showIfNeeded();
   })();
 })();

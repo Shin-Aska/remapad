@@ -28,6 +28,7 @@ const REMAPAD_CONTROLLER_FILES = Object.freeze([
   'content/modules/navigation-controller.js',
   'content/modules/overlay-styles.js',
   'content/modules/hud-controller.js',
+  'content/modules/tutorial-controller.js',
   'content/content_script.js'
 ]);
 const DEFAULT_WEBSITE_MAPPINGS = Object.freeze({
