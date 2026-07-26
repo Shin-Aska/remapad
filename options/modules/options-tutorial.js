@@ -8,7 +8,9 @@
   'use strict';
 
   const STORAGE_KEY = 'optionsTutorialVersion';
+  const OUTCOME_STORAGE_KEY = 'optionsTutorialOutcome';
   const TUTORIAL_VERSION = 1;
+  const WEBSITE_TUTORIAL_VERSION = 3;
 
   const STEPS = [
     {
@@ -129,7 +131,7 @@
       panel: 'keyboard',
       target: 'tutorial-resets',
       title: 'Tutorial Resets',
-      body: 'Reset website onboarding independently from this Options walkthrough. Each switch performs a one-time reset and returns to its off position.'
+      body: 'These switches show tutorial state directly. ON means completed or skipped; turn a switch OFF to reset that tutorial, or ON to skip it.'
     }
   ];
 
@@ -140,6 +142,7 @@
     let popover = null;
     let restoreFocus = null;
     let showPromise = null;
+    let resetControls = null;
 
     function isVisible() {
       return Boolean(overlay);
@@ -225,7 +228,7 @@
       const target = getTarget(step);
       if (!target) {
         if (activeStep < STEPS.length - 1) return showStep(activeStep + 1);
-        return close({ remember: true });
+        return close({ remember: true, outcome: 'completed' });
       }
 
       target.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' });
@@ -235,15 +238,19 @@
       popover.querySelector('[data-options-tutorial-next]')?.focus({ preventScroll: true });
     }
 
-    async function markComplete() {
+    async function markComplete(outcome) {
       try {
-        await api.storage.local.set({ [STORAGE_KEY]: TUTORIAL_VERSION });
+        await api.storage.local.set({
+          [STORAGE_KEY]: TUTORIAL_VERSION,
+          [OUTCOME_STORAGE_KEY]: outcome
+        });
+        await refreshResetSwitches();
       } catch (error) {
         console.warn('[Remapad Options] Unable to save tutorial completion:', error);
       }
     }
 
-    function close({ remember = true } = {}) {
+    function close({ remember = true, outcome = 'skipped' } = {}) {
       if (!overlay) return;
       document.removeEventListener('keydown', onKeyDown, true);
       global.removeEventListener('resize', onResize);
@@ -256,11 +263,11 @@
       activeStep = -1;
       if (restoreFocus?.isConnected) restoreFocus.focus?.({ preventScroll: true });
       restoreFocus = null;
-      if (remember) markComplete();
+      if (remember) markComplete(outcome);
     }
 
     function advance() {
-      if (activeStep === STEPS.length - 1) close({ remember: true });
+      if (activeStep === STEPS.length - 1) close({ remember: true, outcome: 'completed' });
       else showStep(activeStep + 1);
     }
 
@@ -275,7 +282,7 @@
       event.preventDefault();
       event.stopImmediatePropagation();
       if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') retreat();
-      else if (event.key === 'Escape') close({ remember: true });
+      else if (event.key === 'Escape') close({ remember: true, outcome: 'skipped' });
       else advance();
     }
 
@@ -285,7 +292,7 @@
     }
 
     function onClick(event) {
-      if (event.target.closest('[data-options-tutorial-skip]')) close({ remember: true });
+      if (event.target.closest('[data-options-tutorial-skip]')) close({ remember: true, outcome: 'skipped' });
       else if (event.target.closest('[data-options-tutorial-prev]')) retreat();
       else if (event.target.closest('[data-options-tutorial-next]')) advance();
     }
@@ -297,7 +304,7 @@
         if (!pressed || previousButtons[index]) return;
         if (index === 12 || index === 14) retreat();
         else if (index === 13 || index === 15 || index === 0) advance();
-        else if (index === 1 || index === 9) close({ remember: true });
+        else if (index === 1 || index === 9) close({ remember: true, outcome: 'skipped' });
       });
       return true;
     }
@@ -336,36 +343,114 @@
     }
 
     async function resetWebsiteTutorial() {
-      await api.storage.local.remove('siteTutorialVersions');
+      await api.storage.local.remove(['siteTutorialVersions', 'siteTutorialOutcomes']);
+      await refreshResetSwitches();
       showToast('Website tutorial reset. It will appear again on mapped sites.', 'success');
     }
 
     async function resetOptionsTutorial() {
-      await api.storage.local.remove(STORAGE_KEY);
+      await api.storage.local.remove([STORAGE_KEY, OUTCOME_STORAGE_KEY]);
       close({ remember: false });
+      await refreshResetSwitches();
       showToast('Settings tutorial reset.', 'success');
       await show({ force: true });
     }
 
+    function getMappedSites(websiteMappings) {
+      const mappings = websiteMappings && typeof websiteMappings === 'object'
+        ? websiteMappings
+        : { 'netflix.com': true, 'primevideo.com': true };
+      return Object.keys(mappings).filter(site => site !== '__remapad_options__');
+    }
+
+    async function refreshResetSwitches() {
+      if (!resetControls) return;
+      try {
+        const data = await api.storage.local.get([
+          'websiteMappings',
+          'siteTutorialVersions',
+          STORAGE_KEY
+        ]);
+        const versions = data.siteTutorialVersions && typeof data.siteTutorialVersions === 'object'
+          ? data.siteTutorialVersions
+          : {};
+        const sites = getMappedSites(data.websiteMappings);
+        if (resetControls.resetWebsiteTutorialToggle) {
+          resetControls.resetWebsiteTutorialToggle.checked = sites.length > 0 &&
+            sites.every(site => versions[site] === WEBSITE_TUTORIAL_VERSION);
+        }
+        if (resetControls.resetOptionsTutorialToggle) {
+          resetControls.resetOptionsTutorialToggle.checked = data[STORAGE_KEY] === TUTORIAL_VERSION;
+        }
+      } catch (error) {
+        console.warn('[Remapad Options] Unable to read tutorial status:', error);
+      }
+    }
+
+    async function skipWebsiteTutorial() {
+      const data = await api.storage.local.get([
+        'websiteMappings',
+        'siteTutorialVersions',
+        'siteTutorialOutcomes'
+      ]);
+      const sites = getMappedSites(data.websiteMappings);
+      const versions = data.siteTutorialVersions && typeof data.siteTutorialVersions === 'object'
+        ? { ...data.siteTutorialVersions }
+        : {};
+      const outcomes = data.siteTutorialOutcomes && typeof data.siteTutorialOutcomes === 'object'
+        ? { ...data.siteTutorialOutcomes }
+        : {};
+      sites.forEach(site => {
+        versions[site] = WEBSITE_TUTORIAL_VERSION;
+        outcomes[site] = 'skipped';
+      });
+      await api.storage.local.set({
+        siteTutorialVersions: versions,
+        siteTutorialOutcomes: outcomes
+      });
+      await refreshResetSwitches();
+      showToast('Website tutorial skipped on all mapped sites.', 'success');
+    }
+
+    async function skipOptionsTutorial() {
+      close({ remember: false });
+      await api.storage.local.set({
+        [STORAGE_KEY]: TUTORIAL_VERSION,
+        [OUTCOME_STORAGE_KEY]: 'skipped'
+      });
+      await refreshResetSwitches();
+      showToast('Settings tutorial skipped.', 'success');
+    }
+
+    function onTutorialStorageChanged(changes, area) {
+      if (area !== 'local') return;
+      if (!changes.websiteMappings && !changes.siteTutorialVersions &&
+          !changes[STORAGE_KEY] && !changes[OUTCOME_STORAGE_KEY]) return;
+      refreshResetSwitches();
+    }
+
     function bindResetControls(dom) {
+      resetControls = dom;
+      refreshResetSwitches();
+      api.storage.onChanged?.addListener(onTutorialStorageChanged);
       dom.resetWebsiteTutorialToggle?.addEventListener('change', async () => {
-        if (!dom.resetWebsiteTutorialToggle.checked) return;
         dom.resetWebsiteTutorialToggle.disabled = true;
         try {
-          await resetWebsiteTutorial();
+          if (dom.resetWebsiteTutorialToggle.checked) await skipWebsiteTutorial();
+          else await resetWebsiteTutorial();
         } finally {
-          dom.resetWebsiteTutorialToggle.checked = false;
           dom.resetWebsiteTutorialToggle.disabled = false;
+          refreshResetSwitches();
         }
       });
       dom.resetOptionsTutorialToggle?.addEventListener('change', async () => {
-        if (!dom.resetOptionsTutorialToggle.checked) return;
         dom.resetOptionsTutorialToggle.disabled = true;
         try {
-          await resetOptionsTutorial();
+          if (dom.resetOptionsTutorialToggle.checked) await skipOptionsTutorial();
+          else await resetOptionsTutorial();
         } finally {
-          dom.resetOptionsTutorialToggle.checked = false;
           dom.resetOptionsTutorialToggle.disabled = false;
+          refreshResetSwitches();
         }
       });
     }
@@ -375,6 +460,7 @@
       resetWebsiteTutorial,
       resetOptionsTutorial,
       bindResetControls,
+      refreshResetSwitches,
       handleGamepad,
       isVisible
     };

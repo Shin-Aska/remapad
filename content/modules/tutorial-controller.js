@@ -12,6 +12,7 @@
   // guidance once without resetting completion for unrelated sites.
   const TUTORIAL_VERSION = 3;
   const STORAGE_KEY = 'siteTutorialVersions';
+  const OUTCOME_STORAGE_KEY = 'siteTutorialOutcomes';
   const ACTIVATION_SOUND_OPTIONS = [
     { value: '__muted__', label: 'No notification (Muted)' },
     { value: 'access_point', label: 'Access Point' },
@@ -274,22 +275,26 @@
       render();
     }
 
-    async function markSeen() {
+    async function markSeen(outcome) {
       try {
-        const data = await api.storage.local.get([STORAGE_KEY]);
+        const data = await api.storage.local.get([STORAGE_KEY, OUTCOME_STORAGE_KEY]);
         const versions = data[STORAGE_KEY] && typeof data[STORAGE_KEY] === 'object'
           ? data[STORAGE_KEY]
           : {};
-        if (versions[hostname] === TUTORIAL_VERSION) return;
+        const outcomes = data[OUTCOME_STORAGE_KEY] && typeof data[OUTCOME_STORAGE_KEY] === 'object'
+          ? data[OUTCOME_STORAGE_KEY]
+          : {};
+        if (versions[hostname] === TUTORIAL_VERSION && outcomes[hostname] === outcome) return;
         await api.storage.local.set({
-          [STORAGE_KEY]: { ...versions, [hostname]: TUTORIAL_VERSION }
+          [STORAGE_KEY]: { ...versions, [hostname]: TUTORIAL_VERSION },
+          [OUTCOME_STORAGE_KEY]: { ...outcomes, [hostname]: outcome }
         });
       } catch (error) {
         console.warn('[Remapad CS] Unable to save tutorial progress:', error);
       }
     }
 
-    function close({ remember = true } = {}) {
+    function close({ remember = true, outcome = 'skipped' } = {}) {
       if (!tutorialElement) return;
       document.removeEventListener('keydown', onKeyDown, true);
       tutorialElement.remove();
@@ -297,14 +302,14 @@
       const focusTarget = restoreFocusElement;
       restoreFocusElement = null;
       if (focusTarget?.isConnected) focusTarget.focus?.({ preventScroll: true });
-      if (remember) markSeen();
+      if (remember) markSeen(outcome);
     }
 
     function finishOrAdvance() {
       if (activeStep < buildSteps().length - 1) {
         move(1);
       } else {
-        close();
+        close({ outcome: 'completed' });
       }
     }
 
