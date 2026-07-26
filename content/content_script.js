@@ -104,7 +104,7 @@
 
   // ─── Initialisation ─────────────────────────────────────────────────────────
 
-  async function init() {
+  async function init(isStorageUpdate = false) {
     try {
       // Settings and active profile are loaded asynchronously from extension
       // storage; controllers are only created once because they register DOM
@@ -182,7 +182,9 @@
         removeHUD(!quickMapAvailable);
       }
 
-      showAutoplayWarningIfBlocked();
+      if (!isStorageUpdate) {
+        showAutoplayWarningIfBlocked();
+      }
     } catch (e) {
       console.warn('[Remapad CS] Init failed:', e);
     }
@@ -201,7 +203,7 @@
   // controllers retain their instances while callback-backed state refreshes.
   api.storage.onChanged.addListener((changes, area) => {
     if (area === 'local') {
-      init();
+      init(true);
     }
   });
 

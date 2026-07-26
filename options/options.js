@@ -24,7 +24,7 @@
       dom.muteActivationToggle.checked = !state.getSettings().muteActivation;
     }
     if (dom.notificationSoundSelect) {
-      dom.notificationSoundSelect.value = state.getSettings().notificationSound || 'probe';
+      dom.notificationSoundSelect.value = state.getSettings().notificationSound || 'access_point';
     }
     mappingEditor.renderEditorSiteSelect();
     mappingEditor.renderWebsiteMappings();

@@ -9,7 +9,12 @@
   function create({ state, dom, saveSettings }) {
     function playSoundPreview(presetKey) {
       try {
-        const createWav = window.RemapadCS?.Utils?.createWavProbeDataUrl;
+        const utils = window.RemapadCS?.Utils;
+        if (utils && typeof utils.playNotificationSound === 'function') {
+          utils.playNotificationSound(presetKey, { volume: 1.0 }).catch(e => console.warn('[Remapad Options] Play sound preview failed:', e));
+          return;
+        }
+        const createWav = utils?.createWavProbeDataUrl;
         if (!createWav) return;
         const dataUrl = createWav(false, presetKey);
         const audio = new Audio(dataUrl);
@@ -29,7 +34,7 @@
       if (dom.keyboardLayoutSelect) dom.keyboardLayoutSelect.value = settings.keyboardLayout || 'qwerty';
       if (dom.keyboardAutodetectToggle) dom.keyboardAutodetectToggle.checked = !!settings.keyboardAutoDetect;
       if (dom.muteActivationToggle) dom.muteActivationToggle.checked = !settings.muteActivation;
-      if (dom.notificationSoundSelect) dom.notificationSoundSelect.value = settings.notificationSound || 'probe';
+      if (dom.notificationSoundSelect) dom.notificationSoundSelect.value = settings.notificationSound || 'access_point';
     }
 
     function bind() {
@@ -90,7 +95,7 @@
       }
       if (dom.testSoundBtn) {
         dom.testSoundBtn.addEventListener('click', () => {
-          const selected = dom.notificationSoundSelect ? dom.notificationSoundSelect.value : (state.getSettings().notificationSound || 'probe');
+          const selected = dom.notificationSoundSelect ? dom.notificationSoundSelect.value : (state.getSettings().notificationSound || 'access_point');
           playSoundPreview(selected);
         });
       }

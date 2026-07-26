@@ -37,7 +37,7 @@
       },
       navSettings: structuredClone(DEFAULT_NAV_SETTINGS),
       muteActivation: false,
-      notificationSound: 'probe',
+      notificationSound: 'access_point',
       keyboardEnabled: true,
       keyboardLayout: 'qwerty',
       keyboardAutoDetect: true,

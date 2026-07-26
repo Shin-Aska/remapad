@@ -243,7 +243,28 @@
   // ─── Autoplay probe & UI sound WAV generator ──────────────────────────────────
 
   const SOUND_PRESETS = Object.freeze({
-    // Probe (default): 3-note ascending triad (C5 - E5 - C6)
+    // Access Point (Default notification sound file with .ogg -> .mp3 fallback + synth backup)
+    access_point: {
+      description: 'Access Point Notification (Audio File: .ogg → .mp3)',
+      file: 'access_point',
+      duration: 0.40,
+      notes: [
+        { freq: 440.00, start: 0.00, decay: 15, amp: 0.25 },
+        { freq: 880.00, start: 0.08, decay: 12, amp: 0.35 },
+        { freq: 1320.00, start: 0.16, decay: 10, amp: 0.40, harmonics: [1.0, 0.3, 0.1] }
+      ]
+    },
+    // Protocol (Secondary notification sound file with .ogg -> .mp3 fallback + synth backup)
+    protocol: {
+      description: 'Protocol Notification (Audio File: .ogg → .mp3)',
+      file: 'protocol',
+      duration: 0.38,
+      notes: [
+        { freq: 587.33, start: 0.00, decay: 16, amp: 0.25 },
+        { freq: 880.00, start: 0.10, decay: 14, amp: 0.35 }
+      ]
+    },
+    // Probe: 3-note ascending triad (C5 - E5 - C6)
     probe: {
       description: 'Ascending 3-note triad arpeggio (C5 - E5 - C6)',
       duration: 0.35,
@@ -322,27 +343,30 @@
    *   createWavProbeDataUrl(presetName?: string)
    *   createWavProbeDataUrl(options?: { muted?: boolean, preset?: string, duration?: number, volume?: number, sampleRate?: number })
    */
-  function createWavProbeDataUrl(mutedOrOptions = false, presetName = 'probe') {
+  function createWavProbeDataUrl(mutedOrOptions = false, presetName = 'access_point') {
     let muted = false;
-    let presetKey = 'probe';
+    let presetKey = 'access_point';
     let customDuration = null;
     let volumeMult = 1.0;
     let sampleRate = 22050;
 
     if (typeof mutedOrOptions === 'boolean') {
       muted = mutedOrOptions;
-      presetKey = presetName || 'probe';
+      presetKey = presetName || 'access_point';
     } else if (typeof mutedOrOptions === 'string') {
       presetKey = mutedOrOptions;
     } else if (mutedOrOptions && typeof mutedOrOptions === 'object') {
       muted = !!mutedOrOptions.muted;
-      presetKey = mutedOrOptions.preset || presetName || 'probe';
+      presetKey = mutedOrOptions.preset || presetName || 'access_point';
       if (typeof mutedOrOptions.duration === 'number') customDuration = mutedOrOptions.duration;
       if (typeof mutedOrOptions.volume === 'number') volumeMult = mutedOrOptions.volume;
       if (typeof mutedOrOptions.sampleRate === 'number') sampleRate = mutedOrOptions.sampleRate;
     }
 
-    const preset = SOUND_PRESETS[presetKey] || SOUND_PRESETS.probe;
+    let preset = SOUND_PRESETS[presetKey] || SOUND_PRESETS.access_point || SOUND_PRESETS.probe;
+    if (!preset.notes) {
+      preset = SOUND_PRESETS.probe;
+    }
     const duration = customDuration || preset.duration || 0.35;
     const numSamples = Math.floor(sampleRate * duration);
     const headerSize = 44;
@@ -422,6 +446,62 @@
     return 'data:audio/wav;base64,' + btoaFn(binary);
   }
 
+  /**
+   * Resolves audio URL sources for a notification preset.
+   * For file-based presets ('access_point', 'protocol'), returns an array of URLs
+   * starting with .ogg first, then falling back to .mp3, then synthesized WAV.
+   */
+  function getNotificationAudioSources(presetName = 'access_point', muted = false) {
+    const key = presetName || 'access_point';
+    const preset = SOUND_PRESETS[key] || SOUND_PRESETS.access_point || SOUND_PRESETS.probe;
+
+    if (preset && preset.file) {
+      const getUrl = (path) => {
+        if (typeof chrome !== 'undefined' && chrome.runtime && typeof chrome.runtime.getURL === 'function') {
+          return chrome.runtime.getURL(path);
+        }
+        if (typeof browser !== 'undefined' && browser.runtime && typeof browser.runtime.getURL === 'function') {
+          return browser.runtime.getURL(path);
+        }
+        return '/' + path;
+      };
+
+      const fileName = preset.file;
+      return [
+        getUrl(`assets/notifications/${fileName}.ogg`),
+        getUrl(`assets/notifications/${fileName}.mp3`),
+        createWavProbeDataUrl(muted, key)
+      ];
+    }
+
+    return [createWavProbeDataUrl(muted, key)];
+  }
+
+  /**
+   * Plays a notification sound preset trying .ogg first, then .mp3, then synthesized WAV.
+   */
+  function playNotificationSound(presetName = 'access_point', options = {}) {
+    const sources = getNotificationAudioSources(presetName, options.muted);
+    const audio = new Audio();
+    audio.volume = typeof options.volume === 'number' ? options.volume : 1.0;
+
+    let currentIndex = 0;
+    return new Promise((resolve, reject) => {
+      function tryNext() {
+        if (currentIndex >= sources.length) {
+          return reject(new Error('All audio sources failed to play'));
+        }
+        const src = sources[currentIndex++];
+        audio.src = src;
+        audio.play().then(resolve).catch(err => {
+          console.warn(`[Remapad] Audio source failed (${src}), trying fallback...`, err);
+          tryNext();
+        });
+      }
+      tryNext();
+    });
+  }
+
   const Utils = {
     clamp,
     clampIndex,
@@ -444,6 +524,8 @@
     orthogonalEdgeDistance,
     anchorDistance,
     createWavProbeDataUrl,
+    getNotificationAudioSources,
+    playNotificationSound,
     SOUND_PRESETS
   };
 

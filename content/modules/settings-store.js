@@ -34,7 +34,7 @@
       siteKeyboardTriggerModes: {},
       siteKeyboardTriggerSelectors: {},
       customKeyboardLayouts: {},
-      notificationSound: 'probe'
+      notificationSound: 'access_point'
     };
 
     let activeProfile = { ...DEFAULT_PROFILE };

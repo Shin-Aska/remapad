@@ -11,7 +11,7 @@
   'use strict';
 
   function create({ utils, getSettings }) {
-    const { createWavProbeDataUrl, escapeHtml } = utils;
+    const { createWavProbeDataUrl, getNotificationAudioSources, escapeHtml } = utils;
 
     let autoplayCheckPromise = null;
     let autoplayStatus = { supported: false, mediaelement: 'unknown', audiocontext: 'unknown', audio: 'unknown', video: 'unknown', timestamp: 0 };
@@ -51,15 +51,40 @@
       return autoplayCheckPromise;
     }
 
+    function attachAudioSources(mediaEl, sources) {
+      while (mediaEl.firstChild) mediaEl.removeChild(mediaEl.firstChild);
+      for (const srcUrl of sources) {
+        const sourceEl = document.createElement('source');
+        sourceEl.src = srcUrl;
+        if (srcUrl.endsWith('.ogg')) sourceEl.type = 'audio/ogg';
+        else if (srcUrl.endsWith('.mp3')) sourceEl.type = 'audio/mpeg';
+        else if (srcUrl.startsWith('data:audio/wav')) sourceEl.type = 'audio/wav';
+        mediaEl.appendChild(sourceEl);
+      }
+      if (typeof mediaEl.load === 'function') {
+        try { mediaEl.load(); } catch (_) {}
+      }
+    }
+
     function probeAudioAutoplay() {
       return new Promise(resolve => {
         try {
           const audio = document.createElement('audio');
           const isMuted = !!getSettings().muteActivation;
-          const soundPreset = getSettings().notificationSound || 'probe';
-          audio.muted = false;
-          audio.volume = isMuted ? 0.001 : 1.0;
-          audio.src = createWavProbeDataUrl(isMuted, soundPreset);
+          const soundPreset = getSettings().notificationSound || 'access_point';
+
+          if (isMuted) {
+            audio.muted = true;
+            audio.volume = 0;
+            audio.src = createWavProbeDataUrl(true, 'probe');
+          } else {
+            audio.muted = false;
+            audio.volume = 1.0;
+            const sources = (typeof getNotificationAudioSources === 'function')
+              ? getNotificationAudioSources(soundPreset, false)
+              : [createWavProbeDataUrl(false, soundPreset)];
+            attachAudioSources(audio, sources);
+          }
 
           let settled = false;
           const cleanup = () => {
@@ -74,7 +99,7 @@
               cleanup();
             } else {
               audio.addEventListener('ended', cleanup, { once: true });
-              setTimeout(cleanup, 600);
+              setTimeout(cleanup, 10500);
             }
             resolve(state);
           };
@@ -85,7 +110,7 @@
           } else {
             finish('allowed');
           }
-          setTimeout(() => finish('allowed'), 600);
+          setTimeout(() => finish('allowed'), 10500);
         } catch (e) {
           resolve('unknown');
         }
@@ -97,11 +122,9 @@
         try {
           const video = document.createElement('video');
           video.setAttribute('playsinline', '');
-          const isMuted = !!getSettings().muteActivation;
-          const soundPreset = getSettings().notificationSound || 'probe';
-          video.muted = false;
-          video.volume = isMuted ? 0.001 : 1.0;
-          video.src = createWavProbeDataUrl(isMuted, soundPreset);
+          video.muted = true;
+          video.volume = 0;
+          video.src = createWavProbeDataUrl(true, 'probe');
 
           let settled = false;
           const cleanup = () => {
@@ -116,7 +139,7 @@
               cleanup();
             } else {
               video.addEventListener('ended', cleanup, { once: true });
-              setTimeout(cleanup, 600);
+              setTimeout(cleanup, 1000);
             }
             resolve(state);
           };
@@ -127,7 +150,7 @@
           } else {
             finish('allowed');
           }
-          setTimeout(() => finish('allowed'), 600);
+          setTimeout(() => finish('allowed'), 1000);
         } catch (e) {
           resolve('unknown');
         }

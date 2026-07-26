@@ -81,6 +81,18 @@
     "*://*/*"
   ],
 
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "assets/notifications/*.ogg",
+        "assets/notifications/*.mp3"
+      ],
+      "matches": [
+        "*://*/*"
+      ]
+    }
+  ],
+
   "browser_specific_settings": {
     "gecko": {
       "id": "remapad@extension",
