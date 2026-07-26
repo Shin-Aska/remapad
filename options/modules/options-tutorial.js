@@ -142,6 +142,7 @@
     let popover = null;
     let restoreFocus = null;
     let showPromise = null;
+    let closePromise = null;
     let resetControls = null;
 
     function isVisible() {
@@ -250,8 +251,20 @@
       }
     }
 
-    function close({ remember = true, outcome = 'skipped' } = {}) {
+    async function close({ remember = true, outcome = 'skipped' } = {}) {
       if (!overlay) return;
+      if (remember) {
+        if (closePromise) return closePromise;
+        const actionButton = popover?.querySelector('[data-options-tutorial-next]');
+        if (actionButton) {
+          actionButton.disabled = true;
+          actionButton.textContent = 'Saving…';
+        }
+        closePromise = markComplete(outcome);
+        await closePromise;
+        closePromise = null;
+        if (!overlay) return;
+      }
       document.removeEventListener('keydown', onKeyDown, true);
       global.removeEventListener('resize', onResize);
       overlay.remove();
@@ -263,7 +276,6 @@
       activeStep = -1;
       if (restoreFocus?.isConnected) restoreFocus.focus?.({ preventScroll: true });
       restoreFocus = null;
-      if (remember) markComplete(outcome);
     }
 
     function advance() {
@@ -374,10 +386,9 @@
         const versions = data.siteTutorialVersions && typeof data.siteTutorialVersions === 'object'
           ? data.siteTutorialVersions
           : {};
-        const sites = getMappedSites(data.websiteMappings);
         if (resetControls.resetWebsiteTutorialToggle) {
-          resetControls.resetWebsiteTutorialToggle.checked = sites.length > 0 &&
-            sites.every(site => versions[site] === WEBSITE_TUTORIAL_VERSION);
+          resetControls.resetWebsiteTutorialToggle.checked = Object.values(versions)
+            .some(version => version === WEBSITE_TUTORIAL_VERSION);
         }
         if (resetControls.resetOptionsTutorialToggle) {
           resetControls.resetOptionsTutorialToggle.checked = data[STORAGE_KEY] === TUTORIAL_VERSION;

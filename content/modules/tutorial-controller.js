@@ -32,6 +32,7 @@
     let activeStep = 0;
     let restoreFocusElement = null;
     let showCheckPromise = null;
+    let closePromise = null;
 
     function isVisible() {
       return Boolean(tutorialElement);
@@ -294,15 +295,26 @@
       }
     }
 
-    function close({ remember = true, outcome = 'skipped' } = {}) {
+    async function close({ remember = true, outcome = 'skipped' } = {}) {
       if (!tutorialElement) return;
+      if (remember) {
+        if (closePromise) return closePromise;
+        const actionButton = tutorialElement.querySelector('[data-remapad-tutorial-next]');
+        if (actionButton) {
+          actionButton.disabled = true;
+          actionButton.textContent = 'Saving…';
+        }
+        closePromise = markSeen(outcome);
+        await closePromise;
+        closePromise = null;
+        if (!tutorialElement) return;
+      }
       document.removeEventListener('keydown', onKeyDown, true);
       tutorialElement.remove();
       tutorialElement = null;
       const focusTarget = restoreFocusElement;
       restoreFocusElement = null;
       if (focusTarget?.isConnected) focusTarget.focus?.({ preventScroll: true });
-      if (remember) markSeen(outcome);
     }
 
     function finishOrAdvance() {
