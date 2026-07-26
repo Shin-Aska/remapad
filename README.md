@@ -1,42 +1,108 @@
-# Remapad — Gamepad Browser Controller
+<p align="center">
+  <img src="icons/icon-128.png" width="112" alt="Remapad logo">
+</p>
 
-Remapad is a Manifest V3 browser extension (designed for Firefox and Chrome) that allows you to control media streaming websites using any standard USB or Bluetooth gamepad (e.g. PlayStation DualSense, Xbox Series X/S, or Nintendo Switch controllers).
+<h1 align="center">Remapad</h1>
 
-With Remapad, you can bind gamepad buttons to perform common browser actions, dispatch custom key combinations, or target specific CSS elements on a webpage.
+<p align="center">
+  <strong>Turn a standard gamepad into a complete browser controller.</strong>
+</p>
+
+<p align="center">
+  Navigate streaming interfaces, control playback, move a virtual cursor, and
+  type with an on-screen keyboard—without reaching for a mouse or keyboard.
+</p>
+
+<p align="center">
+  <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-ea4335">
+  <img alt="Firefox 128+" src="https://img.shields.io/badge/Firefox-128%2B-ff7139">
+  <img alt="Chrome 111+" src="https://img.shields.io/badge/Chrome-111%2B-4285f4">
+  <img alt="No runtime dependencies" src="https://img.shields.io/badge/runtime_dependencies-none-2ea44f">
+  <img alt="GPL-3.0-only" src="https://img.shields.io/badge/license-GPL--3.0--only-blue">
+</p>
 
 ---
 
-## 🚀 Features
+Remapad is a cross-browser Manifest V3 extension for USB and Bluetooth
+controllers. It combines site-specific button mappings with gamepad-first
+navigation tools, giving developers a practical foundation for controller-driven
+web experiences on Firefox and Chromium-based browsers.
 
-- **Gamepad Interception Hook:** Automatically hooks and disables default browser gamepad controls on active pages, ensuring that gamepad button presses don't trigger native scrolling or double-inputs.
-- **Site-Specific Profiles:** Define and save customized mappings individually per streaming platform (e.g., custom maps specifically for Netflix or Prime Video) while using a unified default profile for other pages.
-- **Interactive Visual Mapping Editor:** Real-time visual controller representation displaying active button presses, battery life, and connected status.
-- **Physical Keyboard Capturer:** Tap any physical key combination on your keyboard (including modifier combinations like `Ctrl+Alt+S`) to record and bind it directly to a controller button.
-- **Direct DOM Actions:** Bind a controller button to click, focus, scroll to, fill, or control a specific page element without relying on a synthetic keyboard event.
-- **Video Controls CSS Selector Helpers:** Easily map buttons to specific site UI elements (such as Play/Pause, Next Episode, Subtitles, Skip Intro, Fullscreen) using pre-populated, tested element selectors.
-- **Icon Layout Switcher:** Toggle glyph layouts between PlayStation (✕/○), Xbox (A/B), and Nintendo (Switch inverted) styles dynamically.
+## See it in action
 
----
+### Map browser actions visually
 
-## 🛠 Installation
+Select a controller button and bind it to playback, navigation, keyboard, or
+direct DOM actions.
 
-Remapad requires Firefox 128+ or a Chromium-based browser 111+ because it uses Manifest V3 MAIN-world content scripts to prevent page-level gamepad conflicts.
+![Remapad visual controller mapping editor](docs/assets/controller-mapping.png)
 
-### Build
+<table>
+  <tr>
+    <td width="50%">
+      <strong>Type from the couch</strong><br><br>
+      <img src="docs/assets/virtualkeyboard.png" alt="Remapad on-screen virtual keyboard">
+    </td>
+    <td width="50%">
+      <strong>Learn controls in context</strong><br><br>
+      <img src="docs/assets/navigation-tutorial.png" alt="Remapad gamepad navigation tutorial">
+    </td>
+  </tr>
+</table>
 
-Build both browser packages from the repository root with Bash:
+## What makes Remapad useful
+
+- **Site-specific profiles** — customize Netflix, Prime Video, or any domain
+  while retaining a shared fallback profile.
+- **Visual mapping editor** — see connected controller input and edit bindings
+  from a controller-shaped interface.
+- **Configurable stick navigation** — assign either stick to a virtual cursor,
+  scrolling, directional navigation, or no action.
+- **Direct DOM actions** — click, focus, scroll to, fill, toggle, or control a
+  selected page element without depending on keyboard shortcuts.
+- **Keyboard capture** — bind physical keys and modifier combinations such as
+  `Ctrl+Alt+S`.
+- **On-screen keyboard** — enter text using a gamepad on pages designed around
+  physical keyboard input.
+- **Navigation HUD and tutorial** — expose the active bindings without leaving
+  the current page.
+- **Controller glyphs** — automatically select PlayStation, Xbox, or Nintendo
+  button labels, with a manual override.
+- **Page-level gamepad isolation** — prevent an enabled site from handling the
+  same controller input and causing duplicate actions.
+
+## Developer quick start
+
+Remapad uses plain HTML, CSS, and JavaScript. There is no package-manager install
+and no bundler.
+
+### Requirements
+
+- Git
+- Firefox 128+ and/or a Chromium-based browser 111+
+- Bash with Python 3, **or** PowerShell
+- A standard USB or Bluetooth gamepad for input testing
+
+Clone your fork or the upstream repository:
+
+```bash
+git clone https://gitlab.com/ShinAska/remapad.git
+cd remapad
+```
+
+Build both browser variants with Bash:
 
 ```bash
 bash scripts/build.sh
 ```
 
-Or with PowerShell:
+Or run the native PowerShell build from PowerShell:
 
 ```powershell
-./scripts/build.ps1
+.\scripts\build.ps1
 ```
 
-Build only one browser with either entry point:
+Build one target while iterating:
 
 ```bash
 bash scripts/build.sh chrome
@@ -44,39 +110,133 @@ bash scripts/build.sh firefox
 ```
 
 ```powershell
-./scripts/build.ps1 chrome
-./scripts/build.ps1 firefox
+.\scripts\build.ps1 chrome
+.\scripts\build.ps1 firefox
 ```
 
-The build creates unpacked extensions in `dist/chrome/` and `dist/firefox/`, plus versioned ZIP packages for store submission. Chrome and Firefox use separate manifests from `manifests/`; all extension source code and assets remain shared.
+The build validates both manifests and creates:
 
-### Firefox (Add-on Developer Mode)
-1. Open Firefox and navigate to `about:debugging#/runtime/this-firefox`.
-2. Click **Load Temporary Add-on...**
-3. Select `dist/firefox/manifest.json`.
+| Target | Unpacked extension | Store package |
+| --- | --- | --- |
+| Chrome | `dist/chrome/` | `dist/remapad-chrome-<version>.zip` |
+| Firefox | `dist/firefox/` | `dist/remapad-firefox-<version>.zip` |
 
-### Chrome (Developer Mode)
-1. Open Chrome and navigate to `chrome://extensions/`.
-2. Enable **Developer mode** toggle in the top-right corner.
-3. Click **Load unpacked** and select `dist/chrome/`.
+### Load the unpacked extension
 
----
+#### Chrome
 
-## 📖 Usage Instructions
+1. Open `chrome://extensions/`.
+2. Enable **Developer mode**.
+3. Select **Load unpacked**.
+4. Choose `dist/chrome/`.
 
-1. **Connect Gamepad:** Connect your controller via USB or Bluetooth. Tap any button to register it.
-2. **Options Menu:** Click the Remapad extension icon in your browser toolbar, then click **Customize Mapping...** to open the Visual Mapping Editor.
-3. **Customize Site Bindings:**
-   - Select a website mapping in the sidebar (or add a new domain under **Website Mappings**).
-   - In the Visual Mapping Editor, select the target site (or choose `Default` to edit default bindings).
-   - Click a button callout on the controller to open the actions popover.
-   - Choose a predefined shortcut, input a selector, or capture a keyboard key.
-4. **Save:** Click **Save Changes** in the top-right to write configuration settings to storage.
+#### Firefox
 
-The on-page navigation guide is hidden by default. Bind a button to **Toggle Navigation Guide** in the mapping editor when you want to show or hide it.
+1. Open `about:debugging#/runtime/this-firefox`.
+2. Select **Load Temporary Add-on…**.
+3. Choose `dist/firefox/manifest.json`.
 
-Keyboard-key mappings send synthetic page events, so they work with sites that accept scripted shortcuts but cannot bypass sites that require trusted physical keyboard input. Prefer **Direct DOM Action...** for a site control: it can click, focus, scroll to, fill, toggle an attribute, or play/pause a selected element without key simulation.
+After rebuilding, reload the extension from the browser’s extension debugging
+page before testing again.
 
-### Navigation Guide & On-Screen Overlay
+## Architecture
 
-Press **Start** (or your mapped button) while Remapad is enabled to toggle the on-screen **Navigation Guide** overlay. It displays current gamepad bindings and active navigation modes directly over the webpage.
+### Build
+
+```mermaid
+flowchart LR
+    source["Shared extension source"]
+    chromeManifest["Chrome manifest"]
+    firefoxManifest["Firefox manifest"]
+    build["build.sh / build.ps1"]
+    chrome["dist/chrome"]
+    firefox["dist/firefox"]
+
+    source --> build
+    chromeManifest --> build
+    firefoxManifest --> build
+    build --> chrome
+    build --> firefox
+```
+
+### Runtime
+
+```mermaid
+flowchart LR
+    options["Options page"] --> storage[("storage.local")]
+    storage --> worker["Background worker"]
+    worker --> blocker["MAIN world blocker<br/>document_start"]
+    worker --> runtime["Isolated controller runtime<br/>document_idle"]
+    gamepad["Gamepad API"] --> runtime
+    runtime --> actions["Cursor · scroll · keys · DOM · overlays"]
+    blocker -. prevents duplicate input .-> site["Mapped website"]
+    actions --> site
+```
+
+## Repository map
+
+| Path | What lives there |
+| --- | --- |
+| `background/` | Dynamic script registration and extension messaging |
+| `content/` | Gamepad polling, page actions, overlays, cursor, and navigation |
+| `options/` | Settings, mapping editor, tutorials, and input preview |
+| `popup/` | Toolbar popup |
+| `shared/` | Code reused by multiple extension surfaces |
+| `manifests/` | Browser-specific Manifest V3 files |
+| `scripts/` | Bash and PowerShell builds |
+| `_locales/` | Localized extension strings |
+| `assets/`, `icons/` | Runtime assets and extension icons |
+| `docs/assets/` | README screenshots |
+| `dist/` | Generated unpacked builds and ZIP packages |
+
+> Options and content modules are classic scripts loaded in a defined order;
+> their entry points own the runtime state.
+
+## Cross-browser strategy
+
+Chrome and Firefox share all extension logic and assets. Only their manifests
+differ:
+
+| Concern | Chrome | Firefox |
+| --- | --- | --- |
+| Background entry | `service_worker` | `scripts` |
+| Browser metadata | `minimum_chrome_version` | `browser_specific_settings.gecko` |
+| Source code | Shared | Shared |
+| Build output | `dist/chrome/` | `dist/firefox/` |
+
+When changing shared manifest metadata—especially the name, description, or
+version—update both files under `manifests/`. The build fails when required
+shared fields drift.
+
+## Working on Remapad
+
+A productive development loop is:
+
+1. Make a focused source change.
+2. Run the build for the affected browser.
+3. Reload the unpacked extension.
+4. Open the options page and confirm controller input.
+5. Test the affected mapping on a real site.
+6. Run the full two-browser build before submitting.
+
+There is currently no automated test suite, so compatibility reports should
+include the browser and version, operating system, controller model and
+connection type, and tested websites.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the complete validation checklist and
+merge-request guidance.
+
+## Permissions and privacy
+
+Remapad stores configuration in the browser’s local extension storage. It
+requests broad host access because users can add mappings for arbitrary domains,
+and those mappings require runtime script registration and page interaction.
+
+If you contribute a new permission or network dependency, document why it is
+required and keep its scope as narrow as possible.
+
+## License
+
+Remapad is distributed under the
+[GNU General Public License version 3](LICENSE), identified by the SPDX
+expression `GPL-3.0-only`.

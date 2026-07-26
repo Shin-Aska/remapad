@@ -111,6 +111,7 @@ function Build-Browser {
         Copy-Item -LiteralPath (Join-Path $RootDir $sourceDir) -Destination $outputFullPath -Recurse
     }
     Copy-Item -LiteralPath $manifestPath -Destination (Join-Path $outputFullPath 'manifest.json')
+    Copy-Item -LiteralPath (Join-Path $RootDir 'LICENSE') -Destination $outputFullPath
 
     if (Test-Path -LiteralPath $archivePath) {
         Remove-Item -LiteralPath $archivePath -Force

@@ -110,6 +110,7 @@ build_browser() {
     cp -R "$ROOT_DIR/$source_dir" "$output_dir/"
   done
   cp "$manifest_path" "$output_dir/manifest.json"
+  cp "$ROOT_DIR/LICENSE" "$output_dir/LICENSE"
 
   rm -f -- "$archive_path"
   "$PYTHON_BIN" - "$output_dir" "$archive_path" <<'PY'
