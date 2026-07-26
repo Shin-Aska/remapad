@@ -349,6 +349,12 @@
           color: rgba(255, 255, 255, 0.58) !important;
           font: 600 12px/20px 'Geist', 'Inter', sans-serif !important;
           cursor: pointer !important;
+          z-index: 10 !important;
+          pointer-events: auto !important;
+        }
+        .remapad-tutorial-skip:disabled {
+          cursor: wait !important;
+          opacity: 0.72 !important;
         }
         .remapad-tutorial-visual {
           height: 112px !important;

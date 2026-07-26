@@ -299,10 +299,15 @@
       if (!tutorialElement) return;
       if (remember) {
         if (closePromise) return closePromise;
-        const actionButton = tutorialElement.querySelector('[data-remapad-tutorial-next]');
+        tutorialElement.setAttribute('aria-busy', 'true');
+        const actionButton = tutorialElement.querySelector(
+          outcome === 'skipped'
+            ? '[data-remapad-tutorial-close]'
+            : '[data-remapad-tutorial-next]'
+        );
         if (actionButton) {
           actionButton.disabled = true;
-          actionButton.textContent = 'Saving…';
+          actionButton.textContent = outcome === 'skipped' ? 'Skipping…' : 'Saving…';
         }
         closePromise = markSeen(outcome);
         await closePromise;
@@ -417,7 +422,9 @@
           tutorialElement.setAttribute('role', 'dialog');
           tutorialElement.setAttribute('aria-modal', 'true');
           tutorialElement.setAttribute('aria-labelledby', 'remapad-tutorial-title');
-          tutorialElement.addEventListener('click', onClick);
+          // Capture within the overlay so host-page bubble handlers cannot
+          // swallow clicks on Skip or the tutorial controls.
+          tutorialElement.addEventListener('click', onClick, true);
           tutorialElement.addEventListener('change', onChange);
           tutorialElement.addEventListener('input', onInput);
           document.body.appendChild(tutorialElement);

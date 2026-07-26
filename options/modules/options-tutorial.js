@@ -255,10 +255,15 @@
       if (!overlay) return;
       if (remember) {
         if (closePromise) return closePromise;
-        const actionButton = popover?.querySelector('[data-options-tutorial-next]');
+        popover?.setAttribute('aria-busy', 'true');
+        const actionButton = popover?.querySelector(
+          outcome === 'skipped'
+            ? '[data-options-tutorial-skip]'
+            : '[data-options-tutorial-next]'
+        );
         if (actionButton) {
           actionButton.disabled = true;
-          actionButton.textContent = 'Saving…';
+          actionButton.textContent = outcome === 'skipped' ? 'Skipping…' : 'Saving…';
         }
         closePromise = markComplete(outcome);
         await closePromise;
