@@ -24,7 +24,8 @@
       keyboardAutoDetect: true,
       siteKeyboardLayouts: {},
       siteKeyboardTriggerModes: {},
-      siteKeyboardTriggerSelectors: {}
+      siteKeyboardTriggerSelectors: {},
+      customKeyboardLayouts: {}
     };
 
     let activeProfile = { ...DEFAULT_PROFILE };
@@ -57,7 +58,7 @@
 
     async function load() {
       const data = await api.storage.local.get([
-        'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'siteCollections', 'navSettings', 'muteActivation', 'keyboardEnabled', 'keyboardTriggerMode', 'keyboardTriggerSelectors', 'keyboardLayout', 'keyboardAutoDetect', 'siteKeyboardLayouts'
+        'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'siteCollections', 'navSettings', 'muteActivation', 'keyboardEnabled', 'keyboardTriggerMode', 'keyboardTriggerSelectors', 'keyboardLayout', 'keyboardAutoDetect', 'siteKeyboardLayouts', 'siteKeyboardTriggerModes', 'siteKeyboardTriggerSelectors', 'customKeyboardLayouts'
       ]);
 
       if (data.keyboardEnabled !== undefined) settings.keyboardEnabled = data.keyboardEnabled;
@@ -68,6 +69,7 @@
       if (data.siteKeyboardLayouts && typeof data.siteKeyboardLayouts === 'object') settings.siteKeyboardLayouts = data.siteKeyboardLayouts;
       if (data.siteKeyboardTriggerModes && typeof data.siteKeyboardTriggerModes === 'object') settings.siteKeyboardTriggerModes = data.siteKeyboardTriggerModes;
       if (data.siteKeyboardTriggerSelectors && typeof data.siteKeyboardTriggerSelectors === 'object') settings.siteKeyboardTriggerSelectors = data.siteKeyboardTriggerSelectors;
+      if (data.customKeyboardLayouts && typeof data.customKeyboardLayouts === 'object') settings.customKeyboardLayouts = data.customKeyboardLayouts;
 
       if (data.iconStyle) settings.iconStyle = data.iconStyle;
       if (data.enabledSites) settings.enabledSites = data.enabledSites;
