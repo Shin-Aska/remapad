@@ -79,7 +79,9 @@
             audio.src = createWavProbeDataUrl(true, 'probe');
           } else {
             audio.muted = false;
-            audio.volume = 1.0;
+            const volSetting = getSettings().notificationVolume;
+            const targetVolume = (typeof volSetting === 'number' ? volSetting : 50) / 100;
+            audio.volume = targetVolume;
             const sources = (typeof getNotificationAudioSources === 'function')
               ? getNotificationAudioSources(soundPreset, false)
               : [createWavProbeDataUrl(false, soundPreset)];

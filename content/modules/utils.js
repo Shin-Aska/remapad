@@ -483,7 +483,7 @@
   function playNotificationSound(presetName = 'access_point', options = {}) {
     const sources = getNotificationAudioSources(presetName, options.muted);
     const audio = new Audio();
-    audio.volume = typeof options.volume === 'number' ? options.volume : 1.0;
+    audio.volume = typeof options.volume === 'number' ? options.volume : 0.5;
 
     let currentIndex = 0;
     return new Promise((resolve, reject) => {

@@ -34,7 +34,8 @@
       siteKeyboardTriggerModes: {},
       siteKeyboardTriggerSelectors: {},
       customKeyboardLayouts: {},
-      notificationSound: 'access_point'
+      notificationSound: 'access_point',
+      notificationVolume: 50
     };
 
     let activeProfile = { ...DEFAULT_PROFILE };
@@ -69,10 +70,11 @@
 
     async function load() {
       const data = await api.storage.local.get([
-        'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'siteCollections', 'navSettings', 'muteActivation', 'notificationSound', 'keyboardEnabled', 'keyboardTriggerMode', 'keyboardTriggerSelectors', 'keyboardLayout', 'keyboardAutoDetect', 'siteKeyboardLayouts', 'siteKeyboardTriggerModes', 'siteKeyboardTriggerSelectors', 'customKeyboardLayouts'
+        'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'siteCollections', 'navSettings', 'muteActivation', 'notificationSound', 'notificationVolume', 'keyboardEnabled', 'keyboardTriggerMode', 'keyboardTriggerSelectors', 'keyboardLayout', 'keyboardAutoDetect', 'siteKeyboardLayouts', 'siteKeyboardTriggerModes', 'siteKeyboardTriggerSelectors', 'customKeyboardLayouts'
       ]);
 
       if (data.notificationSound && typeof data.notificationSound === 'string') settings.notificationSound = data.notificationSound;
+      if (data.notificationVolume !== undefined && typeof data.notificationVolume === 'number') settings.notificationVolume = data.notificationVolume;
       if (data.keyboardEnabled !== undefined) settings.keyboardEnabled = data.keyboardEnabled;
       if (data.keyboardTriggerMode && typeof data.keyboardTriggerMode === 'string') settings.keyboardTriggerMode = data.keyboardTriggerMode;
       if (data.keyboardTriggerSelectors && Array.isArray(data.keyboardTriggerSelectors)) settings.keyboardTriggerSelectors = data.keyboardTriggerSelectors;

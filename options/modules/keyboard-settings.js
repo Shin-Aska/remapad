@@ -10,15 +10,17 @@
     function playSoundPreview(presetKey) {
       try {
         const utils = window.RemapadCS?.Utils;
+        const volSetting = state.getSettings().notificationVolume;
+        const volume = (typeof volSetting === 'number' ? volSetting : 50) / 100;
         if (utils && typeof utils.playNotificationSound === 'function') {
-          utils.playNotificationSound(presetKey, { volume: 1.0 }).catch(e => console.warn('[Remapad Options] Play sound preview failed:', e));
+          utils.playNotificationSound(presetKey, { volume }).catch(e => console.warn('[Remapad Options] Play sound preview failed:', e));
           return;
         }
         const createWav = utils?.createWavProbeDataUrl;
         if (!createWav) return;
         const dataUrl = createWav(false, presetKey);
         const audio = new Audio(dataUrl);
-        audio.volume = 1.0;
+        audio.volume = volume;
         audio.play().catch(e => console.warn('[Remapad Options] Play sound preview failed:', e));
       } catch (err) {
         console.error('[Remapad Options] Sound preview error:', err);
@@ -35,6 +37,9 @@
       if (dom.keyboardAutodetectToggle) dom.keyboardAutodetectToggle.checked = !!settings.keyboardAutoDetect;
       if (dom.muteActivationToggle) dom.muteActivationToggle.checked = !settings.muteActivation;
       if (dom.notificationSoundSelect) dom.notificationSoundSelect.value = settings.notificationSound || 'access_point';
+      const vol = settings.notificationVolume !== undefined ? settings.notificationVolume : 50;
+      if (dom.notificationVolumeSlider) dom.notificationVolumeSlider.value = vol;
+      if (dom.notificationVolumeVal) dom.notificationVolumeVal.textContent = vol + '%';
     }
 
     function bind() {
@@ -91,6 +96,19 @@
           state.getSettings().notificationSound = dom.notificationSoundSelect.value;
           saveSettings();
           playSoundPreview(dom.notificationSoundSelect.value);
+        });
+      }
+      if (dom.notificationVolumeSlider) {
+        dom.notificationVolumeSlider.addEventListener('input', () => {
+          const vol = parseInt(dom.notificationVolumeSlider.value, 10);
+          if (dom.notificationVolumeVal) dom.notificationVolumeVal.textContent = vol + '%';
+          state.getSettings().notificationVolume = vol;
+        });
+        dom.notificationVolumeSlider.addEventListener('change', () => {
+          const vol = parseInt(dom.notificationVolumeSlider.value, 10);
+          state.getSettings().notificationVolume = vol;
+          saveSettings();
+          playSoundPreview(dom.notificationSoundSelect ? dom.notificationSoundSelect.value : 'access_point');
         });
       }
       if (dom.testSoundBtn) {

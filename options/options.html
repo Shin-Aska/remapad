@@ -869,7 +869,7 @@
                   </label>
                 </div>
                 <p class="nav-hint">Play a sound chime when Remapad probes autoplay permissions on page load. Toggle ON to play sound (unmuted); toggle OFF to mute.</p>
-                <div class="nav-control-group" style="margin-top: 14px;">
+                <div class="nav-control-group" style="margin-top: 14px; display: flex; gap: 16px; align-items: flex-start;">
                   <div class="nav-control" style="flex: 1;">
                     <label class="nav-field-label" for="notification-sound-select">Sound Preset</label>
                     <div style="display: flex; gap: 8px; align-items: center;">
@@ -888,6 +888,13 @@
                         <span>▶</span> <span>Preview</span>
                       </button>
                     </div>
+                  </div>
+                  <div class="nav-control" style="width: 180px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                      <label class="nav-field-label" for="notification-volume-slider" style="margin-bottom: 0;">Volume</label>
+                      <span id="notification-volume-val" class="nav-val-badge">50%</span>
+                    </div>
+                    <input type="range" id="notification-volume-slider" class="nav-slider" min="0" max="100" value="50" style="margin-top: 8px; width: 100%;">
                   </div>
                 </div>
               </section>

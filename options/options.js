@@ -26,6 +26,11 @@
     if (dom.notificationSoundSelect) {
       dom.notificationSoundSelect.value = state.getSettings().notificationSound || 'access_point';
     }
+    if (dom.notificationVolumeSlider) {
+      const vol = state.getSettings().notificationVolume !== undefined ? state.getSettings().notificationVolume : 50;
+      dom.notificationVolumeSlider.value = vol;
+      if (dom.notificationVolumeVal) dom.notificationVolumeVal.textContent = vol + '%';
+    }
     mappingEditor.renderEditorSiteSelect();
     mappingEditor.renderWebsiteMappings();
     mappingEditor.renderIconStyles();
@@ -41,6 +46,9 @@
     }
     if (dom.notificationSoundSelect) {
       state.getSettings().notificationSound = dom.notificationSoundSelect.value;
+    }
+    if (dom.notificationVolumeSlider) {
+      state.getSettings().notificationVolume = parseInt(dom.notificationVolumeSlider.value, 10);
     }
     const result = await state.save();
     if (result.ok) {
