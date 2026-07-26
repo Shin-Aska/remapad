@@ -148,6 +148,7 @@
     }
 
     function showAutoplayWarning({ title, message }, injectStyles) {
+      autoplayWarningShown = true;
       if (typeof injectStyles === 'function') injectStyles();
       const id = 'remapad-autoplay-warning';
       let el = document.getElementById(id);
