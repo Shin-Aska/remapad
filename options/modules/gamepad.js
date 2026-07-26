@@ -17,6 +17,35 @@
     let lastOptionsActionTime = 0;
     let testMode = false;
     let testTimer = null;
+    let activeGamepadIndex = null;
+
+    function hasActiveInput(gamepad) {
+      return gamepad.buttons.some(button => button.pressed || button.value > 0.5)
+        || gamepad.axes.some(axis => Math.abs(axis) > 0.2);
+    }
+
+    function selectActiveGamepad(gamepads) {
+      const connected = [...gamepads].filter(gamepad => gamepad && gamepad.connected);
+      if (!connected.length) {
+        activeGamepadIndex = null;
+        return null;
+      }
+
+      // Chromium can expose more than one entry for the same Windows device.
+      // Follow the entry producing input instead of permanently choosing slot 0.
+      const producingInput = connected.find(hasActiveInput);
+      const previous = connected.find(gamepad => gamepad.index === activeGamepadIndex);
+      const preferred = producingInput
+        || previous
+        || connected.find(gamepad => !/^unknown gamepad/i.test(gamepad.id))
+        || connected[0];
+
+      if (preferred.index !== activeGamepadIndex) {
+        activeGamepadIndex = preferred.index;
+        previousPressed = [];
+      }
+      return preferred;
+    }
 
     function startPolling() {
       if (pollInterval) return;
@@ -176,7 +205,7 @@
 
     function pollGamepads() {
       const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-      const gamepad = [...gamepads].find(item => item && item.connected);
+      const gamepad = selectActiveGamepad(gamepads);
       if (!gamepad) {
         updateDisconnectedStatus();
         return;

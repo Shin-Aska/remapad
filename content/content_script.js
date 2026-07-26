@@ -99,6 +99,7 @@
   let keyboardIgnoreFocusUntil = 0;
   let siteMappingActive = false;
   let activePageListenersAttached = false;
+  let activeGamepadIndex = null;
 
   function resolveIconStyle() {
     return controllerStyle.resolve(settings.iconStyle);
@@ -254,9 +255,37 @@
     hudController?.hide();
   }
 
+  function hasActiveGamepadInput(gamepad) {
+    return gamepad.buttons.some(button => button.pressed || button.value > 0.5)
+      || gamepad.axes.some(axis => Math.abs(axis) > 0.2);
+  }
+
+  function selectActiveGamepad(gamepads) {
+    const connected = [...gamepads].filter(gamepad => gamepad && gamepad.connected);
+    if (!connected.length) {
+      activeGamepadIndex = null;
+      return null;
+    }
+
+    // Chromium may expose duplicate Windows gamepad entries. Keep the current
+    // entry until another connected entry demonstrates that it has live input.
+    const producingInput = connected.find(hasActiveGamepadInput);
+    const previous = connected.find(gamepad => gamepad.index === activeGamepadIndex);
+    const preferred = producingInput
+      || previous
+      || connected.find(gamepad => !/^unknown gamepad/i.test(gamepad.id))
+      || connected[0];
+
+    if (preferred.index !== activeGamepadIndex) {
+      activeGamepadIndex = preferred.index;
+      prevButtonStates = [];
+    }
+    return preferred;
+  }
+
   function pollGamepads() {
     const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-    const gp = [...gamepads].find(g => g && g.connected);
+    const gp = selectActiveGamepad(gamepads);
 
     if (gp) {
       gamepadConnected = true;
