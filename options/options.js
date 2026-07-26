@@ -814,14 +814,17 @@ function renderWebsiteMappings() {
     const siteLayout = settings.siteKeyboardLayouts[domain] || 'auto';
     const siteMode = settings.siteKeyboardTriggerModes[domain];
     const siteSelectors = settings.siteKeyboardTriggerSelectors[domain] || [];
-    const baseSelectStyle = 'flex:1;background:var(--surface-container);color:var(--on-surface);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:4px 8px;font-size:11px;outline:none;font-family:var(--font-body);cursor:pointer';
-    const baseTextareaStyle = 'width:100%;box-sizing:border-box;background:var(--surface-container);color:var(--on-surface);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:6px 8px;font-size:11px;outline:none;font-family:var(--font-label);resize:vertical';
+    const baseSelectStyle = 'flex:1;min-width:0;width:0;box-sizing:border-box;background:var(--surface-container);color:var(--on-surface);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:4px 8px;font-size:11px;outline:none;font-family:var(--font-body);cursor:pointer';
+    const baseTextareaStyle = 'width:100%;max-width:100%;box-sizing:border-box;background:var(--surface-container);color:var(--on-surface);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:6px 8px;font-size:11px;outline:none;font-family:var(--font-label);resize:vertical';
     row.innerHTML = `
-      <div class="mapping-row-main" style="display:flex;align-items:center;gap:8px;flex:1;overflow:hidden">
-        <div class="mapping-row-left" tabindex="-1" style="display:flex;align-items:center;gap:8px;flex:1;overflow:hidden">
+      <div class="mapping-row-main" style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;overflow:hidden;width:100%;box-sizing:border-box">
+        <div class="mapping-row-left" tabindex="-1" style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;overflow:hidden">
           <img class="site-favicon-img" src="https://www.google.com/s2/favicons?sz=32&domain=${domain}" style="width:16px;height:16px;border-radius:2px;display:block;flex-shrink:0">
           <svg class="fallback-globe-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:none;color:var(--on-surface-variant);flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-          <span class="mapping-row-label" style="font-family:var(--font-body);font-size:13px;color:var(--on-surface);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${friendlyName} (${domain})">${friendlyName} <span style="font-size:11px;color:var(--on-surface-variant);margin-left:4px">(${domain})</span></span>
+          <div style="display:flex;align-items:baseline;gap:4px;min-width:0;overflow:hidden;flex:1">
+            <span style="font-family:var(--font-body);font-size:13px;font-weight:500;color:var(--on-surface);flex-shrink:0;white-space:nowrap">${escHtml(friendlyName)}</span>
+            <span style="font-family:var(--font-body);font-size:11px;color:var(--on-surface-variant);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1" title="${escHtml(domain)}">(${escHtml(domain)})</span>
+          </div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
           <button class="delete-site-btn" data-site="${domain}" style="background:none;border:none;color:var(--error);cursor:pointer;padding:4px;display:flex;align-items:center;opacity:0.7;transition:opacity 0.2s" title="Remove site mapping">
@@ -829,9 +832,9 @@ function renderWebsiteMappings() {
           </button>
         </div>
       </div>
-      <div class="mapping-row-keyboard" style="display:${isSelected ? 'flex' : 'none'};flex-direction:column;gap:10px;margin-top:8px;padding-left:24px">
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:11px;color:var(--on-surface-variant);font-family:var(--font-body);white-space:nowrap">Layout:</span>
+      <div class="mapping-row-keyboard" style="display:${isSelected ? 'flex' : 'none'};flex-direction:column;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.08);width:100%;box-sizing:border-box">
+        <div style="display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box">
+          <span style="font-size:11px;color:var(--on-surface-variant);font-family:var(--font-body);white-space:nowrap;flex-shrink:0">Layout:</span>
           <select class="site-keyboard-layout-select" data-site="${domain}" style="${baseSelectStyle}">
             <option value="auto" ${siteLayout === 'auto' ? 'selected' : ''}>Auto-detect</option>
             <option value="qwerty" ${siteLayout === 'qwerty' ? 'selected' : ''}>QWERTY</option>
@@ -845,8 +848,8 @@ function renderWebsiteMappings() {
             <option value="japanese" ${siteLayout === 'japanese' ? 'selected' : ''}>Japanese (Hiragana / Katakana)</option>
           </select>
         </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:11px;color:var(--on-surface-variant);font-family:var(--font-body);white-space:nowrap">Trigger:</span>
+        <div style="display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box">
+          <span style="font-size:11px;color:var(--on-surface-variant);font-family:var(--font-body);white-space:nowrap;flex-shrink:0">Trigger:</span>
           <select class="site-keyboard-trigger-mode-select" data-site="${domain}" style="${baseSelectStyle}">
             <option value="" ${!siteMode ? 'selected' : ''}>Use global</option>
             <option value="both" ${siteMode === 'both' ? 'selected' : ''}>On focus and click</option>
@@ -855,10 +858,10 @@ function renderWebsiteMappings() {
             <option value="disabled" ${siteMode === 'disabled' ? 'selected' : ''}>Disabled</option>
           </select>
         </div>
-        <div style="display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;flex-direction:column;gap:6px;width:100%;box-sizing:border-box">
           <span style="font-size:11px;color:var(--on-surface-variant);font-family:var(--font-body)">Custom selectors (one per line):</span>
           <textarea class="site-keyboard-trigger-selectors-input" data-site="${domain}" rows="3" style="${baseTextareaStyle}" placeholder="e.g. .search-box, [contenteditable]">${escHtml(siteSelectors.join('\n'))}</textarea>
-          <button class="btn-secondary site-keyboard-trigger-selectors-save" data-site="${domain}" style="align-self:flex-start;font-size:11px;padding:4px 10px">Save Selectors</button>
+          <button class="btn-secondary site-keyboard-trigger-selectors-save" data-site="${domain}" style="align-self:flex-start;font-size:11px;padding:5px 12px;margin-top:2px">Save Selectors</button>
         </div>
       </div>
     `;

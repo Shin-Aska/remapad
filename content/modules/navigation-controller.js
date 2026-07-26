@@ -115,7 +115,7 @@
     }
 
     function showCNavHUD(collectionIndex, collectionCount, itemIndex, itemCount, collectionLabel) {
-      callbacks.injectHUDStyles();
+      callbacks.injectOverlayStyles();
 
       if (!cnavHudElement) {
         cnavHudElement = document.createElement('div');

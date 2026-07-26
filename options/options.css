@@ -316,8 +316,9 @@ body {
   background: var(--surface-container-high);
 }
 .mapping-row.selected-site {
-  border-color: var(--primary);
+  border-color: rgba(229, 9, 20, 0.6);
   background: rgba(229, 9, 20, 0.08);
+  box-shadow: 0 0 12px rgba(229, 9, 20, 0.15);
 }
 .mapping-row-left {
   display: flex;
@@ -726,19 +727,23 @@ body {
 }
 
 /* ── Toggle Switch ─────────────────────────────────────────────────────────── */
-.switch {
+.switch, .switch-inline {
   position: relative;
   display: inline-flex;
   align-items: center;
   cursor: pointer;
+}
+.switch {
   width: 42px;
   height: 24px;
 }
-.switch input {
+.switch input,
+.switch-inline input {
   position: absolute;
   opacity: 0;
   width: 0;
   height: 0;
+  pointer-events: none;
 }
 .switch-track {
   position: relative;
@@ -760,23 +765,23 @@ body {
   border-radius: 50%;
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s;
 }
-.switch input:checked + .switch-track {
+.switch input:checked + .switch-track,
+.switch-inline input:checked + .switch-track {
   background: var(--primary-container);
   border-color: rgba(229,9,20,0.4);
 }
-.switch input:checked + .switch-track::after {
+.switch input:checked + .switch-track::after,
+.switch-inline input:checked + .switch-track::after {
   transform: translateX(18px);
   background: #fff;
 }
-.switch input:focus-visible + .switch-track {
+.switch input:focus-visible + .switch-track,
+.switch-inline input:focus-visible + .switch-track {
   box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--primary-container);
 }
 
 .switch-inline {
-  display: inline-flex;
-  align-items: center;
   gap: 10px;
-  cursor: pointer;
 }
 .switch-inline .switch-track { flex-shrink: 0; }
 .switch-label {

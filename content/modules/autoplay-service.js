@@ -119,13 +119,13 @@
       });
     }
 
-    async function checkAutoplayAndWarn(playFn, injectStyles) {
+    async function checkAutoplayAndWarn(playFn, injectOverlayStyles) {
       const status = await checkAutoplayPolicy();
       const blocked = status.mediaelement !== 'allowed';
       console.log('[Remapad] checkAutoplayAndWarn blocked:', blocked, status);
       if (blocked && !autoplayWarningShown) {
         autoplayWarningShown = true;
-        showAutoplayWarning(formatAutoplayWarning(status), injectStyles);
+        showAutoplayWarning(formatAutoplayWarning(status), injectOverlayStyles);
         return;
       }
       playFn();
@@ -147,9 +147,9 @@
       return { title: 'Autoplay restricted', message: 'Autoplay is restricted on this site. Some video controls may require a real click. Remapad cannot override autoplay permissions. Enable autoplay for this site in your browser settings for full controller playback.' };
     }
 
-    function showAutoplayWarning({ title, message }, injectStyles) {
+    function showAutoplayWarning({ title, message }, injectOverlayStyles) {
       autoplayWarningShown = true;
-      if (typeof injectStyles === 'function') injectStyles();
+      if (typeof injectOverlayStyles === 'function') injectOverlayStyles();
       const id = 'remapad-autoplay-warning';
       let el = document.getElementById(id);
       if (el) el.remove();

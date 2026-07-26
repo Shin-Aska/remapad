@@ -21,12 +21,10 @@
     POLL_INTERVAL_MS,
     DEADZONE,
     AXIS_REPEAT_DELAY_MS,
-    CURSOR_SPEED_PX_PER_SEC,
     MAX_DOM_ACTION_PAYLOAD_LENGTH,
     DEFAULT_NAV_SETTINGS,
     DEFAULT_PROFILE,
     GLYPHS,
-    ACTION_LABELS,
     DOM_ACTION_OPERATIONS,
     TOGGLEABLE_DOM_ATTRIBUTES,
     SITE_SEARCH_SELECTORS,
@@ -37,12 +35,10 @@
   } = CS.Constants || {};
 
   const {
-    clamp,
     clampIndex,
     escapeHtml,
     escapeCssIdentifier,
     escapeCssString,
-    hexToRgba,
     isVisibleElement,
     getElementArea,
     safeQuerySelector,
@@ -66,9 +62,12 @@
   const settingsStore = CS.SettingsStore?.create({ api, constants: CS.Constants, hostname: currentHostname });
   const sitePolicy = CS.SitePolicy?.create({ constants: CS.Constants, hostname: currentHostname });
   const domSimulator = CS.DomSimulator?.create({ utils: CS.Utils, constants: CS.Constants, messagingClient });
+  const overlayStyles = CS.OverlayStyles.create();
   const autoplayService = CS.AutoplayService?.create({ utils: CS.Utils, getSettings: () => settings });
   const modalFocusManager = CS.ModalFocusManager?.create({ utils: CS.Utils });
+  let hudController;
   let navigationController;
+  let cursorController;
 
   // ─── State ──────────────────────────────────────────────────────────────────
 
@@ -79,12 +78,6 @@
   let axisTimers = {};
   let axisRepeatCounts = { left: 0, right: 0 };
   let axisLastDirections = { left: null, right: null };
-  let hudElement = null;
-  let hudStyleElement = null;
-  let hudTimeout = null;
-  let hudVisible = false;
-  let hudHighlightedIndex = -1;
-  let hudPermanentlyHidden = false;
   let gamepadConnected = false;
   let controllerFocusedElement = null;
   let quickMapElement = null;
@@ -99,11 +92,6 @@
   let keyboardIgnoreFocusTarget = null;
   let keyboardIgnoreFocusUntil = 0;
   let siteMappingActive = false;
-  const cursors = {
-    left:  { element: null, target: null, x: 0, y: 0, visible: false },
-    right: { element: null, target: null, x: 0, y: 0, visible: false }
-  };
-  let cursorStyleElement = null;
 
   function resolveIconStyle() {
     return controllerStyle.resolve(settings.iconStyle);
@@ -119,6 +107,20 @@
       activeProfile = settingsStore.getActiveProfile();
       siteMappingActive = isMapped;
 
+      if (!hudController) {
+        hudController = CS.HudController.create({
+          utils: CS.Utils,
+          constants: CS.Constants,
+          overlayStyles,
+          callbacks: {
+            getActiveProfile: () => activeProfile,
+            getIconStyle: resolveIconStyle,
+            openSiteMapping: () => messagingClient.openSiteMapping(),
+            executeAction
+          }
+        });
+      }
+
       if (!navigationController) {
         navigationController = CS.NavigationController.create({
           utils: CS.Utils,
@@ -127,13 +129,28 @@
           sitePolicy,
           callbacks: {
             getSettings: () => settings,
-            injectHUDStyles,
+            injectOverlayStyles: () => overlayStyles.inject(),
             focusElement,
             moveFocus,
             getControllerFocusedElement: () => controllerFocusedElement,
             setControllerFocusedElement: element => {
               controllerFocusedElement = element;
             }
+          }
+        });
+      }
+
+      if (!cursorController) {
+        cursorController = CS.CursorController.create({
+          utils: CS.Utils,
+          constants: CS.Constants,
+          domSimulator,
+          callbacks: {
+            getSettings: () => settings,
+            isQuickMapOpen: () => Boolean(quickMapElement),
+            beginModalFocusTracking,
+            focusNewModalAfterClick,
+            activateElementAsClick
           }
         });
       }
@@ -148,7 +165,7 @@
 
       if (quickMapAvailable && isMapped) {
         document.documentElement.setAttribute('data-remapad-active', 'true');
-        updateHUD();
+        hudController.update();
       } else {
         document.documentElement.removeAttribute('data-remapad-active');
         removeHUD(!quickMapAvailable);
@@ -165,7 +182,7 @@
     if (!settingsStore.isMapped()) return;
     const status = await autoplayService.checkAutoplayPolicy();
     if (status.mediaelement !== 'allowed' && !autoplayService.isWarningShown()) {
-      autoplayService.showAutoplayWarning(autoplayService.formatAutoplayWarning(status), injectHUDStyles);
+      autoplayService.showAutoplayWarning(autoplayService.formatAutoplayWarning(status), overlayStyles.inject);
     }
   }
 
@@ -201,7 +218,7 @@
   function onGamepadDisconnect(e) {
     console.log('[Remapad CS] Gamepad disconnected');
     gamepadConnected = false;
-    hideHUD();
+    hudController?.hide();
   }
 
   function pollGamepads() {
@@ -214,7 +231,7 @@
     } else {
       if (gamepadConnected) {
         gamepadConnected = false;
-        hideHUD();
+        hudController?.hide();
       }
     }
   }
@@ -223,7 +240,7 @@
     const previous = controllerStyle.getDetected();
     controllerStyle.update(gp.id);
     if (controllerStyle.getDetected() !== previous && settings.iconStyle === 'auto') {
-      if (hudVisible) updateHUD();
+      if (hudController?.isVisible()) hudController.update();
       if (typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.isOpen()) {
         const glyphs = GLYPHS[resolveIconStyle()] || GLYPHS.playstation;
         RemapadKeyboard.setShortcutGlyphs({
@@ -254,21 +271,21 @@
       const rightMode = nav.rightStick?.mode;
 
       if (leftMode === 'cursor') {
-        updateCursor('left', gp.axes[0] || 0, gp.axes[1] || 0);
+        cursorController.update('left', gp.axes[0] || 0, gp.axes[1] || 0);
       } else {
-        hideCursor('left');
+        cursorController.hide('left');
         handleStick(gp.axes[0], gp.axes[1], 'left', nav);
       }
 
       if (rightMode === 'cursor') {
-        updateCursor('right', gp.axes[2] || 0, gp.axes[3] || 0);
+        cursorController.update('right', gp.axes[2] || 0, gp.axes[3] || 0);
       } else {
-        hideCursor('right');
+        cursorController.hide('right');
         handleStick(gp.axes[2], gp.axes[3], 'right', nav);
       }
     } else {
-      hideCursor('left');
-      hideCursor('right');
+      cursorController.hide('left');
+      cursorController.hide('right');
     }
   }
 
@@ -297,7 +314,7 @@
     }
 
     // HUD mode: keep legacy D-pad/left-stick navigation behaviour while visible
-    if (hudVisible && stickId === 'left') {
+    if (hudController?.isVisible() && stickId === 'left') {
       const timerKey = `axis_${stickId}`;
       if (!axisTimers[timerKey]) {
         onStickMove(x, y);
@@ -435,58 +452,7 @@
       return false;
     }
 
-    if (hudVisible) {
-      const hudItems = [
-        '0', '1', '2', '3', '4', '5', '6', '7',
-        '8', '9', '10', '11', '12', '13', '14', '15',
-        'ls', 'rs', 'edit'
-      ];
-      const hudItemCount = hudItems.length;
-
-      // Initialize highlight if user navigates using D-pad
-      if (hudHighlightedIndex === -1 && (btnIdx === 12 || btnIdx === 13 || btnIdx === 14 || btnIdx === 15)) {
-        hudHighlightedIndex = 0;
-        updateHUDHighlight();
-        return false; // consume button press
-      }
-
-      if (hudHighlightedIndex >= 0) {
-        if (btnIdx === 0) { // Cross / A: execute selected action
-          const target = hudItems[hudHighlightedIndex];
-          if (target === 'edit') {
-            messagingClient.openSiteMapping();
-            hideHUD();
-          } else if (target !== 'ls' && target !== 'rs') {
-            const action = activeProfile[target];
-            if (action && action !== 'none') {
-              executeAction(action);
-              hideHUD();
-            }
-          }
-          return false; // consume button press
-        }
-        if (btnIdx === 1) { // Circle / B: cancel highlight / hide HUD
-          hudHighlightedIndex = -1;
-          updateHUDHighlight();
-          hideHUD();
-          return false; // consume button press
-        }
-        if (btnIdx === 14) { // D-pad Left
-          hudHighlightedIndex = (hudHighlightedIndex - 1 + hudItemCount) % hudItemCount;
-          updateHUDHighlight();
-          return false; // consume
-        }
-        if (btnIdx === 15) { // D-pad Right
-          hudHighlightedIndex = (hudHighlightedIndex + 1) % hudItemCount;
-          updateHUDHighlight();
-          return false; // consume
-        }
-        if (btnIdx === 12 || btnIdx === 13) {
-          // Consume D-pad up/down to prevent page scrolling while HUD is highlighted
-          return false; 
-        }
-      }
-    }
+    if (hudController?.handleButtonPress(btnIdx)) return false;
 
     const action = activeProfile[btnIdx.toString()];
     if (!action || action === 'none') return false;
@@ -535,20 +501,7 @@
       return;
     }
 
-    if (hudVisible) {
-      const hudItemCount = 19;
-      if (Math.abs(x) > DEADZONE) {
-        if (hudHighlightedIndex === -1) {
-          hudHighlightedIndex = 0;
-          updateHUDHighlight();
-        } else {
-          const direction = x > 0 ? 1 : -1;
-          hudHighlightedIndex = (hudHighlightedIndex + direction + hudItemCount) % hudItemCount;
-          updateHUDHighlight();
-        }
-      }
-      return; // consume input
-    }
+    if (hudController?.handleStickMove(x)) return;
 
     if (Math.abs(y) > Math.abs(x)) {
       executeAction(y < -DEADZONE ? 'scroll_up' : 'scroll_down');
@@ -607,7 +560,7 @@
     }
 
     if (action === 'toggle_hud') {
-      toggleHUD();
+      hudController?.toggle();
       return;
     }
 
@@ -704,8 +657,8 @@
 
     switch (action) {
       case 'click': {
-        if ((cursors.right.visible && cursors.right.target) || (cursors.left.visible && cursors.left.target)) {
-          executeCursorClick();
+        if (cursorController.hasActiveTarget()) {
+          cursorController.click();
           break;
         }
         const el = document.activeElement;
@@ -848,7 +801,7 @@
   function openQuickMap() {
     if (quickMapElement) return;
 
-    injectHUDStyles();
+    overlayStyles.inject();
     quickMapState = { phase: 'button', button: null, action: null, selector: null, target: null };
     quickMapElement = document.createElement('section');
     quickMapElement.className = 'remapad-quick-map';
@@ -1111,217 +1064,12 @@
     try {
       activeProfile = await settingsStore.saveButtonMapping(button, actionValue);
       settings = settingsStore.getSettings();
-      updateHUD();
+      hudController?.update();
       closeQuickMap();
     } catch (error) {
       console.warn('[Remapad CS] Quick Map save failed:', error);
       quickMapState = { ...quickMapState, message: 'Unable to save this mapping. Please try again.' };
       renderQuickMap();
-    }
-  }
-
-  // ─── Virtual Cursor ─────────────────────────────────────────────────────────
-
-  function initCursor(stickId) {
-    const cursor = cursors[stickId];
-    if (cursor.element) return;
-    injectCursorStyles();
-
-    const el = document.createElement('div');
-    el.className = `remapad-cursor remapad-cursor--${stickId}`;
-    el.setAttribute('aria-hidden', 'true');
-    const label = document.createElement('span');
-    label.className = 'remapad-cursor-label';
-    label.textContent = stickId === 'left' ? 'L' : 'R';
-    el.appendChild(label);
-    document.body.appendChild(el);
-    cursor.element = el;
-
-    if (!cursor.x || !cursor.y) {
-      cursor.x = window.innerWidth / 2;
-      cursor.y = window.innerHeight / 2;
-    }
-  }
-
-  function injectCursorStyles() {
-    if (cursorStyleElement) return;
-    cursorStyleElement = document.createElement('style');
-    cursorStyleElement.textContent = `
-      .remapad-cursor {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 22px;
-        height: 22px;
-        margin-left: -11px;
-        margin-top: -11px;
-        border-radius: 50%;
-        border: 2px solid #fff;
-        box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.5);
-        z-index: 2147483647;
-        pointer-events: none;
-        transition: transform 0.05s linear, opacity 0.2s ease;
-        opacity: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #fff;
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        font-size: 10px;
-        font-weight: 700;
-        line-height: 1;
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
-      }
-      .remapad-cursor.visible {
-        opacity: 1;
-      }
-      .remapad-cursor-label {
-        pointer-events: none;
-        user-select: none;
-      }
-      .remapad-cursor-target {
-        outline: 3px solid var(--remapad-cursor-color, rgba(229, 9, 20, 0.7)) !important;
-        outline-offset: 4px !important;
-      }
-    `;
-    document.head.appendChild(cursorStyleElement);
-  }
-
-  function showCursor(stickId) {
-    initCursor(stickId);
-    const cursor = cursors[stickId];
-    cursor.element?.classList.add('visible');
-    cursor.visible = true;
-  }
-
-  function hideCursor(stickId) {
-    const cursor = cursors[stickId];
-    cursor.element?.classList.remove('visible');
-    cursor.visible = false;
-    clearCursorTarget(stickId);
-  }
-
-  function removeCursors() {
-    hideCursor('left');
-    hideCursor('right');
-    cursors.left.element?.remove();
-    cursors.right.element?.remove();
-    cursors.left.element = null;
-    cursors.right.element = null;
-    cursorStyleElement?.remove();
-    cursorStyleElement = null;
-  }
-
-  function updateCursor(stickId, ax, ay) {
-    if (quickMapElement || !settings.navSettings?.enabled) {
-      hideCursor(stickId);
-      return;
-    }
-    const nav = settings.navSettings;
-    const stickConfig = stickId === 'left' ? nav.leftStick : nav.rightStick;
-    const deadzone = stickConfig?.deadzone ?? DEADZONE;
-    const speed = stickConfig?.cursorSpeed ?? CURSOR_SPEED_PX_PER_SEC;
-    const magnitude = Math.hypot(ax, ay);
-
-    showCursor(stickId);
-    const cursor = cursors[stickId];
-
-    if (magnitude > deadzone) {
-      const now = performance.now();
-      const dt = cursor.lastTime ? Math.min(0.1, (now - cursor.lastTime) / 1000) : (POLL_INTERVAL_MS / 1000);
-      cursor.lastTime = now;
-
-      const normMag = (magnitude - deadzone) / (1 - deadzone);
-      const velocity = Math.pow(normMag, 1.2) * speed;
-      const nx = ax / magnitude;
-      const ny = ay / magnitude;
-      cursor.x = clamp(cursor.x + nx * velocity * dt, 0, window.innerWidth);
-      cursor.y = clamp(cursor.y + ny * velocity * dt, 0, window.innerHeight);
-    } else {
-      cursor.lastTime = null;
-    }
-
-    if (cursor.element) {
-      cursor.element.style.transform = `translate(${cursor.x}px, ${cursor.y}px)`;
-      const color = (stickConfig?.cursorColor || '').trim() || defaultCursorColor(stickId);
-      cursor.element.style.backgroundColor = hexToRgba(color, 0.85);
-      cursor.element.style.boxShadow = `0 0 0 2px ${hexToRgba(color, 0.4)}, 0 4px 16px rgba(0, 0, 0, 0.5)`;
-    }
-
-    updateCursorTarget(stickId);
-  }
-
-  function defaultCursorColor(stickId) {
-    return stickId === 'left' ? '#00a8e1' : '#e50914';
-  }
-
-  function updateCursorTarget(stickId) {
-    const cursor = cursors[stickId];
-    if (!cursor.element) return;
-    let el = document.elementFromPoint(cursor.x, cursor.y);
-    if (el === cursor.element) el = null;
-    let target = el;
-    while (target && !isClickableCursorTarget(target)) {
-      target = target.parentElement;
-    }
-
-    if (target && target !== cursor.target) {
-      clearCursorTarget(stickId);
-      cursor.target = target;
-      const stickConfig = stickId === 'left' ? settings.navSettings?.leftStick : settings.navSettings?.rightStick;
-      const color = (stickConfig?.cursorColor || '').trim() || defaultCursorColor(stickId);
-      cursor.target.style.setProperty('--remapad-cursor-color', hexToRgba(color, 0.7));
-      cursor.target.classList.add('remapad-cursor-target');
-      domSimulator.dispatchHoverEvents(cursor.target, true);
-    } else if (!target) {
-      clearCursorTarget(stickId);
-    }
-  }
-
-  function isClickableCursorTarget(el) {
-    if (!(el instanceof Element)) return false;
-    if (isRemapadElement(el)) return false;
-    const style = getComputedStyle(el);
-    if (style.pointerEvents === 'none') return false;
-    const tag = el.tagName;
-    return tag === 'A' || tag === 'BUTTON' || tag === 'INPUT' || tag === 'SELECT' ||
-           tag === 'TEXTAREA' || el.matches('[role="button"], [tabindex]:not([tabindex="-1"])') ||
-           el.matches('video, .title-card-container, [data-testid="card"], [class*="card" i]');
-  }
-
-  function clearCursorTarget(stickId) {
-    const cursor = cursors[stickId];
-    if (cursor.target) {
-      domSimulator.dispatchHoverEvents(cursor.target, false);
-      cursor.target.classList.remove('remapad-cursor-target');
-      cursor.target.style.removeProperty('--remapad-cursor-color');
-      cursor.target = null;
-    }
-  }
-
-  function executeCursorClick() {
-    const rightCursor = cursors.right;
-    const leftCursor = cursors.left;
-    const activeCursor = (rightCursor.visible && rightCursor.target) ? rightCursor
-      : (leftCursor.visible && leftCursor.target) ? leftCursor
-      : null;
-
-    if (activeCursor?.target) {
-      const modalFocusState = beginModalFocusTracking();
-      activateElementAsClick(activeCursor.target, activeCursor.x, activeCursor.y);
-      focusNewModalAfterClick(modalFocusState);
-      return;
-    }
-
-    const fallbackEl = document.elementFromPoint(rightCursor.x, rightCursor.y)
-      || document.elementFromPoint(leftCursor.x, leftCursor.y);
-    const fallbackCursor = (document.elementFromPoint(rightCursor.x, rightCursor.y) === fallbackEl) ? rightCursor
-      : (document.elementFromPoint(leftCursor.x, leftCursor.y) === fallbackEl) ? leftCursor
-      : rightCursor;
-    if (fallbackEl && !isRemapadElement(fallbackEl)) {
-      const modalFocusState = beginModalFocusTracking();
-      activateElementAsClick(fallbackEl, fallbackCursor.x, fallbackCursor.y);
-      focusNewModalAfterClick(modalFocusState);
     }
   }
 
@@ -1451,9 +1199,9 @@
     domSimulator.simulateClickAt(el, x, y);
     simulateKeyboardActivate(el);
     messagingClient.requestTrustedClick(x, y);
-    const video = domSimulator.findVideoUnderPoint(x, y, [cursors.left.element, cursors.right.element]);
+    const video = domSimulator.findVideoUnderPoint(x, y, cursorController.getElements());
     if (video) {
-      autoplayService.checkAutoplayAndWarn(() => domSimulator.toggleVideoPlay(video), injectHUDStyles);
+      autoplayService.checkAutoplayAndWarn(() => domSimulator.toggleVideoPlay(video), overlayStyles.inject);
     }
   }
 
@@ -1475,630 +1223,21 @@
     el.dispatchEvent(new KeyboardEvent('keyup', keyOpts));
   }
 
-  // ─── HUD Rendering ──────────────────────────────────────────────────────────
-
-  function injectHUDStyles() {
-    if (hudStyleElement) return;
-
-    hudStyleElement = document.createElement('style');
-    hudStyleElement.textContent = `
-       .remapad-hud-container {
-        position: fixed;
-        bottom: 24px;
-        left: 50%;
-        transform: translateX(-50%) translateY(120px);
-        z-index: 2147483647;
-        background: rgba(19, 19, 19, 0.85) !important;
-        backdrop-filter: blur(16px) !important;
-        -webkit-backdrop-filter: blur(16px) !important;
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
-        border-radius: 9999px !important;
-         width: calc(100vw - 32px) !important;
-         box-sizing: border-box !important;
-         padding: 12px 16px !important;
-         display: grid !important;
-         grid-template-columns: minmax(0, 1fr) auto auto !important;
-         align-items: center !important;
-         gap: 16px !important;
-         max-width: calc(100vw - 32px) !important;
-        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7) !important;
-        transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease !important;
-        opacity: 0;
-        pointer-events: none;
-        user-select: none !important;
-        font-family: 'Geist', 'Inter', -apple-system, sans-serif !important;
-      }
-      .remapad-hud-container.visible {
-        transform: translateX(-50%) translateY(0);
-        opacity: 1;
-        pointer-events: auto;
-      }
-       .remapad-hud-item {
-         display: flex !important;
-        align-items: center !important;
-        gap: 8px !important;
-        color: #e5e2e1 !important;
-        font-size: 13px !important;
-        font-weight: 600 !important;
-        letter-spacing: 0.03em !important;
-         text-shadow: 0 1px 2px rgba(0,0,0,0.5) !important;
-       }
-       .remapad-hud-sticks {
-         display: flex !important;
-         align-items: center !important;
-         gap: 12px !important;
-         padding-left: 12px !important;
-         border-left: 1px solid rgba(255, 255, 255, 0.1) !important;
-       }
-       .remapad-hud-stick {
-         display: flex !important;
-         align-items: center !important;
-         gap: 8px !important;
-         color: #e5e2e1 !important;
-         font-size: 13px !important;
-         font-weight: 600 !important;
-         letter-spacing: 0.03em !important;
-         text-shadow: 0 1px 2px rgba(0,0,0,0.5) !important;
-         white-space: nowrap !important;
-       }
-       .remapad-hud-row {
-         display: flex !important;
-         align-items: center !important;
-         gap: 16px !important;
-         overflow-x: auto !important;
-          flex: 1 1 auto !important;
-          max-width: none !important;
-          min-width: 0 !important;
-          width: 100% !important;
-         scrollbar-width: none !important;
-       }
-       .remapad-hud-row::-webkit-scrollbar { display: none !important; }
-        .remapad-hud-item--unmapped { opacity: 0.4 !important; }
-         .remapad-hud-item.highlighted,
-         .remapad-hud-stick.highlighted,
-         .remapad-hud-edit.highlighted {
-           background: rgba(229, 9, 20, 0.25) !important;
-           outline: 2px solid #e50914 !important;
-           outline-offset: 4px !important;
-           border-radius: 4px !important;
-           box-shadow: 0 0 10px rgba(229, 9, 20, 0.5) !important;
-         }
-      .remapad-hud-glyph {
-        width: 20px !important;
-        height: 20px !important;
-        border-radius: 50% !important;
-        background: #393939 !important;
-        border: 1px solid rgba(255, 255, 255, 0.15) !important;
-        color: #fff !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        font-size: 10px !important;
-        font-weight: 800 !important;
-      }
-      .remapad-hud-label {
-        font-size: 12px !important;
-        font-weight: 600 !important;
-        color: #e9bcb6 !important;
-      }
-      .remapad-hud-close {
-        cursor: pointer !important;
-        color: rgba(255, 255, 255, 0.4) !important;
-        font-size: 16px !important;
-        font-weight: bold !important;
-        padding-left: 8px !important;
-        border-left: 1px solid rgba(255, 255, 255, 0.1) !important;
-         transition: color 0.2s !important;
-         pointer-events: auto !important;
-          background: transparent !important;
-          border: 0 !important;
-          flex: 0 0 auto !important;
-      }
-      .remapad-hud-close:hover {
-        color: #ffb4ab !important;
-      }
-       .remapad-hover {
-        outline: 3px solid #00a8e1 !important;
-        outline-offset: 3px !important;
-        box-shadow: 0 0 12px rgba(0, 168, 225, 0.7) !important;
-        transition: outline 0.15s ease, box-shadow 0.15s ease !important;
-       }
-       .remapad-controller-focus {
-         outline: 3px solid #00a8e1 !important;
-         outline-offset: 3px !important;
-         box-shadow: 0 0 12px rgba(0, 168, 225, 0.7) !important;
-       }
-       .remapad-hud-edit {
-         border: 0 !important;
-         border-left: 1px solid rgba(255, 255, 255, 0.1) !important;
-         background: transparent !important;
-         color: #00a8e1 !important;
-         cursor: pointer !important;
-         font: inherit !important;
-         font-size: 12px !important;
-          font-weight: 700 !important;
-          padding: 4px 0 4px 16px !important;
-           flex: 0 0 auto !important;
-        }
-       .remapad-quick-map {
-         --remapad-surface: rgba(30, 30, 30, 0.88);
-         --remapad-surface-high: #353534;
-         --remapad-on-surface: #e5e2e1;
-         --remapad-on-surface-variant: #e9bcb6;
-         --remapad-primary: #e50914;
-         --remapad-secondary: #00a7df;
-         position: fixed !important;
-         right: 24px !important;
-         bottom: 24px !important;
-         z-index: 2147483647 !important;
-         width: min(360px, calc(100vw - 32px)) !important;
-         box-sizing: border-box !important;
-         padding: 24px !important;
-         background: var(--remapad-surface) !important;
-         color: var(--remapad-on-surface) !important;
-         backdrop-filter: blur(16px) !important;
-         -webkit-backdrop-filter: blur(16px) !important;
-         border: 1px solid rgba(255, 255, 255, 0.08) !important;
-         border-radius: 16px !important;
-         box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7) !important;
-         font-family: 'Geist', 'Inter', -apple-system, sans-serif !important;
-       }
-       .remapad-quick-map *, .remapad-quick-map *::before, .remapad-quick-map *::after {
-         box-sizing: border-box !important;
-       }
-       .remapad-quick-map-header, .remapad-quick-map-footer {
-         display: flex !important;
-         align-items: center !important;
-         justify-content: space-between !important;
-         gap: 12px !important;
-       }
-       .remapad-quick-map-header { align-items: flex-start !important; }
-       .remapad-quick-map-kicker {
-         margin: 0 0 4px !important;
-         color: var(--remapad-on-surface-variant) !important;
-         font-family: 'Geist', Consolas, monospace !important;
-         font-size: 10px !important;
-         font-weight: 700 !important;
-         letter-spacing: 0.08em !important;
-       }
-       .remapad-quick-map h2 {
-         margin: 0 !important;
-         color: var(--remapad-on-surface) !important;
-         font-size: 18px !important;
-         font-weight: 700 !important;
-         line-height: 24px !important;
-       }
-       .remapad-quick-map-close {
-         width: 32px !important;
-         height: 32px !important;
-         padding: 0 !important;
-         border: 0 !important;
-         border-radius: 9999px !important;
-         background: transparent !important;
-         color: var(--remapad-on-surface-variant) !important;
-         cursor: pointer !important;
-         font: 24px/1 sans-serif !important;
-       }
-       .remapad-quick-map-close:hover, .remapad-quick-map-close:focus-visible {
-         background: var(--remapad-surface-high) !important;
-         color: var(--remapad-on-surface) !important;
-       }
-       .remapad-quick-map-body {
-         min-height: 84px !important;
-         padding: 24px 0 !important;
-       }
-       .remapad-quick-map-instruction, .remapad-quick-map-hint, .remapad-quick-map-live {
-         margin: 0 !important;
-         line-height: 20px !important;
-       }
-       .remapad-quick-map-instruction {
-         color: var(--remapad-on-surface) !important;
-         font-size: 14px !important;
-       }
-       .remapad-quick-map-hint, .remapad-quick-map-live {
-         margin-top: 8px !important;
-         color: var(--remapad-on-surface-variant) !important;
-         font-size: 12px !important;
-       }
-       .remapad-quick-map-button {
-         display: inline-flex !important;
-         align-items: center !important;
-         justify-content: center !important;
-         min-width: 24px !important;
-         height: 24px !important;
-         margin-right: 4px !important;
-         padding: 0 4px !important;
-         border: 1px solid rgba(255, 255, 255, 0.15) !important;
-         border-radius: 9999px !important;
-         background: var(--remapad-surface-high) !important;
-         color: #fff !important;
-         font-family: 'Geist', Consolas, monospace !important;
-         font-size: 11px !important;
-         font-weight: 800 !important;
-         vertical-align: middle !important;
-       }
-       .remapad-quick-map-actions {
-         display: grid !important;
-         grid-template-columns: repeat(3, 1fr) !important;
-         gap: 8px !important;
-       }
-       .remapad-quick-map-action, .remapad-quick-map-cancel, .remapad-quick-map-save {
-         min-height: 36px !important;
-         border-radius: 8px !important;
-         font-family: 'Geist', Consolas, monospace !important;
-         font-size: 12px !important;
-         font-weight: 700 !important;
-         cursor: pointer !important;
-       }
-       .remapad-quick-map-action, .remapad-quick-map-cancel {
-         border: 1px solid rgba(255, 255, 255, 0.1) !important;
-         background: var(--remapad-surface-high) !important;
-         color: var(--remapad-on-surface) !important;
-       }
-       .remapad-quick-map-action:hover, .remapad-quick-map-action:focus-visible,
-       .remapad-quick-map-cancel:hover, .remapad-quick-map-cancel:focus-visible {
-         border-color: var(--remapad-secondary) !important;
-         box-shadow: 0 0 12px rgba(0, 167, 223, 0.35) !important;
-       }
-       .remapad-quick-map-selector {
-         display: block !important;
-         max-height: 60px !important;
-         overflow: auto !important;
-         padding: 8px !important;
-         border: 1px solid rgba(255, 255, 255, 0.08) !important;
-         border-radius: 4px !important;
-         background: rgba(14, 14, 14, 0.9) !important;
-         color: var(--remapad-on-surface-variant) !important;
-         font: 11px/16px 'Geist', Consolas, monospace !important;
-         white-space: pre-wrap !important;
-         word-break: break-all !important;
-       }
-       .remapad-quick-map-footer {
-         padding-top: 12px !important;
-         border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
-       }
-       .remapad-quick-map-save {
-         min-width: 84px !important;
-         border: 0 !important;
-         background: var(--remapad-primary) !important;
-         color: #fff7f6 !important;
-       }
-       .remapad-quick-map-save:hover, .remapad-quick-map-save:focus-visible { filter: brightness(1.12) !important; }
-       .remapad-quick-map-save:disabled {
-         cursor: not-allowed !important;
-         opacity: 0.45 !important;
-       }
-        .remapad-picker-target {
-           outline: 3px solid #00a8e1 !important;
-          outline-offset: 3px !important;
-          box-shadow: 0 0 12px rgba(0, 167, 223, 0.7) !important;
-        }
-        .remapad-active-collection {
-          outline: 2px solid rgba(229, 9, 20, 0.7) !important;
-          outline-offset: 4px !important;
-          box-shadow: 0 0 0 4px rgba(229, 9, 20, 0.12), 0 0 20px rgba(229, 9, 20, 0.25) !important;
-          border-radius: 4px !important;
-          transition: outline 0.2s ease, box-shadow 0.2s ease !important;
-        }
-         .remapad-cnav-hud {
-           position: fixed !important;
-           top: 20px !important;
-           left: 50% !important;
-           transform: translateX(-50%) translateY(-110%) !important;
-           z-index: 2147483647 !important;
-           background: rgba(16, 16, 16, 0.92) !important;
-           backdrop-filter: blur(20px) !important;
-           -webkit-backdrop-filter: blur(20px) !important;
-           border: 1px solid rgba(255, 255, 255, 0.1) !important;
-           border-radius: 9999px !important;
-           padding: 10px 20px !important;
-           display: flex !important;
-           align-items: center !important;
-           justify-content: space-between !important;
-           gap: 20px !important;
-           min-width: 280px !important;
-           max-width: calc(100vw - 48px) !important;
-           box-sizing: border-box !important;
-           box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(229, 9, 20, 0.15) !important;
-           font-family: 'Geist', 'Inter', -apple-system, sans-serif !important;
-           transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease !important;
-           opacity: 0 !important;
-           pointer-events: none !important;
-           user-select: none !important;
-         }
-         .remapad-cnav-hud.visible {
-           transform: translateX(-50%) translateY(0) !important;
-           opacity: 1 !important;
-         }
-         .remapad-cnav-left {
-           display: flex !important;
-           align-items: center !important;
-           gap: 10px !important;
-           overflow: hidden !important;
-           min-width: 0 !important;
-         }
-         .remapad-cnav-right {
-           display: flex !important;
-           align-items: center !important;
-           gap: 10px !important;
-           flex-shrink: 0 !important;
-         }
-         .remapad-cnav-icon {
-           width: 14px !important;
-           height: 14px !important;
-           color: rgba(229, 9, 20, 0.9) !important;
-           flex-shrink: 0 !important;
-         }
-         .remapad-cnav-pos {
-           font-size: 13px !important;
-           font-weight: 700 !important;
-           color: #fff !important;
-           white-space: nowrap !important;
-           flex-shrink: 0 !important;
-         }
-         .remapad-cnav-label {
-           font-size: 12px !important;
-           font-weight: 500 !important;
-           color: rgba(255, 255, 255, 0.5) !important;
-           white-space: nowrap !important;
-           overflow: hidden !important;
-           text-overflow: ellipsis !important;
-         }
-         .remapad-cnav-of {
-           font-weight: 400 !important;
-           opacity: 0.55 !important;
-           font-size: 11px !important;
-         }
-         .remapad-cnav-dots {
-           display: flex !important;
-           align-items: center !important;
-           gap: 4px !important;
-         }
-         .remapad-cnav-dot {
-           width: 5px !important;
-           height: 5px !important;
-           border-radius: 50% !important;
-           background: rgba(255, 255, 255, 0.2) !important;
-           transition: background 0.2s, transform 0.2s !important;
-           display: block !important;
-         }
-         .remapad-cnav-dot.active {
-           background: #e50914 !important;
-           transform: scale(1.4) !important;
-         }
-         .remapad-cnav-item {
-           font-size: 12px !important;
-           font-weight: 600 !important;
-           color: rgba(255, 255, 255, 0.75) !important;
-           white-space: nowrap !important;
-         }
-      .remapad-cnav-item--hint {
-        color: rgba(255, 255, 255, 0.35) !important;
-        font-weight: 500 !important;
-      }
-      .remapad-autoplay-warning {
-        position: fixed !important;
-        top: 20px !important;
-        left: 50% !important;
-        transform: translateX(-50%) translateY(-120%) !important;
-        z-index: 2147483647 !important;
-        max-width: calc(100vw - 48px) !important;
-        width: 520px !important;
-        box-sizing: border-box !important;
-        transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
-      }
-      .remapad-autoplay-warning.visible {
-        transform: translateX(-50%) translateY(0) !important;
-        opacity: 1 !important;
-        pointer-events: auto !important;
-      }
-      .remapad-autoplay-warning__inner {
-        background: rgba(16, 16, 16, 0.95) !important;
-        backdrop-filter: blur(20px) !important;
-        -webkit-backdrop-filter: blur(20px) !important;
-        border: 1px solid rgba(255, 255, 255, 0.12) !important;
-        border-left: 4px solid #e50914 !important;
-        border-radius: 12px !important;
-        padding: 16px 18px !important;
-        display: flex !important;
-        align-items: flex-start !important;
-        gap: 14px !important;
-        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7) !important;
-        font-family: 'Geist', 'Inter', -apple-system, sans-serif !important;
-        color: #fff !important;
-      }
-      .remapad-autoplay-warning__icon {
-        width: 22px !important;
-        height: 22px !important;
-        color: #e50914 !important;
-        flex-shrink: 0 !important;
-        margin-top: 1px !important;
-      }
-      .remapad-autoplay-warning__text {
-        font-size: 13px !important;
-        line-height: 1.55 !important;
-        color: rgba(255, 255, 255, 0.92) !important;
-        flex: 1 !important;
-      }
-      .remapad-autoplay-warning__text strong {
-        color: #fff !important;
-        font-weight: 700 !important;
-        display: block !important;
-        margin-bottom: 4px !important;
-      }
-      .remapad-autoplay-warning__close {
-        background: transparent !important;
-        border: 0 !important;
-        color: rgba(255, 255, 255, 0.5) !important;
-        font-size: 20px !important;
-        font-weight: 300 !important;
-        line-height: 1 !important;
-        padding: 0 0 0 8px !important;
-        cursor: pointer !important;
-        flex-shrink: 0 !important;
-        transition: color 0.2s !important;
-      }
-      .remapad-autoplay-warning__close:hover {
-        color: #fff !important;
-      }
-    `;
-    document.head.appendChild(hudStyleElement);
-  }
-
-  function updateHUD() {
-    if (hudPermanentlyHidden) return;
-
-    injectHUDStyles();
-
-    if (!hudElement) {
-      hudElement = document.createElement('div');
-      hudElement.className = 'remapad-hud-container';
-      hudElement.setAttribute('role', 'navigation');
-      hudElement.setAttribute('aria-label', 'Remapad controller mappings');
-      document.body.appendChild(hudElement);
-    }
-
-    const currentGlyphs = GLYPHS[resolveIconStyle()] || GLYPHS.playstation;
-
-    const standardButtons = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15'];
-    const items = standardButtons.map((btnIdx, arrayIndex) => {
-      const action = activeProfile[btnIdx];
-      const glyph = escapeHtml(currentGlyphs[btnIdx] || btnIdx);
-      const label = escapeHtml(formatActionLabel(action, btnIdx));
-      const unmapped = !action || action === 'none';
-      const isHighlighted = arrayIndex === hudHighlightedIndex;
-      return `
-        <div class="remapad-hud-item${unmapped ? ' remapad-hud-item--unmapped' : ''}${isHighlighted ? ' highlighted' : ''}" data-hud-selectable>
-          <span class="remapad-hud-glyph">${glyph}</span>
-          <span class="remapad-hud-label">${label}</span>
-        </div>
-      `;
-    }).join('');
-
-    const lsHighlighted = hudHighlightedIndex === 16;
-    const rsHighlighted = hudHighlightedIndex === 17;
-    const editHighlighted = hudHighlightedIndex === 18;
-
-    const stickItems = `
-      <div class="remapad-hud-sticks" aria-label="Stick controls">
-      <div class="remapad-hud-stick${lsHighlighted ? ' highlighted' : ''}" data-hud-selectable>
-        <span class="remapad-hud-glyph">LS</span>
-        <span class="remapad-hud-label">Scroll</span>
-      </div>
-      <div class="remapad-hud-stick${rsHighlighted ? ' highlighted' : ''}" data-hud-selectable>
-        <span class="remapad-hud-glyph">RS↑↓</span>
-        <span class="remapad-hud-label">Focus</span>
-      </div>
-      </div>
-    `;
-    let innerHtml = `<div class="remapad-hud-row">${items}${stickItems}</div>`;
-
-    // Add close button
-    innerHtml += `<button class="remapad-hud-edit${editHighlighted ? ' highlighted' : ''}" id="remapad-hud-edit-btn" type="button" data-hud-selectable>Edit</button>`;
-    innerHtml += `<button class="remapad-hud-close" id="remapad-hud-close-btn" type="button" title="Hide this guide" aria-label="Hide controller guide">✕</button>`;
-
-    hudElement.innerHTML = innerHtml;
-
-    hudElement.querySelector('#remapad-hud-close-btn')?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      hudPermanentlyHidden = true;
-      hideHUD();
-    });
-
-    hudElement.querySelector('#remapad-hud-edit-btn')?.addEventListener('click', (event) => {
-      if (!event.isTrusted) return;
-      messagingClient.openSiteMapping();
-    });
-
-  }
-
-  function updateHUDHighlight() {
-    if (!hudElement) return;
-    const items = hudElement.querySelectorAll('[data-hud-selectable]');
-    items.forEach((item, idx) => {
-      if (idx === hudHighlightedIndex) {
-        item.classList.add('highlighted');
-        item.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-      } else {
-        item.classList.remove('highlighted');
-      }
-    });
-  }
-
-  function toggleHUD() {
-    if (!hudElement) return;
-    clearTimeout(hudTimeout);
-
-    if (hudVisible) {
-      hideHUD();
-      return;
-    }
-
-    hudHighlightedIndex = -1;
-    hudPermanentlyHidden = false;
-    hudElement.classList.add('visible');
-    hudVisible = true;
-  }
-
-  function hideHUD() {
-    if (hudElement && hudVisible) {
-      hudHighlightedIndex = -1;
-      updateHUDHighlight();
-      hudElement.classList.remove('visible');
-      hudVisible = false;
-    }
-  }
+  // ─── Aggregate teardown ─────────────────────────────────────────────────────
 
   function removeHUD(stopPolling = true) {
     closeQuickMap();
     stopModalFocusObserver();
-    hudHighlightedIndex = -1;
     document.documentElement.removeAttribute('data-remapad-active');
-    removeCursors();
-    if (hudElement) {
-      hudElement.remove();
-      hudElement = null;
-    }
-    if (hudStyleElement) {
-      hudStyleElement.remove();
-      hudStyleElement = null;
-    }
+    cursorController?.remove();
+    hudController?.remove();
+    overlayStyles.remove();
     if (stopPolling && pollInterval) {
       clearInterval(pollInterval);
       pollInterval = null;
     }
-    clearTimeout(hudTimeout);
     controllerFocusedElement?.classList.remove('remapad-controller-focus');
     controllerFocusedElement = null;
-  }
-
-  function formatActionLabel(action, btnIdx = null) {
-    if (!action || action === 'none') return 'Unmapped';
-    if (action.startsWith('click_element:')) return 'Click element';
-    if (action.startsWith('hover_element:')) return 'Hover element';
-    if (action.startsWith('dom_action:')) return formatDomActionLabel(action.substring('dom_action:'.length));
-    if (action.startsWith('press_key:')) return `Key: ${action.substring('press_key:'.length)}`;
-    if (action.startsWith('focus_element:')) return 'Focus element';
-    return ACTION_LABELS[action] || action;
-  }
-
-  function formatDomActionLabel(encodedConfig) {
-    try {
-      const config = JSON.parse(decodeURIComponent(encodedConfig));
-      const labels = {
-        click: 'Click element',
-        focus: 'Focus element',
-        scroll: 'Scroll to element',
-        'set-value': 'Set form value',
-        'toggle-attribute': 'Toggle attribute',
-        'toggle-media': 'Play/Pause media'
-      };
-      return labels[config.operation] || ACTION_LABELS.dom_action;
-    } catch (_) {
-      return ACTION_LABELS.dom_action;
-    }
   }
 
   // ─── Boot ───────────────────────────────────────────────────────────────────
@@ -2110,10 +1249,7 @@
   });
 
   window.addEventListener('resize', () => {
-    cursors.left.x = clamp(cursors.left.x, 0, window.innerWidth);
-    cursors.left.y = clamp(cursors.left.y, 0, window.innerHeight);
-    cursors.right.x = clamp(cursors.right.x, 0, window.innerWidth);
-    cursors.right.y = clamp(cursors.right.y, 0, window.innerHeight);
+    cursorController?.handleResize();
   });
 
   // Handle messages from options page / popup

@@ -59,9 +59,12 @@
         "content/modules/settings-store.js",
         "content/modules/site-policy.js",
         "content/modules/dom-simulator.js",
+        "content/modules/cursor-controller.js",
         "content/modules/autoplay-service.js",
         "content/modules/modal-focus-manager.js",
         "content/modules/navigation-controller.js",
+        "content/modules/overlay-styles.js",
+        "content/modules/hud-controller.js",
         "content/content_script.js"
       ],
       "run_at": "document_idle"
