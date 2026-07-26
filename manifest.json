@@ -61,6 +61,7 @@
         "content/modules/dom-simulator.js",
         "content/modules/autoplay-service.js",
         "content/modules/modal-focus-manager.js",
+        "content/modules/navigation-controller.js",
         "content/content_script.js"
       ],
       "run_at": "document_idle"
