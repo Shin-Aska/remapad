@@ -22,15 +22,43 @@ With Remapad, you can bind gamepad buttons to perform common browser actions, di
 
 Remapad requires Firefox 128+ or a Chromium-based browser 111+ because it uses Manifest V3 MAIN-world content scripts to prevent page-level gamepad conflicts.
 
+### Build
+
+Build both browser packages from the repository root with Bash:
+
+```bash
+bash scripts/build.sh
+```
+
+Or with PowerShell:
+
+```powershell
+./scripts/build.ps1
+```
+
+Build only one browser with either entry point:
+
+```bash
+bash scripts/build.sh chrome
+bash scripts/build.sh firefox
+```
+
+```powershell
+./scripts/build.ps1 chrome
+./scripts/build.ps1 firefox
+```
+
+The build creates unpacked extensions in `dist/chrome/` and `dist/firefox/`, plus versioned ZIP packages for store submission. Chrome and Firefox use separate manifests from `manifests/`; all extension source code and assets remain shared.
+
 ### Firefox (Add-on Developer Mode)
 1. Open Firefox and navigate to `about:debugging#/runtime/this-firefox`.
 2. Click **Load Temporary Add-on...**
-3. Select the `manifest.json` file in the root of the project directory.
+3. Select `dist/firefox/manifest.json`.
 
 ### Chrome (Developer Mode)
 1. Open Chrome and navigate to `chrome://extensions/`.
 2. Enable **Developer mode** toggle in the top-right corner.
-3. Click **Load unpacked** and select the root project directory.
+3. Click **Load unpacked** and select `dist/chrome/`.
 
 ---
 

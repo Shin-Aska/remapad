@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Build: Bash",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "bash scripts/build.sh",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Build: PowerShell",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "pwsh.exe -NoProfile -File ./scripts/build.ps1",
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}
