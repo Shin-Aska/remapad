@@ -5,14 +5,14 @@
       "name": "Build: Bash",
       "type": "node-terminal",
       "request": "launch",
-      "command": "bash scripts/build.sh",
+      "command": "bash scripts/build.sh; exit $?",
       "cwd": "${workspaceFolder}"
     },
     {
       "name": "Build: PowerShell",
       "type": "node-terminal",
       "request": "launch",
-      "command": "pwsh.exe -NoProfile -File ./scripts/build.ps1",
+      "command": "pwsh.exe -NoProfile -File ./scripts/build.ps1; exit $LASTEXITCODE",
       "cwd": "${workspaceFolder}"
     }
   ]
