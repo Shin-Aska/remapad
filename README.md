@@ -28,6 +28,13 @@ controllers. It combines site-specific button mappings with gamepad-first
 navigation tools, giving developers a practical foundation for controller-driven
 web experiences on Firefox and Chromium-based browsers.
 
+- Firefox Add-ons: <https://addons.mozilla.org/en-US/firefox/addon/remapad/>
+- Chrome Web Store: <https://chromewebstore.google.com/detail/remapad-%E2%80%94-gamepad-browser/nbjngbeilcghlhgcofapgclljddnlaol>
+
+> This repository is developed on GitLab at
+> `https://gitlab.com/ShinAska/remapad.git`. The GitHub repository at
+> `https://github.com/Shin-Aska/remapad` is a mirror.
+
 ## See it in action
 
 ### Map browser actions visually

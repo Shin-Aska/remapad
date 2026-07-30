@@ -80,6 +80,11 @@ minimum supported desktop version and Firefox for Android 142 is the minimum
 Android version because those releases support this built-in consent
 declaration.
 
+## Published store pages
+
+- Firefox Add-ons: https://addons.mozilla.org/en-US/firefox/addon/remapad/
+- Chrome Web Store: https://chromewebstore.google.com/detail/remapad-%E2%80%94-gamepad-browser/nbjngbeilcghlhgcofapgclljddnlaol
+
 ## Reviewer test path
 
 1. Connect a standard gamepad before opening a test site.

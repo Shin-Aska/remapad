@@ -29,6 +29,11 @@ cd remapad
 git switch -c <issue-number>-short-description
 ```
 
+Development happens on GitLab (`https://gitlab.com/ShinAska/remapad.git`); the
+GitHub repository (`https://github.com/Shin-Aska/remapad`) is a mirror. Open
+merge requests and issues on GitLab so the review history stays with the primary
+repository.
+
 This project has no package-manager install step. The extension uses plain
 HTML, CSS, and JavaScript.
 
