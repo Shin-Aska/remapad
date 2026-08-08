@@ -459,10 +459,25 @@ body {
 }
 
 .svg-btn {
-  transition: fill 0.15s, stroke 0.15s;
+  transition: fill 0.15s, stroke 0.15s, filter 0.15s;
 }
 .svg-btn.highlighted {
   fill: var(--primary-container) !important;
+}
+
+/* N64 Specific Button Highlight Styles */
+#controller-svg-n64 .svg-btn.highlighted {
+  fill: #ffffff !important;
+  stroke: #ffeb3b !important;
+  stroke-width: 2.5px !important;
+  filter: drop-shadow(0 0 10px rgba(255, 235, 59, 0.9));
+}
+
+#svg-n64-btn-9.highlighted {
+  fill: #ffffff !important;
+  stroke: #ffff00 !important;
+  stroke-width: 2.5px !important;
+  filter: drop-shadow(0 0 12px #ff1744);
 }
 
 /* Animated callouts */
@@ -513,6 +528,44 @@ body {
 .callout-circle { right: 10px; top: 295px; }
 .callout-cross { right: 10px; top: 350px; }
 .callout-r3 { right: 165px; top: 260px; }
+
+/* N64 Layout specific SVG and callout positioning */
+.n64-layout-active#controller-img-wrap,
+.n64-layout-active #controller-img-wrap,
+.gamepad-canvas.n64-layout-active #controller-img-wrap {
+  height: 460px;
+}
+.gamepad-canvas.n64-layout-active {
+  min-height: 480px;
+}
+
+.n64-layout-active #controller-svg-default { display: none !important; }
+.n64-layout-active #controller-svg-n64 { display: block !important; }
+
+/* Hide unused N64 controls */
+.n64-layout-active .callout-l3,
+.n64-layout-active .callout-r3 {
+  display: none !important;
+}
+
+/* Re-align callouts for N64 layout */
+.n64-layout-active .callout-l2 { left: 10px; top: 15px; }       /* Button 6 = L Bumper */
+.n64-layout-active .callout-select { left: 10px; top: 70px; }   /* Button 8 = Z Trigger */
+.n64-layout-active .callout-select .callout-meta { text-align: left; }
+.n64-layout-active .callout-dpad-up { left: 10px; top: 125px; } /* Button 12 = D-Pad Up */
+.n64-layout-active .callout-dpad-left { left: 10px; top: 180px; } /* Button 14 = D-Pad Left */
+.n64-layout-active .callout-dpad-right { left: 10px; top: 235px; } /* Button 15 = D-Pad Right */
+.n64-layout-active .callout-dpad-down { left: 10px; top: 290px; } /* Button 13 = D-Pad Down */
+
+.n64-layout-active .callout-r2 { right: 10px; top: 15px; }      /* Button 7 = R Bumper */
+.n64-layout-active .callout-start { right: 10px; top: 70px; }   /* Button 9 = Start Button */
+.n64-layout-active .callout-cross { right: 10px; top: 125px; }  /* Button 0 = C-Up */
+.n64-layout-active .callout-triangle { right: 10px; top: 180px; } /* Button 3 = C-Left */
+.n64-layout-active .callout-circle { right: 10px; top: 235px; } /* Button 1 = C-Right */
+.n64-layout-active .callout-square { right: 10px; top: 290px; } /* Button 2 = C-Down */
+.n64-layout-active .callout-l1 { left: auto; right: 10px; top: 345px; flex-direction: row-reverse; } /* Button 4 = Button B */
+.n64-layout-active .callout-l1 .callout-meta { text-align: left; }
+.n64-layout-active .callout-r1 { right: 10px; top: 400px; }     /* Button 5 = Button A */
 
 .callout-dot {
   width: 8px;
