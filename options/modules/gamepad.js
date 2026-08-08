@@ -224,6 +224,45 @@
       resetNavigationStickViz();
     }
 
+    function getDpadState(gamepad) {
+      const b12 = gamepad.buttons[12] ? Boolean(gamepad.buttons[12].pressed) : false;
+      const b13 = gamepad.buttons[13] ? Boolean(gamepad.buttons[13].pressed) : false;
+      const b14 = gamepad.buttons[14] ? Boolean(gamepad.buttons[14].pressed) : false;
+      const b15 = gamepad.buttons[15] ? Boolean(gamepad.buttons[15].pressed) : false;
+
+      const axes = gamepad.axes || [];
+      const HIGH_THRESHOLD = 0.8;
+
+      // Horizontal D-Pad axis is on axes[5] or axes[2]
+      let horizAxisIdx = -1;
+      if (axes.length >= 6 && Math.abs(axes[5]) > HIGH_THRESHOLD) horizAxisIdx = 5;
+      else if (axes.length >= 3 && Math.abs(axes[2]) > HIGH_THRESHOLD) horizAxisIdx = 2;
+
+      let left = b14;
+      let right = b15;
+      if (horizAxisIdx !== -1) {
+        left = left || axes[horizAxisIdx] < -HIGH_THRESHOLD;
+        right = right || axes[horizAxisIdx] > HIGH_THRESHOLD;
+      } else {
+        if (axes[5] < -HIGH_THRESHOLD || axes[2] < -HIGH_THRESHOLD) left = true;
+        if (axes[5] > HIGH_THRESHOLD || axes[2] > HIGH_THRESHOLD) right = true;
+      }
+
+      // Vertical D-Pad axis: scan ALL non-horizontal axes for full deflection (< -0.8 / > 0.8)
+      let up = b12;
+      let down = b13;
+
+      for (let i = 0; i < axes.length; i++) {
+        if (i === horizAxisIdx) continue;
+        if (axes.length >= 4 && i === 0) continue; // Skip primary stick X
+
+        if (axes[i] < -HIGH_THRESHOLD) up = true;
+        if (axes[i] > HIGH_THRESHOLD) down = true;
+      }
+
+      return { up, down, left, right };
+    }
+
     function pollGamepads() {
       const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
       const gamepad = selectActiveGamepad(gamepads);
@@ -241,13 +280,26 @@
       }
       updateConnectedStatus(gamepad);
       const previousSnapshot = [...previousPressed];
-      gamepad.buttons.forEach((button, index) => {
-        const isPressed = button.pressed || button.value > 0.5;
+      const dpadState = getDpadState(gamepad);
+
+      for (let index = 0; index < 16; index++) {
+        let isPressed = false;
+        if (index === 12) isPressed = dpadState.up;
+        else if (index === 13) isPressed = dpadState.down;
+        else if (index === 14) isPressed = dpadState.left;
+        else if (index === 15) isPressed = dpadState.right;
+        else {
+          const button = gamepad.buttons[index];
+          isPressed = button ? (Boolean(button.pressed) || button.value > 0.5) : false;
+        }
+
         const wasPressed = previousSnapshot[index] || false;
         previousPressed[index] = isPressed;
         const path = document.getElementById(`svg-btn-${index}`);
+        const n64Path = document.getElementById(`svg-n64-btn-${index}`);
         const callout = document.querySelector(`.editor-callout[data-btn="${index}"]`);
         if (path) path.classList.toggle('highlighted', isPressed);
+        if (n64Path) n64Path.classList.toggle('highlighted', isPressed);
         if (callout) {
           if (isPressed && !wasPressed) {
             callout.style.transform = 'scale(1.15)';
@@ -257,9 +309,10 @@
             callout.style.borderColor = '';
           }
         }
-      });
+      }
       const leftThumb = document.getElementById('svg-btn-10');
       const rightThumb = document.getElementById('svg-btn-11');
+      const n64Thumb = document.getElementById('svg-n64-axis-L');
       if (leftThumb) {
         leftThumb.setAttribute('cx', (135 + (gamepad.axes[0] || 0) * 8).toString());
         leftThumb.setAttribute('cy', (185 + (gamepad.axes[1] || 0) * 8).toString());
@@ -267,6 +320,10 @@
       if (rightThumb) {
         rightThumb.setAttribute('cx', (265 + (gamepad.axes[2] || 0) * 8).toString());
         rightThumb.setAttribute('cy', (185 + (gamepad.axes[3] || 0) * 8).toString());
+      }
+      if (n64Thumb) {
+        n64Thumb.setAttribute('cx', (220 + (gamepad.axes[0] || 0) * 8).toString());
+        n64Thumb.setAttribute('cy', (180 + (gamepad.axes[1] || 0) * 8).toString());
       }
       if (optionsTutorial?.handleGamepad(gamepad, previousSnapshot)) {
         cursor.hideCursor('left');
