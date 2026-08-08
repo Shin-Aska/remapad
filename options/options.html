@@ -149,7 +149,7 @@
               <div class="controller-img-wrap" id="controller-img-wrap">
 
                 <!-- SVG Gamepad (DualSense style) -->
-                <svg class="controller-svg" viewBox="0 0 440 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <svg class="controller-svg default-svg" id="controller-svg-default" viewBox="0 0 440 280" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M60 100 C60 60 90 40 130 40 L310 40 C350 40 380 60 380 100 L395 200 C395 240 370 260 340 260 L290 260 C270 260 250 245 230 240 L210 240 C190 245 170 260 150 260 L100 260 C70 260 45 240 45 200 Z" fill="#1b1b1b" stroke="rgba(255,255,255,0.12)" stroke-width="1.5"/>
                   <rect x="165" y="80" width="110" height="72" rx="8" fill="#131313" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
                   
@@ -190,6 +190,77 @@
                   <!-- Start / Select -->
                   <circle id="svg-btn-8" cx="200" cy="110" r="5" fill="#222" class="svg-btn"/> <!-- Select -->
                   <circle id="svg-btn-9" cx="240" cy="110" r="5" fill="#222" class="svg-btn"/> <!-- Start -->
+                </svg>
+
+                <!-- SVG Gamepad (N64 3-Prong style) -->
+                <svg class="controller-svg n64-svg" id="controller-svg-n64" viewBox="0 0 440 280" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:none">
+                  <defs>
+                    <linearGradient id="n64-body-grad" x1="220" y1="30" x2="220" y2="270" gradientUnits="userSpaceOnUse">
+                      <stop offset="0%" stop-color="#2d2d35"/>
+                      <stop offset="100%" stop-color="#18181c"/>
+                    </linearGradient>
+                    <linearGradient id="n64-stick-grad" x1="220" y1="160" x2="220" y2="200" gradientUnits="userSpaceOnUse">
+                      <stop offset="0%" stop-color="#4a4a52"/>
+                      <stop offset="100%" stop-color="#25252b"/>
+                    </linearGradient>
+                  </defs>
+
+                  <!-- N64 Main Body Path (Classic 3-Prong Form) -->
+                  <path d="M125 55 C125 38 160 32 220 32 C280 32 315 38 315 55 C335 68 355 95 365 130 L375 220 C380 252 350 268 330 250 L298 175 L248 162 L248 248 C248 272 220 272 220 272 C220 272 192 272 192 248 L192 162 L142 175 L110 250 C90 268 60 252 65 220 L75 130 C85 95 105 68 125 55 Z" fill="url(#n64-body-grad)" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+
+                  <!-- Left Prong D-Pad -->
+                  <g transform="translate(10, 5)">
+                    <path id="svg-n64-btn-12" d="M96 95 H112 V107 H96 Z" fill="#3a3a42" stroke="rgba(255,255,255,0.15)" stroke-width="0.8" class="svg-btn"/> <!-- D-pad Up -->
+                    <path id="svg-n64-btn-13" d="M96 133 H112 V145 H96 Z" fill="#3a3a42" stroke="rgba(255,255,255,0.15)" stroke-width="0.8" class="svg-btn"/> <!-- D-pad Down -->
+                    <path id="svg-n64-btn-14" d="M82 109 H94 V127 H82 Z" fill="#3a3a42" stroke="rgba(255,255,255,0.15)" stroke-width="0.8" class="svg-btn"/> <!-- D-pad Left -->
+                    <path id="svg-n64-btn-15" d="M114 109 H126 V127 H114 Z" fill="#3a3a42" stroke="rgba(255,255,255,0.15)" stroke-width="0.8" class="svg-btn"/> <!-- D-pad Right -->
+                    <rect x="94" y="107" width="20" height="22" fill="#3a3a42"/>
+                  </g>
+
+                  <!-- Middle Prong Thumbstick -->
+                  <circle id="svg-n64-axis-L" cx="220" cy="180" r="23" fill="url(#n64-stick-grad)" stroke="rgba(255,255,255,0.25)" stroke-width="1.5"/>
+                  <circle cx="220" cy="180" r="14" fill="#1e1e24" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+                  <circle cx="220" cy="180" r="6" fill="#353540"/>
+
+                  <!-- Center Red Start Button (Button 9) -->
+                  <circle id="svg-n64-btn-9" cx="220" cy="100" r="10" fill="#e50914" stroke="#ff4d4d" stroke-width="1.5" class="svg-btn"/>
+                  <text x="220" y="103" text-anchor="middle" fill="#ffffff" font-size="7" font-weight="900" font-family="sans-serif">START</text>
+
+                  <!-- Right Prong Face Buttons -->
+                  <!-- Blue A Button (Button 5) -->
+                  <circle id="svg-n64-btn-5" cx="310" cy="182" r="13" fill="#0088cc" stroke="#00bfff" stroke-width="1.5" class="svg-btn"/>
+                  <text x="310" y="186" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="bold" font-family="sans-serif">A</text>
+
+                  <!-- Green B Button (Button 4) -->
+                  <circle id="svg-n64-btn-4" cx="288" cy="154" r="10" fill="#388e3c" stroke="#4caf50" stroke-width="1.5" class="svg-btn"/>
+                  <text x="288" y="158" text-anchor="middle" fill="#ffffff" font-size="10" font-weight="bold" font-family="sans-serif">B</text>
+
+                  <!-- Yellow C-Pad Cluster -->
+                  <!-- C-Up (Button 0: Up direction C-button) -->
+                  <circle id="svg-n64-btn-0" cx="348" cy="116" r="9" fill="#fbc02d" stroke="#ffeb3b" stroke-width="1.2" class="svg-btn"/>
+                  <text x="348" y="119" text-anchor="middle" fill="#111111" font-size="8" font-weight="bold" font-family="sans-serif">▲</text>
+
+                  <!-- C-Down (Button 2: Down direction C-button) -->
+                  <circle id="svg-n64-btn-2" cx="348" cy="164" r="9" fill="#fbc02d" stroke="#ffeb3b" stroke-width="1.2" class="svg-btn"/>
+                  <text x="348" y="167" text-anchor="middle" fill="#111111" font-size="8" font-weight="bold" font-family="sans-serif">▼</text>
+
+                  <!-- C-Left (Button 3: Left direction C-button) -->
+                  <circle id="svg-n64-btn-3" cx="324" cy="140" r="9" fill="#fbc02d" stroke="#ffeb3b" stroke-width="1.2" class="svg-btn"/>
+                  <text x="324" y="143" text-anchor="middle" fill="#111111" font-size="8" font-weight="bold" font-family="sans-serif">◀</text>
+
+                  <!-- C-Right (Button 1: Right direction C-button) -->
+                  <circle id="svg-n64-btn-1" cx="372" cy="140" r="9" fill="#fbc02d" stroke="#ffeb3b" stroke-width="1.2" class="svg-btn"/>
+                  <text x="372" y="143" text-anchor="middle" fill="#111111" font-size="8" font-weight="bold" font-family="sans-serif">▶</text>
+
+                  <!-- Shoulders -->
+                  <!-- L Bumper (Button 6) -->
+                  <path id="svg-n64-btn-6" d="M100 42 C105 32 130 28 150 30 L150 42 Z" fill="#3a3a42" stroke="rgba(255,255,255,0.2)" stroke-width="1" class="svg-btn"/>
+                  <!-- R Bumper (Button 7) -->
+                  <path id="svg-n64-btn-7" d="M340 42 C335 32 310 28 290 32 L290 42 Z" fill="#3a3a42" stroke="rgba(255,255,255,0.2)" stroke-width="1" class="svg-btn"/>
+
+                  <!-- Z Trigger (Button 8) on Middle Prong -->
+                  <rect id="svg-n64-btn-8" x="204" y="240" width="32" height="16" rx="4" fill="#25252e" stroke="rgba(255,255,255,0.3)" stroke-width="1" class="svg-btn"/>
+                  <text x="220" y="252" text-anchor="middle" fill="#ffffff" font-size="9" font-weight="bold" font-family="sans-serif">Z</text>
                 </svg>
 
                 <!-- Spaced and fixed positioned callouts (no overlaps) -->
