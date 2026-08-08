@@ -84,6 +84,16 @@
       '0': 'B', '1': 'A', '2': 'Y', '3': 'X',
       '4': 'L', '5': 'R', '6': 'ZL', '7': 'ZR',
       '8': 'Minus', '9': 'Plus', '10': 'L3', '11': 'R3', '12': '↑', '13': '↓', '14': '←', '15': '→'
+    },
+    steamdeck: {
+      '0': 'A', '1': 'B', '2': 'X', '3': 'Y',
+      '4': 'L1', '5': 'R1', '6': 'L2', '7': 'R2',
+      '8': 'View', '9': 'Options', '10': 'L3', '11': 'R3', '12': '↑', '13': '↓', '14': '←', '15': '→'
+    },
+    n64: {
+      '0': 'C-Up', '1': 'C-Right', '2': 'C-Down', '3': 'C-Left',
+      '4': 'B', '5': 'A', '6': 'L', '7': 'R',
+      '8': 'Z', '9': 'Start', '10': 'L3', '11': 'R3', '12': '↑', '13': '↓', '14': '←', '15': '→'
     }
   };
 
@@ -213,10 +223,31 @@
   };
 
   const CONTROLLER_STYLE_PATTERNS = [
+    { test: /steam deck|steam controller|valve software|028e.*11ff|28de.*11ff|28de-11ff|28de/, style: 'steamdeck' },
+    { test: /0079.*0006|dragonrise|n64|dragon rise/, style: 'n64' },
     { test: /xbox|microsoft|xinput|generic x/, style: 'xbox' },
     { test: /dualsense|dualshock|sony|playstation|ps4|ps5/, style: 'playstation' },
     { test: /nintendo|switch|pro controller/, style: 'nintendo' }
   ];
+
+  const N64_DEFAULT_PROFILE = {
+    '0': 'scroll_up',      // C-Up
+    '1': 'seek_forward',   // C-Right
+    '2': 'scroll_down',    // C-Down
+    '3': 'seek_backward',  // C-Left
+    '4': 'back',           // Button B
+    '5': 'click',          // Button A
+    '6': 'prev_tab',       // L Bumper
+    '7': 'next_tab',       // R Bumper
+    '8': 'fullscreen',     // Z Trigger
+    '9': 'toggle_hud',     // Start
+    '10': 'none',          // L3 Click
+    '11': 'none',          // R3 Click
+    '12': 'scroll_up',     // D-Pad Up
+    '13': 'scroll_down',   // D-Pad Down
+    '14': 'scroll_left',   // D-Pad Left
+    '15': 'scroll_right'   // D-Pad Right
+  };
 
   const Constants = {
     POLL_INTERVAL_MS,
@@ -226,6 +257,7 @@
     MAX_DOM_ACTION_PAYLOAD_LENGTH,
     DEFAULT_NAV_SETTINGS,
     DEFAULT_PROFILE,
+    N64_DEFAULT_PROFILE,
     GLYPHS,
     ACTION_LABELS,
     DOM_ACTION_OPERATIONS,
