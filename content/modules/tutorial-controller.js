@@ -73,7 +73,9 @@
       const names = {
         xbox: 'Xbox',
         playstation: 'PlayStation',
-        nintendo: 'Nintendo'
+        nintendo: 'Nintendo',
+        steamdeck: 'Steam Deck',
+        n64: 'N64'
       };
       return names[callbacks.getIconStyle()] || 'your';
     }
