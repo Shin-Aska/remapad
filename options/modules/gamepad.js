@@ -8,7 +8,7 @@
 (function (global) {
   'use strict';
 
-  function create({ state, constants, utils, dom, mappingEditor, cursor, modal, optionsTutorial, switchOptionsTab }) {
+  function create({ state, constants, utils, dom, mappingEditor, cursor, modal, optionsTutorial, switchOptionsTab, reportIssues }) {
     const { RESERVED_OPTIONS_KEY, BUTTON_NAMES, OPTIONS_NAV_REPEAT_MS } = constants;
     const { clamp } = utils;
     let previousPressed = [];
@@ -207,6 +207,9 @@
       dom.statusBadgeEl.className = 'status-badge connected';
       dom.statusDotEl.className = 'status-dot pulse';
       dom.statusTextEl.textContent = 'CONNECTED';
+      if (reportIssues && reportIssues.updateControllerStatus) {
+        reportIssues.updateControllerStatus(gamepad);
+      }
     }
 
     function updateDisconnectedStatus() {
@@ -222,6 +225,9 @@
       if (dom.navStatusText) dom.navStatusText.textContent = 'DISCONNECTED';
       document.querySelectorAll('.svg-btn').forEach(button => button.classList.remove('highlighted'));
       resetNavigationStickViz();
+      if (reportIssues && reportIssues.updateControllerStatus) {
+        reportIssues.updateControllerStatus(null);
+      }
     }
 
     function getDpadState(gamepad) {
