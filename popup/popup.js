@@ -253,6 +253,28 @@ const triggerOptions = () => {
 
 openOptionsBtn.addEventListener('click', triggerOptions);
 
+const popupReportIssueBtn = document.getElementById('popup-report-issue-btn');
+if (popupReportIssueBtn) {
+  popupReportIssueBtn.addEventListener('click', () => {
+    const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+    const connectedGp = [...gamepads].find(g => g && g.connected);
+    const controllerName = connectedGp ? (connectedGp.id || '') : '';
+
+    const params = new URLSearchParams();
+    params.set('tab', 'report-issues');
+    if (currentHostname) {
+      params.set('page', currentHostname);
+    }
+    if (controllerName) {
+      params.set('controller', controllerName);
+    }
+
+    const url = api.runtime.getURL('options/options.html') + '?' + params.toString();
+    api.tabs.create({ url });
+    window.close();
+  });
+}
+
 // Dynamic Shortcut Launching
 function renderShortcuts() {
   const grid = document.getElementById('shortcuts-grid');

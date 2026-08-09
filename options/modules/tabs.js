@@ -6,7 +6,7 @@
 (function (global) {
   'use strict';
 
-  function create({ collectionSettings, navigationSettings, keyboardSettings }) {
+  function create({ collectionSettings, navigationSettings, keyboardSettings, reportIssues }) {
     function activate(button) {
       const tabButtons = document.querySelectorAll('.tab-btn');
       const targetPanelId = button.getAttribute('aria-controls');
@@ -20,9 +20,15 @@
       const panel = document.getElementById(targetPanelId);
       if (!panel) return;
       panel.hidden = false;
-      if (targetPanelId === 'tab-panel-collection') collectionSettings.render();
-      if (targetPanelId === 'tab-panel-navigation') navigationSettings.render();
-      if (targetPanelId === 'tab-panel-keyboard') keyboardSettings.render();
+      if (targetPanelId === 'tab-panel-collection' && collectionSettings) collectionSettings.render();
+      if (targetPanelId === 'tab-panel-navigation' && navigationSettings) navigationSettings.render();
+      if (targetPanelId === 'tab-panel-keyboard' && keyboardSettings) keyboardSettings.render();
+      if (targetPanelId === 'tab-panel-report-issues' && reportIssues && reportIssues.prefillFromUrl) reportIssues.prefillFromUrl();
+    }
+
+    function activateTabById(buttonId) {
+      const btn = document.getElementById(buttonId);
+      if (btn) activate(btn);
     }
 
     function init() {
@@ -36,7 +42,7 @@
       tabs[(activeIndex + direction + tabs.length) % tabs.length].click();
     }
 
-    return { init, switchBy };
+    return { init, switchBy, activateTabById, activate };
   }
 
   global.RemapadOptions = global.RemapadOptions || {};

@@ -131,7 +131,7 @@
           constants: CS.Constants,
           overlayStyles,
           callbacks: {
-            getActiveProfile: () => activeProfile,
+            getActiveProfile: getEffectiveProfile,
             getIconStyle: resolveIconStyle,
             getSettings: () => settings,
             openSiteMapping: () => messagingClient.openSiteMapping(),
@@ -168,7 +168,7 @@
           overlayStyles,
           callbacks: {
             getSettings: () => settings,
-            getActiveProfile: () => activeProfile,
+            getActiveProfile: getEffectiveProfile,
             getIconStyle: resolveIconStyle,
             isSiteActive
           }
@@ -336,10 +336,50 @@
       }
     }
 
-    // Buttons
-    gp.buttons.forEach((btn, idx) => {
+    // Buttons and HAT switch D-Pad axes
+    const b12 = gp.buttons[12] ? Boolean(gp.buttons[12].pressed) : false;
+    const b13 = gp.buttons[13] ? Boolean(gp.buttons[13].pressed) : false;
+    const b14 = gp.buttons[14] ? Boolean(gp.buttons[14].pressed) : false;
+    const b15 = gp.buttons[15] ? Boolean(gp.buttons[15].pressed) : false;
+
+    let dpadLeft = b14;
+    let dpadRight = b15;
+    let dpadUp = b12;
+    let dpadDown = b13;
+
+    // Standard-mapped controllers expose the D-pad as buttons 12–15. Only
+    // DragonRise/N64 adapters use the explicit fallback pair below; scanning
+    // arbitrary axes would incorrectly turn stick movement into D-pad input.
+    if (gp.mapping !== 'standard' && controllerStyle.detect(gp.id) === 'n64') {
+      const axes = gp.axes || [];
+      const horizontalAxis = axes.length >= 6 ? axes[5] : axes.length >= 4 ? axes[2] : 0;
+      const verticalAxis = axes.length >= 6 ? axes[4] : axes.length >= 4 ? axes[3] : 0;
+      const HIGH_THRESHOLD = 0.8;
+      dpadLeft = dpadLeft || horizontalAxis < -HIGH_THRESHOLD;
+      dpadRight = dpadRight || horizontalAxis > HIGH_THRESHOLD;
+      dpadUp = dpadUp || verticalAxis < -HIGH_THRESHOLD;
+      dpadDown = dpadDown || verticalAxis > HIGH_THRESHOLD;
+    }
+
+    const dpadState = {
+      up: dpadUp,
+      down: dpadDown,
+      left: dpadLeft,
+      right: dpadRight
+    };
+
+    for (let idx = 0; idx < 16; idx++) {
+      let isPressed = false;
+      if (idx === 12) isPressed = dpadState.up;
+      else if (idx === 13) isPressed = dpadState.down;
+      else if (idx === 14) isPressed = dpadState.left;
+      else if (idx === 15) isPressed = dpadState.right;
+      else {
+        const btn = gp.buttons[idx];
+        isPressed = btn ? (Boolean(btn.pressed) || btn.value > 0.5) : false;
+      }
+
       const wasPressed = prevButtonStates[idx] || false;
-      const isPressed = btn.pressed || btn.value > 0.5;
 
       if (isPressed && !wasPressed) {
         onButtonPress(idx);
@@ -347,7 +387,7 @@
         onButtonRelease(idx);
       }
       prevButtonStates[idx] = isPressed;
-    });
+    }
 
     // Tutorial is modal: button presses are routed above and axes must not
     // scroll, navigate, or move a cursor on the underlying site while it is open.
@@ -523,13 +563,38 @@
     }
   }
 
+  function translateButtonIndex(rawBtnIdx) {
+    const style = resolveIconStyle();
+    if (style === 'steamdeck') {
+      // Only X (2) and Y (3) buttons are swapped on Steam Deck Gamepad API
+      if (rawBtnIdx === 2) return 3;
+      if (rawBtnIdx === 3) return 2;
+    }
+    return rawBtnIdx;
+  }
+
+  function getEffectiveProfile() {
+    const style = resolveIconStyle();
+    if (style === 'n64') {
+      const isDefaultSite = !settings.websiteMappings[currentHostname] || settings.websiteMappings[currentHostname] === 'default';
+      const isUnmodifiedDefault = JSON.stringify(activeProfile) === JSON.stringify(DEFAULT_PROFILE);
+      if (isDefaultSite && isUnmodifiedDefault) {
+        return N64_DEFAULT_PROFILE;
+      }
+    }
+    return activeProfile;
+  }
+
   // ─── Action Dispatcher ─────────────────────────────────────────────────────
 
   // Input precedence (highest to lowest): tutorial, virtual keyboard, Quick Map
   // picker, HUD navigation, active profile mappings. The Start button may also
   // open Quick Map when explicitly mapped to `open_options`.
-  function onButtonPress(btnIdx) {
+  function onButtonPress(rawBtnIdx) {
     if (!isSiteActive()) return false;
+
+    const btnIdx = translateButtonIndex(rawBtnIdx);
+    const profile = getEffectiveProfile();
 
     if (tutorialController?.handleButtonPress(btnIdx)) return false;
 
@@ -556,7 +621,7 @@
 
     if (hudController?.handleButtonPress(btnIdx)) return false;
 
-    const action = activeProfile[btnIdx.toString()];
+    const action = profile[btnIdx.toString()];
     if (!action || action === 'none') return false;
 
     if (btnIdx === 9 && action === 'open_options') {
@@ -568,12 +633,15 @@
     return true;
   }
 
-  function onButtonRelease(btnIdx) {
+  function onButtonRelease(rawBtnIdx) {
     if (!isSiteActive()) return;
     if (tutorialController?.isVisible()) return;
     if (quickMapElement) return;
 
-    const action = activeProfile[btnIdx.toString()];
+    const btnIdx = translateButtonIndex(rawBtnIdx);
+    const profile = getEffectiveProfile();
+
+    const action = profile[btnIdx.toString()];
     if (!action) return;
 
     if (action.startsWith('hover_element:')) {

@@ -159,6 +159,8 @@
 
     function detectControllerStyle(gamepadId) {
       const id = (gamepadId || '').toLowerCase();
+      if (/steam deck|steam controller|valve software|028e.*11ff|28de.*11ff|28de-11ff|28de/.test(id)) return 'steamdeck';
+      if (/0079.*0006|dragonrise|n64|dragon rise/.test(id)) return 'n64';
       if (/xbox|microsoft|xinput|generic x/.test(id)) return 'xbox';
       if (/dualsense|dualshock|sony|playstation|ps4|ps5/.test(id)) return 'playstation';
       if (/nintendo|switch|pro controller/.test(id)) return 'nintendo';
@@ -226,11 +228,20 @@
           indicator.appendChild(check);
         }
         item.append(left, indicator);
-        item.addEventListener('click', () => {
+        item.addEventListener('click', async () => {
+          const previousStyle = settings.iconStyle;
           settings.iconStyle = style.id;
-          state.markUnsaved();
           renderIconStyles();
           updateSvgTextLabels();
+          try {
+            await api.storage.local.set({ iconStyle: style.id });
+            showToast('Controller layout updated.', 'success');
+          } catch (error) {
+            if (settings.iconStyle === style.id) settings.iconStyle = previousStyle;
+            renderIconStyles();
+            updateSvgTextLabels();
+            showToast('Unable to save controller layout: ' + error.message);
+          }
         });
         dom.iconStyleListEl.appendChild(item);
       });
@@ -238,6 +249,17 @@
 
     function updateSvgTextLabels() {
       const style = resolveIconStyle();
+      const canvasEl = document.querySelector('.gamepad-canvas');
+      if (canvasEl) {
+        canvasEl.classList.toggle('n64-layout-active', style === 'n64');
+        canvasEl.dataset.controllerStyle = style;
+        const activeSvgId = style === 'playstation'
+          ? 'controller-svg-default'
+          : `controller-svg-${style}`;
+        canvasEl.querySelectorAll('.controller-svg').forEach(svg => {
+          svg.style.display = svg.id === activeSvgId ? 'block' : 'none';
+        });
+      }
       const crossText = document.querySelector('text[x="340"][y="163"]');
       const circleText = document.querySelector('text[x="360"][y="143"]');
       const squareText = document.querySelector('text[x="320"][y="143"]');
@@ -246,13 +268,52 @@
       const circleCallout = document.querySelector('.callout-circle .callout-btn-name');
       const squareCallout = document.querySelector('.callout-square .callout-btn-name');
       const triangleCallout = document.querySelector('.callout-triangle .callout-btn-name');
-      const values = style === 'xbox'
-        ? [['A', 'B', 'X', 'Y'], ['Button A', 'Button B', 'Button X', 'Button Y']]
-        : style === 'nintendo'
-          ? [['B', 'A', 'Y', 'X'], ['Button B', 'Button A', 'Button Y', 'Button X']]
-          : [['✕', '○', '□', '△'], ['Cross (✕)', 'Circle (○)', 'Square (□)', 'Triangle (△)']];
-      [crossText, circleText, squareText, triangleText].forEach((element, index) => { if (element) element.textContent = values[0][index]; });
-      [crossCallout, circleCallout, squareCallout, triangleCallout].forEach((element, index) => { if (element) element.textContent = values[1][index]; });
+      const l1Callout = document.querySelector('.callout-l1 .callout-btn-name');
+      const r1Callout = document.querySelector('.callout-r1 .callout-btn-name');
+      const selectCallout = document.querySelector('.callout-select .callout-btn-name');
+      const startCallout = document.querySelector('.callout-start .callout-btn-name');
+
+      if (style === 'n64') {
+        const l2Callout = document.querySelector('.callout-l2 .callout-btn-name');
+        const r2Callout = document.querySelector('.callout-r2 .callout-btn-name');
+        if (crossCallout) crossCallout.textContent = 'C-Up';
+        if (circleCallout) circleCallout.textContent = 'C-Right';
+        if (squareCallout) squareCallout.textContent = 'C-Down';
+        if (triangleCallout) triangleCallout.textContent = 'C-Left';
+        if (l1Callout) l1Callout.textContent = 'Button B';
+        if (r1Callout) r1Callout.textContent = 'Button A';
+        if (l2Callout) l2Callout.textContent = 'L Bumper';
+        if (r2Callout) r2Callout.textContent = 'R Bumper';
+        if (selectCallout) selectCallout.textContent = 'Z Trigger';
+        if (startCallout) startCallout.textContent = 'Start Button';
+      } else if (style === 'nintendo') {
+        if (crossCallout) crossCallout.textContent = 'Button B';
+        if (circleCallout) circleCallout.textContent = 'Button A';
+        if (squareCallout) squareCallout.textContent = 'Button Y';
+        if (triangleCallout) triangleCallout.textContent = 'Button X';
+        if (l1Callout) l1Callout.textContent = 'L Bumper';
+        if (r1Callout) r1Callout.textContent = 'R Bumper';
+        if (selectCallout) selectCallout.textContent = 'Minus (-)';
+        if (startCallout) startCallout.textContent = 'Plus (+)';
+      } else if (style === 'steamdeck') {
+        if (crossCallout) crossCallout.textContent = 'Button A';
+        if (circleCallout) circleCallout.textContent = 'Button B';
+        if (squareCallout) squareCallout.textContent = 'Button X';
+        if (triangleCallout) triangleCallout.textContent = 'Button Y';
+        if (l1Callout) l1Callout.textContent = 'L1 Bumper';
+        if (r1Callout) r1Callout.textContent = 'R1 Bumper';
+        if (selectCallout) selectCallout.textContent = 'View Button';
+        if (startCallout) startCallout.textContent = 'Options Button';
+      } else {
+        if (crossCallout) crossCallout.textContent = style === 'xbox' ? 'Button A' : 'Cross (✕)';
+        if (circleCallout) circleCallout.textContent = style === 'xbox' ? 'Button B' : 'Circle (○)';
+        if (squareCallout) squareCallout.textContent = style === 'xbox' ? 'Button X' : 'Square (□)';
+        if (triangleCallout) triangleCallout.textContent = style === 'xbox' ? 'Button Y' : 'Triangle (△)';
+        if (l1Callout) l1Callout.textContent = style === 'xbox' ? 'LB Bumper' : 'L1 Bumper';
+        if (r1Callout) r1Callout.textContent = style === 'xbox' ? 'RB Bumper' : 'R1 Bumper';
+        if (selectCallout) selectCallout.textContent = style === 'xbox' ? 'View Button' : 'Select Button';
+        if (startCallout) startCallout.textContent = style === 'xbox' ? 'Menu Button' : 'Start Button';
+      }
     }
 
     function populateVisualLabels() {

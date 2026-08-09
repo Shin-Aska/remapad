@@ -60,6 +60,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;flex-shrink:0"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M8 14h8"/></svg>
         Miscellaneous Options
       </button>
+      <button class="tab-btn" id="tab-btn-report-issues" role="tab" aria-selected="false" aria-controls="tab-panel-report-issues">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Report Issues
+      </button>
     </div>
 
     <!-- ── Tab Panel: Controller ────────────────────────────────────────────── -->
@@ -148,48 +152,128 @@
             <div class="gamepad-canvas">
               <div class="controller-img-wrap" id="controller-img-wrap">
 
-                <!-- SVG Gamepad (DualSense style) -->
-                <svg class="controller-svg" viewBox="0 0 440 280" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M60 100 C60 60 90 40 130 40 L310 40 C350 40 380 60 380 100 L395 200 C395 240 370 260 340 260 L290 260 C270 260 250 245 230 240 L210 240 C190 245 170 260 150 260 L100 260 C70 260 45 240 45 200 Z" fill="#1b1b1b" stroke="rgba(255,255,255,0.12)" stroke-width="1.5"/>
-                  <rect x="165" y="80" width="110" height="72" rx="8" fill="#131313" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
-                  
-                  <!-- D-Pad -->
-                  <path id="svg-btn-12" d="M90 115 H106 V125 H90 Z" fill="#2a2a2a" class="svg-btn"/> <!-- D-pad Up -->
-                  <path id="svg-btn-13" d="M90 151 H106 V161 H90 Z" fill="#2a2a2a" class="svg-btn"/> <!-- D-pad Down -->
-                  <path id="svg-btn-14" d="M76 129 H86 V145 H76 Z" fill="#2a2a2a" class="svg-btn"/> <!-- D-pad Left -->
-                  <path id="svg-btn-15" d="M110 129 H120 V145 H110 Z" fill="#2a2a2a" class="svg-btn"/> <!-- D-pad Right -->
-                  <rect x="86" y="125" width="28" height="26" fill="#2a2a2a"/>
+                <!-- SVG Gamepad (DualSense style - Upgraded Design from preview.html) -->
+                <svg class="controller-svg default-svg" id="controller-svg-default" viewBox="0 0 440 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <defs>
+                    <linearGradient id="ps-shell" x1="220" y1="35" x2="220" y2="260"><stop stop-color="#F7F7F8"/><stop offset=".55" stop-color="#D9D9DD"/><stop offset="1" stop-color="#B8B9BF"/></linearGradient>
+                    <linearGradient id="ps-black" x1="220" y1="55" x2="220" y2="215"><stop stop-color="#202126"/><stop offset="1" stop-color="#0D0E12"/></linearGradient>
+                    <filter id="ps-shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#000" flood-opacity=".42"/></filter>
+                  </defs>
+                  <g filter="url(#ps-shadow)">
+                    <path d="M104 48c34-19 70-17 116-10 46-7 82-9 116 10 31 18 45 48 50 86l11 71c5 35-14 57-41 57-21 0-33-16-45-37l-29-49c-18 8-39 12-62 12s-44-4-62-12l-29 49c-12 21-24 37-45 37-27 0-46-22-41-57l11-71c5-38 19-68 50-86Z" fill="url(#ps-shell)" stroke="#FFF" stroke-opacity=".72" stroke-width="1.5"/>
+                    <path d="M150 54c21-8 45-10 70-6 25-4 49-2 70 6l-27 39h-86Z" fill="url(#ps-black)"/>
+                    <path d="M183 77h74c11 0 19 8 19 19v53c0 11-8 19-19 19h-74c-11 0-19-8-19-19V96c0-11 8-19 19-19Z" fill="#17181D" stroke="#4A4C55" stroke-opacity=".65"/>
+                    <rect x="171" y="84" width="98" height="72" rx="9" fill="#24262D" stroke="#555865" stroke-opacity=".45"/>
+                  </g>
+                  <path id="svg-btn-6" d="M89 45c8-17 34-27 61-23l14 17-54 15Z" fill="#16171C" stroke="#6D707B" stroke-opacity=".55" class="svg-btn"/>
+                  <path id="svg-btn-7" d="M351 45c-8-17-34-27-61-23l-14 17 54 15Z" fill="#16171C" stroke="#6D707B" stroke-opacity=".55" class="svg-btn"/>
+                  <path id="svg-btn-4" d="M108 51c10-10 30-14 49-11l8 11-52 10Z" fill="#2A2B31" class="svg-btn"/>
+                  <path id="svg-btn-5" d="M332 51c-10-10-30-14-49-11l-8 11 52 10Z" fill="#2A2B31" class="svg-btn"/>
+                  <circle cx="105" cy="132" r="31" fill="#CFD0D5"/>
+                  <g fill="#313239" stroke="#111216" stroke-opacity=".35">
+                    <path id="svg-btn-12" d="M98 97h14l4 27H94Z" class="svg-btn"/><path id="svg-btn-13" d="M98 167h14l4-27H94Z" class="svg-btn"/><path id="svg-btn-14" d="M70 125v14l27 4v-22Z" class="svg-btn"/><path id="svg-btn-15" d="M140 125v14l-27 4v-22Z" class="svg-btn"/><rect x="94" y="121" width="22" height="22" rx="3"/>
+                  </g>
+                  <g>
+                    <circle id="svg-axis-L" cx="150" cy="193" r="24" fill="#C9CAD0" stroke="#A7A9B0"/><circle id="svg-btn-10" cx="150" cy="193" r="15" fill="#2B2C32" stroke="#565862" class="svg-btn"/>
+                    <circle id="svg-axis-R" cx="290" cy="193" r="24" fill="#C9CAD0" stroke="#A7A9B0"/><circle id="svg-btn-11" cx="290" cy="193" r="15" fill="#2B2C32" stroke="#565862" class="svg-btn"/>
+                    <path d="M143 187c4-3 10-3 14 0M283 187c4-3 10-3 14 0" stroke="#747681" stroke-width="1.2" stroke-linecap="round"/>
+                  </g>
+                  <g fill="#303138" stroke="#777A86" stroke-opacity=".6">
+                    <circle id="svg-btn-3" cx="337" cy="108" r="12" class="svg-btn"/><circle id="svg-btn-1" cx="361" cy="132" r="12" class="svg-btn"/><circle id="svg-btn-2" cx="313" cy="132" r="12" class="svg-btn"/><circle id="svg-btn-0" cx="337" cy="156" r="12" class="svg-btn"/>
+                  </g>
+                  <g fill="none" stroke-width="1.7" opacity=".85"><path d="M337 102l6 10h-12Z" stroke="#76D7F6"/><circle cx="361" cy="132" r="5" stroke="#F48FB1"/><rect x="308" y="127" width="10" height="10" stroke="#B7A4F5"/><path d="m333 152 8 8m0-8-8 8" stroke="#7BD6B4"/></g>
+                  <rect id="svg-btn-8" x="145" y="101" width="12" height="22" rx="5" fill="#26272D" class="svg-btn"/><rect id="svg-btn-9" x="283" y="101" width="12" height="22" rx="5" fill="#26272D" class="svg-btn"/>
+                  <circle cx="220" cy="177" r="5" fill="#15161B" stroke="#5C5F6A"/><path d="M220 174c-2 0-3 1-3 3s1 3 3 3 3-1 3-3-1-3-3-3Z" fill="#4A9CFF" fill-opacity=".7"/>
+                </svg>
 
-                  <!-- Left Stick -->
-                  <circle id="svg-axis-L" cx="135" cy="185" r="22" fill="#222" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
-                  <circle id="svg-btn-10" cx="135" cy="185" r="13" fill="#333" stroke="rgba(255,255,255,0.2)" stroke-width="1" class="svg-btn"/>
-                  
-                  <!-- Right Stick -->
-                  <circle id="svg-axis-R" cx="265" cy="185" r="22" fill="#222" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
-                  <circle id="svg-btn-11" cx="265" cy="185" r="13" fill="#333" stroke="rgba(255,255,255,0.2)" stroke-width="1" class="svg-btn"/>
+                <!-- SVG Gamepad (Xbox Series style) -->
+                <svg class="controller-svg" id="controller-svg-xbox" viewBox="0 0 440 280" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:none">
+                  <defs><linearGradient id="xb-shell" x1="220" y1="35" x2="220" y2="260"><stop stop-color="#25272B"/><stop offset=".55" stop-color="#17191D"/><stop offset="1" stop-color="#0D0F12"/></linearGradient><radialGradient id="xb-stick"><stop stop-color="#4A4D53"/><stop offset="1" stop-color="#222429"/></radialGradient><filter id="xb-shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#000" flood-opacity=".5"/></filter></defs>
+                  <g filter="url(#xb-shadow)"><path d="M117 43c34-12 69-9 103 1 34-10 69-13 103-1 34 12 56 42 62 83l10 74c5 38-14 61-43 61-20 0-34-15-49-39l-24-37c-18 9-38 14-59 14s-41-5-59-14l-24 37c-15 24-29 39-49 39-29 0-48-23-43-61l10-74c6-41 28-71 62-83Z" fill="url(#xb-shell)" stroke="#555961" stroke-opacity=".55" stroke-width="1.5"/><path d="M141 54c31-9 53-5 79 4 26-9 48-13 79-4" stroke="#747881" stroke-opacity=".23" stroke-width="2" stroke-linecap="round"/></g>
+                  <path id="svg-xbox-btn-6" d="M94 43c9-17 32-26 58-22l12 19-60 12Z" fill="#101216" stroke="#50545D" class="svg-btn"/><path id="svg-xbox-btn-7" d="M346 43c-9-17-32-26-58-22l-12 19 60 12Z" fill="#101216" stroke="#50545D" class="svg-btn"/><path id="svg-xbox-btn-4" d="M112 49c10-9 29-12 45-9l7 11-49 8Z" fill="#25282D" class="svg-btn"/><path id="svg-xbox-btn-5" d="M328 49c-10-9-29-12-45-9l-7 11 49 8Z" fill="#25282D" class="svg-btn"/>
+                  <circle id="svg-xbox-axis-L" cx="132" cy="110" r="25" fill="#111317" stroke="#555963"/><circle id="svg-xbox-btn-10" cx="132" cy="110" r="16" fill="url(#xb-stick)" stroke="#696D76" stroke-opacity=".6" class="svg-btn"/><circle cx="132" cy="110" r="9" stroke="#1B1D21" stroke-width="2" stroke-dasharray="2 2"/>
+                  <g transform="translate(2 0)"><circle cx="158" cy="174" r="30" fill="#131519" stroke="#373A41"/><path id="svg-xbox-btn-12" d="M151 141h14l4 25h-22Z" fill="#34373D" class="svg-btn"/><path id="svg-xbox-btn-13" d="M151 207h14l4-25h-22Z" fill="#34373D" class="svg-btn"/><path id="svg-xbox-btn-14" d="M125 167v14l25 4v-22Z" fill="#34373D" class="svg-btn"/><path id="svg-xbox-btn-15" d="M191 167v14l-25 4v-22Z" fill="#34373D" class="svg-btn"/><rect x="147" y="163" width="22" height="22" rx="3" fill="#34373D"/></g>
+                  <circle id="svg-xbox-axis-R" cx="276" cy="180" r="25" fill="#111317" stroke="#555963"/><circle id="svg-xbox-btn-11" cx="276" cy="180" r="16" fill="url(#xb-stick)" stroke="#696D76" stroke-opacity=".6" class="svg-btn"/><circle cx="276" cy="180" r="9" stroke="#1B1D21" stroke-width="2" stroke-dasharray="2 2"/>
+                  <g fill="#2C2F34" stroke="#5D616A"><circle id="svg-xbox-btn-3" cx="337" cy="99" r="12" class="svg-btn"/><circle id="svg-xbox-btn-1" cx="361" cy="123" r="12" class="svg-btn"/><circle id="svg-xbox-btn-2" cx="313" cy="123" r="12" class="svg-btn"/><circle id="svg-xbox-btn-0" cx="337" cy="147" r="12" class="svg-btn"/></g>
+                  <g text-anchor="middle" font-family="sans-serif" font-size="9" font-weight="900"><text x="337" y="102" fill="#F5CF3B">Y</text><text x="361" y="126" fill="#F06463">B</text><text x="313" y="126" fill="#53A8F8">X</text><text x="337" y="150" fill="#70C875">A</text></g>
+                  <circle cx="220" cy="93" r="13" fill="#1F2227" stroke="#50545B"/><path d="M214 88c4-4 8-4 12 0m-13 1c0 8 2 11 7 14 5-3 7-6 7-14" stroke="#72B83C" stroke-width="2" stroke-linecap="round"/>
+                  <rect id="svg-xbox-btn-8" x="188" y="117" width="16" height="12" rx="4" fill="#2A2D32" stroke="#50545B" class="svg-btn"/><path d="M192 121h8" stroke="#9EA2A9" stroke-width="1.4"/>
+                  <circle id="svg-xbox-btn-9" cx="244" cy="123" r="8" fill="#2A2D32" stroke="#50545B" class="svg-btn"/><path d="M240 121h7M240 124h7M240 127h5" stroke="#9EA2A9" stroke-width="1.1"/>
+                </svg>
 
-                  <!-- Face Buttons -->
-                  <circle id="svg-btn-3" cx="340" cy="120" r="10" fill="#2a2a2a" class="svg-btn"/> <!-- Triangle -->
-                  <circle id="svg-btn-1" cx="360" cy="140" r="10" fill="#2a2a2a" class="svg-btn"/> <!-- Circle -->
-                  <circle id="svg-btn-2" cx="320" cy="140" r="10" fill="#2a2a2a" class="svg-btn"/> <!-- Square -->
-                  <circle id="svg-btn-0" cx="340" cy="160" r="10" fill="#2a2a2a" class="svg-btn"/> <!-- Cross -->
+                <!-- SVG Gamepad (Nintendo Switch Pro style) -->
+                <svg class="controller-svg" id="controller-svg-nintendo" viewBox="0 0 440 280" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:none">
+                  <defs><linearGradient id="nin-shell" x1="220" y1="36" x2="220" y2="260"><stop stop-color="#36383F"/><stop offset=".45" stop-color="#22242A"/><stop offset="1" stop-color="#121419"/></linearGradient><radialGradient id="nin-stick"><stop stop-color="#555861"/><stop offset="1" stop-color="#24262B"/></radialGradient><filter id="nin-shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#000" flood-opacity=".5"/></filter></defs>
+                  <g filter="url(#nin-shadow)"><path d="M116 42c34-12 70-9 104 2 34-11 70-14 104-2 35 12 57 43 62 83l10 74c5 38-15 62-44 62-20 0-35-15-50-39l-23-37c-18 9-38 14-59 14s-41-5-59-14l-23 37c-15 24-30 39-50 39-29 0-49-24-44-62l10-74c5-40 27-71 62-83Z" fill="url(#nin-shell)" stroke="#656973" stroke-opacity=".5" stroke-width="1.5"/><path d="M134 57c26-10 54-9 86 0 32-9 60-10 86 0" stroke="#8A8E98" stroke-opacity=".18" stroke-width="2" stroke-linecap="round"/></g>
+                  <path id="svg-nin-btn-6" d="M95 42c9-16 32-25 57-21l12 18-60 12Z" fill="#121419" stroke="#5C606A" class="svg-btn"/><path id="svg-nin-btn-7" d="M345 42c-9-16-32-25-57-21l-12 18 60 12Z" fill="#121419" stroke="#5C606A" class="svg-btn"/><path id="svg-nin-btn-4" d="M113 49c10-9 28-12 44-9l7 10-48 8Z" fill="#2B2D33" class="svg-btn"/><path id="svg-nin-btn-5" d="M327 49c-10-9-28-12-44-9l-7 10 48 8Z" fill="#2B2D33" class="svg-btn"/>
+                  <circle id="svg-nin-axis-L" cx="132" cy="110" r="25" fill="#17191E" stroke="#565A63"/><circle id="svg-nin-btn-10" cx="132" cy="110" r="16" fill="url(#nin-stick)" stroke="#727680" stroke-opacity=".55" class="svg-btn"/><circle cx="132" cy="110" r="9" stroke="#202228" stroke-width="2" stroke-dasharray="2 2"/>
+                  <g transform="translate(2 0)"><circle cx="159" cy="175" r="30" fill="#16181C" stroke="#3D4047"/><path id="svg-nin-btn-12" d="M152 142h14l4 25h-22Z" fill="#373A41" class="svg-btn"/><path id="svg-nin-btn-13" d="M152 208h14l4-25h-22Z" fill="#373A41" class="svg-btn"/><path id="svg-nin-btn-14" d="M126 168v14l25 4v-22Z" fill="#373A41" class="svg-btn"/><path id="svg-nin-btn-15" d="M192 168v14l-25 4v-22Z" fill="#373A41" class="svg-btn"/><rect x="148" y="164" width="22" height="22" rx="3" fill="#373A41"/></g>
+                  <circle id="svg-nin-axis-R" cx="276" cy="180" r="25" fill="#17191E" stroke="#565A63"/><circle id="svg-nin-btn-11" cx="276" cy="180" r="16" fill="url(#nin-stick)" stroke="#727680" stroke-opacity=".55" class="svg-btn"/><circle cx="276" cy="180" r="9" stroke="#202228" stroke-dasharray="2 2"/>
+                  <g fill="#2B2E34" stroke="#666A74"><circle id="svg-nin-btn-3" cx="337" cy="99" r="12" class="svg-btn"/><circle id="svg-nin-btn-1" cx="361" cy="123" r="12" class="svg-btn"/><circle id="svg-nin-btn-2" cx="313" cy="123" r="12" class="svg-btn"/><circle id="svg-nin-btn-0" cx="337" cy="147" r="12" class="svg-btn"/></g>
+                  <g text-anchor="middle" fill="#F3F4F6" font-family="sans-serif" font-size="9" font-weight="900"><text x="337" y="102">X</text><text x="361" y="126">A</text><text x="313" y="126">Y</text><text x="337" y="150">B</text></g>
+                  <rect id="svg-nin-btn-8" x="188" y="112" width="18" height="12" rx="4" fill="#2A2D33" stroke="#555963" class="svg-btn"/><path d="M192 118h10" stroke="#B9BCC3" stroke-width="1.5"/>
+                  <rect id="svg-nin-btn-9" x="234" y="112" width="18" height="12" rx="4" fill="#2A2D33" stroke="#555963" class="svg-btn"/><path d="M238 118h10M243 113v10" stroke="#B9BCC3" stroke-width="1.5"/>
+                  <circle cx="220" cy="91" r="9" fill="#16181C" stroke="#565A63"/><path d="M216 89h8v5h-8Z" stroke="#B8BCC4" stroke-width="1.1"/><circle cx="220" cy="88" r="1.5" fill="#B8BCC4"/>
+                </svg>
 
-                  <text x="340" y="123" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="8" font-family="sans-serif">△</text>
-                  <text x="360" y="143" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="8" font-family="sans-serif">○</text>
-                  <text x="320" y="143" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="8" font-family="sans-serif">□</text>
-                  <text x="340" y="163" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="8" font-family="sans-serif">✕</text>
+                <!-- SVG Gamepad (Steam Deck style) -->
+                <svg class="controller-svg" id="controller-svg-steamdeck" viewBox="0 0 480 280" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:none">
+                  <defs><linearGradient id="deck-shell" x1="240" y1="32" x2="240" y2="258"><stop stop-color="#292B31"/><stop offset=".45" stop-color="#1B1D22"/><stop offset="1" stop-color="#101216"/></linearGradient><linearGradient id="deck-screen" x1="240" y1="61" x2="240" y2="196"><stop stop-color="#101216"/><stop offset="1" stop-color="#050608"/></linearGradient><radialGradient id="deck-stick"><stop stop-color="#51545D"/><stop offset="1" stop-color="#23252A"/></radialGradient><filter id="deck-shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#000" flood-opacity=".55"/></filter></defs>
+                  <g filter="url(#deck-shadow)"><path d="M78 36h324c31 0 52 19 56 49l14 119c4 33-12 56-40 56H48c-28 0-44-23-40-56L22 85c4-30 25-49 56-49Z" fill="url(#deck-shell)" stroke="#555962" stroke-opacity=".55" stroke-width="1.5"/><path d="M98 44h284c21 0 32 8 38 20" stroke="#747983" stroke-opacity=".2" stroke-width="2" stroke-linecap="round"/></g>
+                  <rect x="137" y="58" width="206" height="140" rx="8" fill="#0D0F12" stroke="#3E424A"/><rect x="146" y="67" width="188" height="122" rx="2" fill="url(#deck-screen)"/><path d="M151 72h178" stroke="#FFFFFF" stroke-opacity=".05"/>
+                  <path id="svg-deck-btn-6" d="M44 40c8-16 31-24 55-20l13 19-59 11Z" fill="#101216" stroke="#555963" class="svg-btn"/><path id="svg-deck-btn-7" d="M436 40c-8-16-31-24-55-20l-13 19 59 11Z" fill="#101216" stroke="#555963" class="svg-btn"/><path id="svg-deck-btn-4" d="M58 48c9-9 27-12 43-9l8 10-48 8Z" fill="#292C32" class="svg-btn"/><path id="svg-deck-btn-5" d="M422 48c-9-9-27-12-43-9l-8 10 48 8Z" fill="#292C32" class="svg-btn"/>
+                  <circle id="svg-deck-axis-L" cx="91" cy="91" r="22" fill="#121418" stroke="#5A5E67"/><circle id="svg-deck-btn-10" cx="91" cy="91" r="14" fill="url(#deck-stick)" stroke="#747983" stroke-opacity=".55" class="svg-btn"/><circle cx="91" cy="91" r="8" stroke="#202329" stroke-width="2" stroke-dasharray="2 2"/>
+                  <circle id="svg-deck-axis-R" cx="389" cy="91" r="22" fill="#121418" stroke="#5A5E67"/><circle id="svg-deck-btn-11" cx="389" cy="91" r="14" fill="url(#deck-stick)" stroke="#747983" stroke-opacity=".55" class="svg-btn"/><circle cx="389" cy="91" r="8" stroke="#202329" stroke-width="2" stroke-dasharray="2 2"/>
+                  <g><circle cx="66" cy="129" r="22" fill="#111318" stroke="#3E424A"/><path id="svg-deck-btn-12" d="M60 103h12l4 20H56Z" fill="#34373E" class="svg-btn"/><path id="svg-deck-btn-13" d="M60 155h12l4-20H56Z" fill="#34373E" class="svg-btn"/><path id="svg-deck-btn-14" d="M40 123v12l20 4v-20Z" fill="#34373E" class="svg-btn"/><path id="svg-deck-btn-15" d="M92 123v12l-20 4v-20Z" fill="#34373E" class="svg-btn"/><rect x="56" y="119" width="20" height="20" rx="3" fill="#34373E"/></g>
+                  <g fill="#2B2E34" stroke="#626670"><circle id="svg-deck-btn-3" cx="417" cy="111" r="9" class="svg-btn"/><circle id="svg-deck-btn-1" cx="435" cy="129" r="9" class="svg-btn"/><circle id="svg-deck-btn-2" cx="399" cy="129" r="9" class="svg-btn"/><circle id="svg-deck-btn-0" cx="417" cy="147" r="9" class="svg-btn"/></g>
+                  <g text-anchor="middle" fill="#F5F6F7" font-family="sans-serif" font-size="7.2" font-weight="900"><text x="417" y="113.5">Y</text><text x="435" y="131.5">B</text><text x="399" y="131.5">X</text><text x="417" y="149.5">A</text></g>
+                  <rect x="48" y="171" width="55" height="55" rx="9" fill="#25282E" stroke="#555A63"/><rect x="377" y="171" width="55" height="55" rx="9" fill="#25282E" stroke="#555A63"/><path d="M55 178h41M384 178h41" stroke="#8B909A" stroke-opacity=".18"/>
+                  <g stroke="#5C6069" stroke-opacity=".4"><path d="M55 184h41M55 191h41M55 198h41M55 205h41M55 212h41M384 184h41M384 191h41M384 198h41M384 205h41M384 212h41"/></g>
+                  <rect id="svg-deck-btn-8" x="116" y="52" width="17" height="11" rx="4" fill="#292C32" stroke="#555A63" class="svg-btn"/><path d="M120 57.5h9" stroke="#C4C7CD" stroke-width="1.2"/>
+                  <rect id="svg-deck-btn-9" x="347" y="52" width="17" height="11" rx="4" fill="#292C32" stroke="#555A63" class="svg-btn"/><path d="M351 55.5h9M351 58.5h9" stroke="#C4C7CD" stroke-width="1"/>
+                  <circle cx="240" cy="216" r="10" fill="#17191E" stroke="#4C5059"/><path d="M236 216c3-4 7-5 10-3-2 1-3 3-2 5-2 2-5 2-8-2Z" fill="#9EA3AD"/>
+                </svg>
 
-                  <!-- Shoulder Buttons -->
-                  <path id="svg-btn-4" d="M100 42 C105 32 130 28 150 30 L150 42 Z" fill="#2a2a2a" class="svg-btn"/> <!-- L1 -->
-                  <path id="svg-btn-5" d="M340 42 C335 32 310 28 290 30 L290 42 Z" fill="#2a2a2a" class="svg-btn"/> <!-- R1 -->
-
-                  <!-- L2/R2 Triggers -->
-                  <path id="svg-btn-6" d="M80 40 C85 25 115 18 145 22 L150 40 Z" fill="#222" class="svg-btn"/> <!-- L2 -->
-                  <path id="svg-btn-7" d="M360 40 C355 25 325 18 295 22 L290 40 Z" fill="#222" class="svg-btn"/> <!-- R2 -->
-                  
-                  <!-- Start / Select -->
-                  <circle id="svg-btn-8" cx="200" cy="110" r="5" fill="#222" class="svg-btn"/> <!-- Select -->
-                  <circle id="svg-btn-9" cx="240" cy="110" r="5" fill="#222" class="svg-btn"/> <!-- Start -->
+                <!-- SVG Gamepad (N64 3-Prong style - Upgraded Design from preview.html) -->
+                <svg class="controller-svg n64-svg" id="controller-svg-n64" viewBox="0 0 440 280" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:none">
+                  <defs>
+                    <linearGradient id="n64-shell" x1="220" y1="24" x2="220" y2="270" gradientUnits="userSpaceOnUse"><stop stop-color="#454651"/><stop offset="0.48" stop-color="#2D2E37"/><stop offset="1" stop-color="#17181E"/></linearGradient>
+                    <linearGradient id="n64-edge" x1="220" y1="44" x2="220" y2="255" gradientUnits="userSpaceOnUse"><stop stop-color="#5B5D68" stop-opacity=".55"/><stop offset="1" stop-color="#0B0C10" stop-opacity=".3"/></linearGradient>
+                    <radialGradient id="n64-stick" cx="0" cy="0" r="1" gradientTransform="translate(210 164) rotate(52) scale(39)"><stop stop-color="#666873"/><stop offset=".55" stop-color="#3A3B44"/><stop offset="1" stop-color="#1A1B20"/></radialGradient>
+                    <filter id="n64-shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#000" flood-opacity=".48"/></filter>
+                  </defs>
+                  <g filter="url(#n64-shadow)">
+                    <path d="M128 48C145 31 178 25 220 25c42 0 75 6 92 23 22 3 46 28 55 61l15 92c6 35-10 59-34 59-17 0-27-13-34-30l-29-66-36-8v89c0 20-10 30-29 30s-29-10-29-30v-89l-36 8-29 66c-7 17-17 30-34 30-24 0-40-24-34-59l15-92c9-33 33-58 55-61Z" fill="url(#n64-shell)" stroke="#71737F" stroke-opacity=".42" stroke-width="1.6"/>
+                    <path d="M132 54c29-15 59-20 88-20s59 5 88 20" stroke="#8B8D98" stroke-opacity=".25" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M89 121c14-36 33-53 54-61M351 121c-14-36-33-53-54-61" stroke="url(#n64-edge)" stroke-width="3" stroke-linecap="round"/>
+                  </g>
+                  <path id="svg-n64-btn-6" d="M102 53c7-14 31-23 59-20l-8 16c-17-1-31 2-43 10Z" fill="#24252C" stroke="#777984" stroke-opacity=".45" class="svg-btn"/>
+                  <path id="svg-n64-btn-7" d="M338 53c-7-14-31-23-59-20l8 16c17-1 31 2 43 10Z" fill="#24252C" stroke="#777984" stroke-opacity=".45" class="svg-btn"/>
+                  <g transform="translate(1 1)">
+                    <circle cx="102" cy="128" r="32" fill="#202127" stroke="#636570" stroke-opacity=".25"/>
+                    <path id="svg-n64-btn-12" d="M95 92h14l4 27H91Z" fill="#343640" stroke="#7E808C" stroke-opacity=".3" class="svg-btn"/>
+                    <path id="svg-n64-btn-13" d="M95 164h14l4-27H91Z" fill="#343640" stroke="#7E808C" stroke-opacity=".3" class="svg-btn"/>
+                    <path id="svg-n64-btn-14" d="M66 121v14l27 4v-22Z" fill="#343640" stroke="#7E808C" stroke-opacity=".3" class="svg-btn"/>
+                    <path id="svg-n64-btn-15" d="M138 121v14l-27 4v-22Z" fill="#343640" stroke="#7E808C" stroke-opacity=".3" class="svg-btn"/>
+                    <rect x="91" y="117" width="22" height="22" rx="3" fill="#343640"/>
+                    <circle cx="102" cy="128" r="5" fill="#24252C"/>
+                  </g>
+                  <circle cx="220" cy="181" r="30" fill="#202127" stroke="#70727D" stroke-opacity=".28"/>
+                  <circle id="svg-n64-axis-L" cx="220" cy="181" r="22" fill="url(#n64-stick)" stroke="#8A8C96" stroke-opacity=".42" stroke-width="1.3"/>
+                  <circle cx="220" cy="181" r="12" fill="#282932" stroke="#111217"/>
+                  <path d="M213 176h14M213 181h14M213 186h14" stroke="#666873" stroke-width="1.2" stroke-linecap="round"/>
+                  <circle id="svg-n64-btn-9" cx="220" cy="101" r="12" fill="#C83234" stroke="#F66A6C" stroke-opacity=".8" class="svg-btn"/>
+                  <text x="220" y="104" text-anchor="middle" fill="#FFF" font-size="6.5" font-weight="800" font-family="sans-serif">START</text>
+                  <circle id="svg-n64-btn-5" cx="294" cy="166" r="14" fill="#168CC8" stroke="#60C9FF" stroke-opacity=".8" class="svg-btn"/>
+                  <text x="294" y="170" text-anchor="middle" fill="#FFF" font-size="12" font-weight="800" font-family="sans-serif">A</text>
+                  <circle id="svg-n64-btn-4" cx="271" cy="139" r="11" fill="#2E9A58" stroke="#67DA8A" stroke-opacity=".8" class="svg-btn"/>
+                  <text x="271" y="143" text-anchor="middle" fill="#FFF" font-size="9" font-weight="800" font-family="sans-serif">B</text>
+                  <g fill="#E8C42B" stroke="#FFF27B" stroke-opacity=".75">
+                    <circle id="svg-n64-btn-0" cx="337" cy="103" r="9.5" class="svg-btn"/><circle id="svg-n64-btn-2" cx="337" cy="151" r="9.5" class="svg-btn"/><circle id="svg-n64-btn-3" cx="313" cy="127" r="9.5" class="svg-btn"/><circle id="svg-n64-btn-1" cx="361" cy="127" r="9.5" class="svg-btn"/>
+                  </g>
+                  <g fill="#4A4317" font-size="8" font-weight="900" font-family="sans-serif" text-anchor="middle"><text x="337" y="106">▲</text><text x="337" y="154">▼</text><text x="313" y="130">◀</text><text x="361" y="130">▶</text></g>
+                  <rect id="svg-n64-btn-8" x="202" y="239" width="36" height="18" rx="6" fill="#202127" stroke="#858792" stroke-opacity=".45" class="svg-btn"/>
+                  <text x="220" y="252" text-anchor="middle" fill="#D5D6DA" font-size="9" font-weight="800" font-family="sans-serif">Z</text>
                 </svg>
 
                 <!-- Spaced and fixed positioned callouts (no overlaps) -->
@@ -940,6 +1024,60 @@
       </div>
     </div><!-- tab-panel-keyboard -->
 
+    <!-- ── Tab Panel: Report Issues ─────────────────────────────────────────── -->
+    <div class="tab-panel" id="tab-panel-report-issues" role="tabpanel" aria-labelledby="tab-btn-report-issues" hidden>
+      <div style="max-width: 800px; margin: 0 auto;">
+        <section class="card">
+          <div class="card-title" style="display:flex;align-items:center;gap:10px;font-size:18px;margin-bottom:8px">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;display:block"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Report an Issue
+          </div>
+          <p style="color:var(--on-surface-variant);font-size:13px;margin-bottom:24px;line-height:1.5">
+            Submit a bug report or feature request directly to our GitLab repository. Details filled out here will be formatted and pre-populated into a new GitLab issue.
+          </p>
+
+          <div style="display:flex;flex-direction:column;gap:20px">
+            <!-- Page / URL -->
+            <div class="form-group">
+              <label for="report-issue-page" style="display:block;font-family:var(--font-label);font-size:12px;font-weight:600;color:var(--on-surface);margin-bottom:6px">
+                Page / Domain
+              </label>
+              <input type="text" id="report-issue-page" class="form-control" placeholder="e.g. netflix.com, youtube.com, or full URL" style="width:100%;box-sizing:border-box;background:rgba(30,30,30,0.8);color:var(--on-surface);border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:10px 12px;font-size:13px;outline:none">
+              <span style="display:block;font-size:11px;color:var(--on-surface-variant);margin-top:4px">The website or page URL where the issue occurred.</span>
+            </div>
+
+            <!-- Controller Status -->
+            <div class="form-group">
+              <label style="display:block;font-family:var(--font-label);font-size:12px;font-weight:600;color:var(--on-surface);margin-bottom:6px">
+                Controller Status
+              </label>
+              <div id="report-issue-controller-status">
+                <!-- Dynamically populated by report-issues.js / gamepad polling -->
+              </div>
+            </div>
+
+            <!-- Issue Description -->
+            <div class="form-group">
+              <label for="report-issue-description" style="display:block;font-family:var(--font-label);font-size:12px;font-weight:600;color:var(--on-surface);margin-bottom:6px">
+                Issue Description
+              </label>
+              <textarea id="report-issue-description" class="form-control" rows="6" placeholder="Please describe what happened, expected behavior, or steps to reproduce..." style="width:100%;box-sizing:border-box;background:rgba(30,30,30,0.8);color:var(--on-surface);border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:10px 12px;font-size:13px;line-height:1.5;outline:none;resize:vertical"></textarea>
+            </div>
+
+            <!-- Submit Button -->
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.08)">
+              <span style="font-size:12px;color:var(--on-surface-variant)">Redirects to gitlab.com/ShinAska/remapad to submit your issue</span>
+              <button class="btn-primary" id="report-issue-gitlab-btn" style="display:flex;align-items:center;gap:8px;padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer">
+                <!-- GitLab SVG Icon -->
+                <svg viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px;display:block"><path d="M22.65 14.39L12 22.13 1.35 14.39a.84.84 0 0 1-.3-.94l1.22-3.78 2.44-7.51c.06-.18.25-.3.45-.3s.39.12.45.3l2.25 6.94h8.28l2.25-6.94c.06-.18.25-.3.45-.3s.39.12.45.3l2.44 7.51 1.22 3.78c.07.23 0 .49-.2.64z"/></svg>
+                Create Issue on GitLab
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div><!-- tab-panel-report-issues -->
+
   </div><!-- options-content -->
 </main>
 
@@ -1034,6 +1172,7 @@
 <script src="modules/mapping-editor.js"></script>
 <script src="modules/tabs.js"></script>
 <script src="modules/options-tutorial.js"></script>
+<script src="modules/report-issues.js"></script>
 <script src="modules/gamepad.js"></script>
 <script src="options.js"></script>
 </body>

@@ -102,7 +102,9 @@
     { id: 'auto', name: 'Auto-detect', sub: 'Detect from connected controller', btns: ['?'] },
     { id: 'playstation', name: 'PlayStation (DualSense)', sub: '✕ and ○ Layout', btns: ['✕', '○'] },
     { id: 'xbox', name: 'Xbox (Series X/S)', sub: 'A and B Layout', btns: ['A', 'B'] },
-    { id: 'nintendo', name: 'Nintendo (Switch)', sub: 'Inverted Layout', btns: ['A', 'B'] }
+    { id: 'nintendo', name: 'Nintendo (Switch)', sub: 'Inverted Layout', btns: ['A', 'B'] },
+    { id: 'steamdeck', name: 'Steam Deck', sub: 'SteamOS Layout', btns: ['A', 'B'] },
+    { id: 'n64', name: 'N64 (DragonRise)', sub: 'A, B & C-Pad Layout', btns: ['A', 'B'] }
   ];
 
   const ACTION_OPTIONS = [
