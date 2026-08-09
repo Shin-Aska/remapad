@@ -140,12 +140,12 @@
         requestAnimationFrame(() => cnavHudElement?.classList.add('visible'));
       }
 
-      cnavHudElement.innerHTML = `
+      RemapadDOM.replaceStaticChildren(cnavHudElement, `
         <div class="remapad-cnav-left">
           <svg class="remapad-cnav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
         </div>
         <div class="remapad-cnav-right"></div>
-      `;
+      `);
       const left = cnavHudElement.querySelector('.remapad-cnav-left');
       const right = cnavHudElement.querySelector('.remapad-cnav-right');
 

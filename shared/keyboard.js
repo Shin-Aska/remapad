@@ -409,7 +409,7 @@
 
   function buildGamepadKeyboard() {
     ensureKeyboardDOM();
-    keyboardGrid.innerHTML = '';
+    keyboardGrid.replaceChildren();
     const layout = getCurrentLayout();
     const layer = layout.layers[keyboardLayer] || layout.layers.alpha;
 

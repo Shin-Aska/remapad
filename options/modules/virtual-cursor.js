@@ -200,7 +200,7 @@
 
     function openGamepadColorPicker(colorInput) {
       gamepadSelectTarget = colorInput;
-      dom.gamepadSelectOverlay.innerHTML = '';
+      dom.gamepadSelectOverlay.replaceChildren();
       COLOR_PRESETS.forEach(color => {
         const button = document.createElement('button');
         button.type = 'button';
@@ -241,7 +241,7 @@
       gamepadSelectTarget = select;
       const options = Array.from(select.options);
       const selectedValue = select.value;
-      dom.gamepadSelectOverlay.innerHTML = '';
+      dom.gamepadSelectOverlay.replaceChildren();
       options.forEach((option, index) => {
         const button = document.createElement('button');
         button.type = 'button';

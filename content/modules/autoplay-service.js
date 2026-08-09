@@ -206,7 +206,7 @@
       el.className = 'remapad-autoplay-warning';
       el.setAttribute('role', 'alert');
 
-      el.innerHTML = `
+      RemapadDOM.replaceStaticChildren(el, `
         <div class="remapad-autoplay-warning__inner">
           <svg class="remapad-autoplay-warning__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
@@ -214,7 +214,7 @@
           <div class="remapad-autoplay-warning__text"><strong></strong></div>
           <button class="remapad-autoplay-warning__close" aria-label="Dismiss">×</button>
         </div>
-      `;
+      `);
       const warningText = el.querySelector('.remapad-autoplay-warning__text');
       warningText.querySelector('strong').textContent = title;
       warningText.append(document.createTextNode(` — ${message}`));

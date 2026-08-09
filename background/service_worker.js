@@ -14,6 +14,7 @@ const REMAPAD_SCRIPT_IDS = Object.freeze({
 
 const REMAPAD_CONTROLLER_FILES = Object.freeze([
   'shared/language-detector.js',
+  'shared/safe-dom.js',
   'shared/keyboard.js',
   'content/modules/constants.js',
   'content/modules/utils.js',

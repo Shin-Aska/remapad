@@ -26,7 +26,7 @@
         state.setSelectedCollectionSite(selectedSite);
       }
       if (sites.length === 0) {
-        listEl.innerHTML = '<p style="font-size:12px;color:var(--on-surface-variant);font-family:var(--font-body);text-align:center;padding:16px 0">No sites configured yet.<br>Add one below.</p>';
+        RemapadDOM.replaceStaticChildren(listEl, '<p style="font-size:12px;color:var(--on-surface-variant);font-family:var(--font-body);text-align:center;padding:16px 0">No sites configured yet.<br>Add one below.</p>');
         return;
       }
       listEl.replaceChildren();
@@ -98,11 +98,11 @@
       const settings = state.getSettings();
       const selectedSite = state.getSelectedCollectionSite();
       if (!selectedSite) {
-        editorEl.innerHTML = `
+        RemapadDOM.replaceStaticChildren(editorEl, `
           <div class="cnav-empty-state">
             <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:48px;height:48px"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
             <p>Select a site from the list or add one to get started.</p>
-          </div>`;
+          </div>`);
         return;
       }
       const config = settings.siteCollections[selectedSite] || {
@@ -111,7 +111,7 @@
         searchTriggerSelector: '',
         searchInputSelector: ''
       };
-      editorEl.innerHTML = `
+      RemapadDOM.replaceStaticChildren(editorEl, `
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
           <div>
             <div id="cnav-site-title" style="font-family:var(--font-headline);font-size:17px;font-weight:700;color:var(--on-surface)"></div>
@@ -148,7 +148,7 @@
           <button id="cnav-test-btn" class="btn-ghost" style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Test on Active Tab</button>
           <button id="cnav-save-btn" class="btn-primary" style="font-size:13px">Save</button>
         </div>
-      `;
+      `);
       document.getElementById('cnav-site-title').textContent = getFriendlyLabel(selectedSite, FRIENDLY_NAMES);
       document.getElementById('cnav-site-domain').textContent = selectedSite;
       document.getElementById('cnav-container-input').value = config.containerSelector || '';

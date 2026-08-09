@@ -279,15 +279,15 @@ if (popupReportIssueBtn) {
 function renderShortcuts() {
   const grid = document.getElementById('shortcuts-grid');
   if (!grid) return;
-  grid.innerHTML = '';
+  grid.replaceChildren();
 
   const domains = Object.keys(settings.websiteMappings);
   if (domains.length === 0) {
-    grid.innerHTML = `
+    RemapadDOM.replaceStaticChildren(grid, `
       <div style="grid-column:1/-1;text-align:center;padding:12px 0;color:var(--on-surface-variant);font-size:12px;font-family:var(--font-body)">
         No shortcuts configured.
       </div>
-    `;
+    `);
     return;
   }
 

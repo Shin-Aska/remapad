@@ -17,7 +17,7 @@
         const cleanId = rawId.split('(')[0].trim() || 'Controller';
         currentGamepadInfo = `${cleanId} (${rawId})`;
 
-        dom.reportIssueControllerStatus.innerHTML = `
+        RemapadDOM.replaceStaticChildren(dom.reportIssueControllerStatus, `
           <div class="report-controller-card connected" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:rgba(76,175,80,0.08);border:1px solid rgba(76,175,80,0.25);border-radius:8px">
             <div style="display:flex;align-items:center;gap:12px">
               <span class="status-badge connected" style="font-size:11px;padding:2px 8px;border-radius:9999px;background:rgba(76,175,80,0.2);color:#4caf50;font-weight:600">
@@ -25,15 +25,17 @@
                 CONNECTED
               </span>
               <div>
-                <div style="font-family:var(--font-label);font-size:13px;font-weight:600;color:var(--on-surface)">${cleanId}</div>
-                <div style="font-family:var(--font-body);font-size:11px;color:var(--on-surface-variant);margin-top:2px">${rawId}</div>
+                <div class="report-controller-name" style="font-family:var(--font-label);font-size:13px;font-weight:600;color:var(--on-surface)"></div>
+                <div class="report-controller-id" style="font-family:var(--font-body);font-size:11px;color:var(--on-surface-variant);margin-top:2px"></div>
               </div>
             </div>
           </div>
-        `;
+        `);
+        dom.reportIssueControllerStatus.querySelector('.report-controller-name').textContent = cleanId;
+        dom.reportIssueControllerStatus.querySelector('.report-controller-id').textContent = rawId;
       } else {
         currentGamepadInfo = 'Not detected';
-        dom.reportIssueControllerStatus.innerHTML = `
+        RemapadDOM.replaceStaticChildren(dom.reportIssueControllerStatus, `
           <div class="report-controller-card disconnected" style="display:flex;flex-direction:column;gap:8px;padding:12px 16px;background:rgba(255,193,7,0.08);border:1px solid rgba(255,193,7,0.25);border-radius:8px">
             <div style="display:flex;align-items:center;gap:8px">
               <span class="status-badge disconnected" style="font-size:11px;padding:2px 8px;border-radius:9999px;background:rgba(255,193,7,0.2);color:#ffc107;font-weight:600">
@@ -45,7 +47,7 @@
               No controller detected. Please press any button on the controller being used that has this issue so Remapad can detect it.
             </div>
           </div>
-        `;
+        `);
       }
     }
 

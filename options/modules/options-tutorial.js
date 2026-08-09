@@ -204,7 +204,7 @@
 
     function renderPopover(step) {
       if (!popover) return;
-      popover.innerHTML = `
+      RemapadDOM.replaceStaticChildren(popover, `
         <p class="options-tutorial-kicker"></p>
         <h2 id="options-tutorial-title"></h2>
         <p class="options-tutorial-copy"></p>
@@ -218,7 +218,7 @@
             <button type="button" class="btn-primary" data-options-tutorial-next></button>
           </div>
         </div>
-        <p class="options-tutorial-hint">Arrow keys or D-pad to move · Enter/A to continue · Escape/B to close</p>`;
+        <p class="options-tutorial-hint">Arrow keys or D-pad to move · Enter/A to continue · Escape/B to close</p>`);
       popover.querySelector('.options-tutorial-kicker').textContent = `OPTIONS TOUR · ${activeStep + 1}/${STEPS.length}`;
       popover.querySelector('#options-tutorial-title').textContent = step.title;
       popover.querySelector('.options-tutorial-copy').textContent = step.body;

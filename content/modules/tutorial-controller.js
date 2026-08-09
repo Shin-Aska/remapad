@@ -266,7 +266,7 @@
       if (!tutorialElement) return;
       const steps = buildSteps();
       const step = steps[activeStep];
-      tutorialElement.innerHTML = `
+      RemapadDOM.replaceStaticChildren(tutorialElement, `
         <div class="remapad-tutorial-card">
           <button type="button" class="remapad-tutorial-skip" data-remapad-tutorial-close>Skip</button>
           <div class="remapad-tutorial-visual"></div>
@@ -279,7 +279,7 @@
             <button type="button" class="remapad-tutorial-next" data-remapad-tutorial-next></button>
           </div>
           <p class="remapad-tutorial-gamepad-hint"></p>
-        </div>`;
+        </div>`);
 
       const visual = tutorialElement.querySelector('.remapad-tutorial-visual');
       if (step.visualClass) visual.classList.add(step.visualClass);

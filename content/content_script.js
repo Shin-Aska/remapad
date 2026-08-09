@@ -1138,7 +1138,7 @@
     const glyphs = GLYPHS[resolveIconStyle()] || GLYPHS.playstation;
     const glyph = quickMapState.button === null ? '' : glyphs[quickMapState.button] || quickMapState.button;
 
-    quickMapElement.innerHTML = `
+    RemapadDOM.replaceStaticChildren(quickMapElement, `
       <header class="remapad-quick-map-header">
         <div>
           <p class="remapad-quick-map-kicker"></p>
@@ -1151,7 +1151,7 @@
       <footer class="remapad-quick-map-footer">
         <button type="button" class="remapad-quick-map-cancel" data-remapad-cancel>Cancel</button>
         <button type="button" class="remapad-quick-map-save" data-remapad-save>Save</button>
-      </footer>`;
+      </footer>`);
     quickMapElement.querySelector('.remapad-quick-map-kicker').textContent = `QUICK MAP · ${currentHostname}`;
     quickMapElement.querySelector('.remapad-quick-map-live').textContent = quickMapState.message || '';
     quickMapElement.querySelector('[data-remapad-save]').disabled = quickMapState.phase !== 'review';

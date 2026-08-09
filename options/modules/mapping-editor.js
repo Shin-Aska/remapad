@@ -30,7 +30,7 @@
     function renderEditorSiteSelect() {
       const previousValue = state.getSelectedSiteKey();
       const settings = state.getSettings();
-      dom.editorSiteSelect.innerHTML = '';
+      dom.editorSiteSelect.replaceChildren();
       const defaultOption = document.createElement('option');
       defaultOption.value = 'default';
       defaultOption.textContent = 'Default (All Other Sites)';
@@ -49,10 +49,13 @@
 
     function renderWebsiteMappings() {
       const settings = state.getSettings();
-      dom.mappingsListEl.innerHTML = '';
+      dom.mappingsListEl.replaceChildren();
       const domains = Object.keys(settings.websiteMappings);
       if (domains.length === 0) {
-        dom.mappingsListEl.innerHTML = '<div style="text-align:center;padding:16px 0;color:var(--on-surface-variant);font-size:13px;font-family:var(--font-body)">No website mappings configured. Add a site below to start.</div>';
+        const emptyState = document.createElement('div');
+        emptyState.style.cssText = 'text-align:center;padding:16px 0;color:var(--on-surface-variant);font-size:13px;font-family:var(--font-body)';
+        emptyState.textContent = 'No website mappings configured. Add a site below to start.';
+        dom.mappingsListEl.appendChild(emptyState);
         return;
       }
       domains.forEach(domain => {
@@ -62,7 +65,7 @@
         const siteSelectors = settings.siteKeyboardTriggerSelectors[domain] || [];
         const row = document.createElement('div');
         row.className = 'mapping-row' + (isSelected ? ' selected-site' : '');
-        row.innerHTML = `
+        RemapadDOM.replaceStaticChildren(row, `
           <div class="mapping-row-main" style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;overflow:hidden;width:100%;box-sizing:border-box">
             <div class="mapping-row-left" tabindex="-1" style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;overflow:hidden">
               <svg class="fallback-globe-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;color:var(--on-surface-variant);flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
@@ -79,7 +82,7 @@
             <div style="display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box"><span style="font-size:11px;color:var(--on-surface-variant);font-family:var(--font-body);white-space:nowrap;flex-shrink:0">Layout:</span><select class="site-keyboard-layout-select" style="flex:1;min-width:0;width:0;box-sizing:border-box;background:var(--surface-container);color:var(--on-surface);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:4px 8px;font-size:11px;outline:none;font-family:var(--font-body);cursor:pointer"><option value="auto">Auto-detect</option><option value="qwerty">QWERTY</option><option value="dvorak">Dvorak</option><option value="azerty">AZERTY</option><option value="german">German (QWERTZ)</option><option value="spanish">Spanish</option><option value="russian">Russian (ЙЦУКЕН)</option><option value="korean">Korean (Dubeolsik)</option><option value="chinese">Chinese (Pinyin)</option><option value="japanese">Japanese (Hiragana / Katakana)</option></select></div>
             <div style="display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box"><span style="font-size:11px;color:var(--on-surface-variant);font-family:var(--font-body);white-space:nowrap;flex-shrink:0">Trigger:</span><select class="site-keyboard-trigger-mode-select" style="flex:1;min-width:0;width:0;box-sizing:border-box;background:var(--surface-container);color:var(--on-surface);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:4px 8px;font-size:11px;outline:none;font-family:var(--font-body);cursor:pointer"><option value="">Use global</option><option value="both">On focus and click</option><option value="focus">On focus only</option><option value="click">On click only</option><option value="disabled">Disabled</option></select></div>
             <div style="display:flex;flex-direction:column;gap:6px;width:100%;box-sizing:border-box"><span style="font-size:11px;color:var(--on-surface-variant);font-family:var(--font-body)">Custom selectors (one per line):</span><textarea class="site-keyboard-trigger-selectors-input" rows="3" style="width:100%;max-width:100%;box-sizing:border-box;background:var(--surface-container);color:var(--on-surface);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:6px 8px;font-size:11px;outline:none;font-family:var(--font-label);resize:vertical" placeholder="e.g. .search-box, [contenteditable]"></textarea><button class="btn-secondary site-keyboard-trigger-selectors-save" style="align-self:flex-start;font-size:11px;padding:5px 12px;margin-top:2px">Save Selectors</button></div>
-          </div>`;
+          </div>`);
 
         row.querySelector('.mapping-site-name').textContent = getFriendlyLabel(domain, FRIENDLY_NAMES);
         const siteDomain = row.querySelector('.mapping-site-domain');
@@ -177,7 +180,7 @@
 
     function renderIconStyles() {
       const settings = state.getSettings();
-      dom.iconStyleListEl.innerHTML = '';
+      dom.iconStyleListEl.replaceChildren();
       const detected = resolveIconStyle();
       ICON_STYLES.forEach(style => {
         const isSelected = settings.iconStyle === style.id;
