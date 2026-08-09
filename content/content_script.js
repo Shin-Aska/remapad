@@ -342,32 +342,23 @@
     const b14 = gp.buttons[14] ? Boolean(gp.buttons[14].pressed) : false;
     const b15 = gp.buttons[15] ? Boolean(gp.buttons[15].pressed) : false;
 
-    const axes = gp.axes || [];
-    const HIGH_THRESHOLD = 0.8;
-
-    let horizAxisIdx = -1;
-    if (axes.length >= 6 && Math.abs(axes[5]) > HIGH_THRESHOLD) horizAxisIdx = 5;
-    else if (axes.length >= 3 && Math.abs(axes[2]) > HIGH_THRESHOLD) horizAxisIdx = 2;
-
     let dpadLeft = b14;
     let dpadRight = b15;
-    if (horizAxisIdx !== -1) {
-      dpadLeft = dpadLeft || axes[horizAxisIdx] < -HIGH_THRESHOLD;
-      dpadRight = dpadRight || axes[horizAxisIdx] > HIGH_THRESHOLD;
-    } else {
-      if (axes[5] < -HIGH_THRESHOLD || axes[2] < -HIGH_THRESHOLD) dpadLeft = true;
-      if (axes[5] > HIGH_THRESHOLD || axes[2] > HIGH_THRESHOLD) dpadRight = true;
-    }
-
     let dpadUp = b12;
     let dpadDown = b13;
 
-    for (let i = 0; i < axes.length; i++) {
-      if (i === horizAxisIdx) continue;
-      if (axes.length >= 4 && i === 0) continue;
-
-      if (axes[i] < -HIGH_THRESHOLD) dpadUp = true;
-      if (axes[i] > HIGH_THRESHOLD) dpadDown = true;
+    // Standard-mapped controllers expose the D-pad as buttons 12–15. Only
+    // DragonRise/N64 adapters use the explicit fallback pair below; scanning
+    // arbitrary axes would incorrectly turn stick movement into D-pad input.
+    if (gp.mapping !== 'standard' && controllerStyle.detect(gp.id) === 'n64') {
+      const axes = gp.axes || [];
+      const horizontalAxis = axes.length >= 6 ? axes[5] : axes.length >= 4 ? axes[2] : 0;
+      const verticalAxis = axes.length >= 6 ? axes[4] : axes.length >= 4 ? axes[3] : 0;
+      const HIGH_THRESHOLD = 0.8;
+      dpadLeft = dpadLeft || horizontalAxis < -HIGH_THRESHOLD;
+      dpadRight = dpadRight || horizontalAxis > HIGH_THRESHOLD;
+      dpadUp = dpadUp || verticalAxis < -HIGH_THRESHOLD;
+      dpadDown = dpadDown || verticalAxis > HIGH_THRESHOLD;
     }
 
     const dpadState = {

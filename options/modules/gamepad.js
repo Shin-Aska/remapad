@@ -229,38 +229,27 @@
       const b13 = gamepad.buttons[13] ? Boolean(gamepad.buttons[13].pressed) : false;
       const b14 = gamepad.buttons[14] ? Boolean(gamepad.buttons[14].pressed) : false;
       const b15 = gamepad.buttons[15] ? Boolean(gamepad.buttons[15].pressed) : false;
+      const buttonState = { up: b12, down: b13, left: b14, right: b15 };
 
+      // Standard-mapped gamepads expose the D-pad as buttons 12–15. Their
+      // axes 0–3 are the two sticks and must never be treated as D-pad input.
+      const detectedStyle = mappingEditor.detectControllerStyle(gamepad.id);
+      if (gamepad.mapping === 'standard' || detectedStyle !== 'n64') return buttonState;
+
+      // DragonRise/N64 adapters can expose the D-pad as a separate axis pair.
+      // The first two axes remain the analog stick; only read the dedicated
+      // pair so full stick deflection cannot create a false D-pad press.
       const axes = gamepad.axes || [];
+      const horizontalAxis = axes.length >= 6 ? axes[5] : axes.length >= 4 ? axes[2] : 0;
+      const verticalAxis = axes.length >= 6 ? axes[4] : axes.length >= 4 ? axes[3] : 0;
       const HIGH_THRESHOLD = 0.8;
 
-      // Horizontal D-Pad axis is on axes[5] or axes[2]
-      let horizAxisIdx = -1;
-      if (axes.length >= 6 && Math.abs(axes[5]) > HIGH_THRESHOLD) horizAxisIdx = 5;
-      else if (axes.length >= 3 && Math.abs(axes[2]) > HIGH_THRESHOLD) horizAxisIdx = 2;
-
-      let left = b14;
-      let right = b15;
-      if (horizAxisIdx !== -1) {
-        left = left || axes[horizAxisIdx] < -HIGH_THRESHOLD;
-        right = right || axes[horizAxisIdx] > HIGH_THRESHOLD;
-      } else {
-        if (axes[5] < -HIGH_THRESHOLD || axes[2] < -HIGH_THRESHOLD) left = true;
-        if (axes[5] > HIGH_THRESHOLD || axes[2] > HIGH_THRESHOLD) right = true;
-      }
-
-      // Vertical D-Pad axis: scan ALL non-horizontal axes for full deflection (< -0.8 / > 0.8)
-      let up = b12;
-      let down = b13;
-
-      for (let i = 0; i < axes.length; i++) {
-        if (i === horizAxisIdx) continue;
-        if (axes.length >= 4 && i === 0) continue; // Skip primary stick X
-
-        if (axes[i] < -HIGH_THRESHOLD) up = true;
-        if (axes[i] > HIGH_THRESHOLD) down = true;
-      }
-
-      return { up, down, left, right };
+      return {
+        up: b12 || verticalAxis < -HIGH_THRESHOLD,
+        down: b13 || verticalAxis > HIGH_THRESHOLD,
+        left: b14 || horizontalAxis < -HIGH_THRESHOLD,
+        right: b15 || horizontalAxis > HIGH_THRESHOLD
+      };
     }
 
     function pollGamepads() {
@@ -295,11 +284,11 @@
 
         const wasPressed = previousSnapshot[index] || false;
         previousPressed[index] = isPressed;
-        const path = document.getElementById(`svg-btn-${index}`);
-        const n64Path = document.getElementById(`svg-n64-btn-${index}`);
         const callout = document.querySelector(`.editor-callout[data-btn="${index}"]`);
-        if (path) path.classList.toggle('highlighted', isPressed);
-        if (n64Path) n64Path.classList.toggle('highlighted', isPressed);
+        ['', 'n64-', 'xbox-', 'nin-', 'deck-'].forEach(prefix => {
+          const path = document.getElementById(`svg-${prefix}btn-${index}`);
+          if (path) path.classList.toggle('highlighted', isPressed);
+        });
         if (callout) {
           if (isPressed && !wasPressed) {
             callout.style.transform = 'scale(1.15)';
@@ -310,17 +299,24 @@
           }
         }
       }
-      const leftThumb = document.getElementById('svg-btn-10');
-      const rightThumb = document.getElementById('svg-btn-11');
       const n64Thumb = document.getElementById('svg-n64-axis-L');
-      if (leftThumb) {
-        leftThumb.setAttribute('cx', (135 + (gamepad.axes[0] || 0) * 8).toString());
-        leftThumb.setAttribute('cy', (185 + (gamepad.axes[1] || 0) * 8).toString());
-      }
-      if (rightThumb) {
-        rightThumb.setAttribute('cx', (265 + (gamepad.axes[2] || 0) * 8).toString());
-        rightThumb.setAttribute('cy', (185 + (gamepad.axes[3] || 0) * 8).toString());
-      }
+      [
+        { prefix: '', left: [150, 193], right: [290, 193] },
+        { prefix: 'xbox-', left: [132, 110], right: [276, 180] },
+        { prefix: 'nin-', left: [132, 110], right: [276, 180] },
+        { prefix: 'deck-', left: [91, 91], right: [389, 91] }
+      ].forEach(({ prefix, left, right }) => {
+        const leftThumb = document.getElementById(`svg-${prefix}btn-10`);
+        const rightThumb = document.getElementById(`svg-${prefix}btn-11`);
+        if (leftThumb) {
+          leftThumb.setAttribute('cx', (left[0] + (gamepad.axes[0] || 0) * 8).toString());
+          leftThumb.setAttribute('cy', (left[1] + (gamepad.axes[1] || 0) * 8).toString());
+        }
+        if (rightThumb) {
+          rightThumb.setAttribute('cx', (right[0] + (gamepad.axes[2] || 0) * 8).toString());
+          rightThumb.setAttribute('cy', (right[1] + (gamepad.axes[3] || 0) * 8).toString());
+        }
+      });
       if (n64Thumb) {
         n64Thumb.setAttribute('cx', (220 + (gamepad.axes[0] || 0) * 8).toString());
         n64Thumb.setAttribute('cy', (180 + (gamepad.axes[1] || 0) * 8).toString());

@@ -228,11 +228,20 @@
           indicator.appendChild(check);
         }
         item.append(left, indicator);
-        item.addEventListener('click', () => {
+        item.addEventListener('click', async () => {
+          const previousStyle = settings.iconStyle;
           settings.iconStyle = style.id;
-          state.markUnsaved();
           renderIconStyles();
           updateSvgTextLabels();
+          try {
+            await api.storage.local.set({ iconStyle: style.id });
+            showToast('Controller layout updated.', 'success');
+          } catch (error) {
+            if (settings.iconStyle === style.id) settings.iconStyle = previousStyle;
+            renderIconStyles();
+            updateSvgTextLabels();
+            showToast('Unable to save controller layout: ' + error.message);
+          }
         });
         dom.iconStyleListEl.appendChild(item);
       });
@@ -243,6 +252,13 @@
       const canvasEl = document.querySelector('.gamepad-canvas');
       if (canvasEl) {
         canvasEl.classList.toggle('n64-layout-active', style === 'n64');
+        canvasEl.dataset.controllerStyle = style;
+        const activeSvgId = style === 'playstation'
+          ? 'controller-svg-default'
+          : `controller-svg-${style}`;
+        canvasEl.querySelectorAll('.controller-svg').forEach(svg => {
+          svg.style.display = svg.id === activeSvgId ? 'block' : 'none';
+        });
       }
       const crossText = document.querySelector('text[x="340"][y="163"]');
       const circleText = document.querySelector('text[x="360"][y="143"]');
