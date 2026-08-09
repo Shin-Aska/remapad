@@ -91,7 +91,8 @@
     showToast,
     onDocumentClick: cursor.handleDocumentClick
   });
-  const tabs = Options.Tabs.create({ collectionSettings, navigationSettings, keyboardSettings });
+  const reportIssues = Options.ReportIssues ? Options.ReportIssues.create({ dom, showToast }) : null;
+  const tabs = Options.Tabs.create({ collectionSettings, navigationSettings, keyboardSettings, reportIssues });
   const optionsTutorial = Options.OptionsTutorial.create({ api, showToast });
   const gamepad = Options.Gamepad.create({
     state,
@@ -102,7 +103,8 @@
     cursor,
     modal,
     optionsTutorial,
-    switchOptionsTab: tabs.switchBy
+    switchOptionsTab: tabs.switchBy,
+    reportIssues
   });
 
   // Listeners that existed before async storage hydration remain registered
@@ -111,6 +113,7 @@
   modal.bind();
   gamepad.bind();
   keyboardSettings.bind();
+  if (reportIssues) reportIssues.bind();
   collectionSettings.bind({
     addButton: dom.collectionAddSiteBtn,
     input: dom.collectionNewSiteInput,
@@ -123,6 +126,14 @@
     if (loadResult.ok) renderAll();
     tabs.init();
     navigationSettings.bind();
+    if (reportIssues) reportIssues.prefillFromUrl();
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab');
+    if (tabParam === 'report-issues' || tabParam === 'report') {
+      tabs.activateTabById('tab-btn-report-issues');
+    }
+
     gamepad.startPolling();
     optionsTutorial.showIfNeeded();
   })();
