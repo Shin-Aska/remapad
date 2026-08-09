@@ -77,7 +77,13 @@
       keyboardEnabledToggle: get('keyboard-enabled-toggle'), keyboardTriggerModeSelect: get('keyboard-trigger-mode-select'),
       keyboardTriggerSelectorsSave: get('keyboard-trigger-selectors-save'),
       collectionAddSiteBtn: get('collection-add-site-btn'), collectionNewSiteInput: get('collection-new-site-input'),
-      collectionSaveAllBtn: get('cnav-save-all-btn')
+      collectionSaveAllBtn: get('cnav-save-all-btn'),
+      tabBtnReportIssues: get('tab-btn-report-issues'),
+      tabPanelReportIssues: get('tab-panel-report-issues'),
+      reportIssuePageInput: get('report-issue-page'),
+      reportIssueControllerStatus: get('report-issue-controller-status'),
+      reportIssueDescriptionInput: get('report-issue-description'),
+      reportIssueGitLabBtn: get('report-issue-gitlab-btn')
     };
   }
 
