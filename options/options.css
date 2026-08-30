@@ -567,6 +567,41 @@ body {
 .n64-layout-active .callout-l1 .callout-meta { text-align: left; }
 .n64-layout-active .callout-r1 { right: 10px; top: 400px; }     /* Button 5 = Button A */
 
+/* Original FC30/NES30 pads expose the D-pad as axes and do not have sticks or
+   the browser's conventional Select/Start slots, so only physical controls are
+   offered by the mapping editor. */
+.retro8bitdo-layout-active .callout-dpad-up,
+.retro8bitdo-layout-active .callout-dpad-down,
+.retro8bitdo-layout-active .callout-dpad-left,
+.retro8bitdo-layout-active .callout-dpad-right,
+.retro8bitdo-layout-active .callout-select,
+.retro8bitdo-layout-active .callout-start,
+.retro8bitdo-layout-active .callout-square,
+.retro8bitdo-layout-active .callout-r1 {
+  display: none !important;
+}
+.retro8bitdo-layout-active .callout-l2 { left: 10px; top: 20px; }
+.retro8bitdo-layout-active .callout-l3 { left: 10px; top: 75px; }
+.retro8bitdo-layout-active .callout-r2 { right: 10px; top: 20px; }
+.retro8bitdo-layout-active .callout-r3 { right: 10px; top: 75px; }
+.retro8bitdo-layout-active .callout-triangle { right: 10px; top: 185px; }
+.retro8bitdo-layout-active .callout-l1 {
+  left: auto;
+  right: 10px;
+  top: 240px;
+  flex-direction: row-reverse;
+}
+.retro8bitdo-layout-active .callout-l1 .callout-meta { text-align: left; }
+.retro8bitdo-layout-active .callout-circle { right: 10px; top: 295px; }
+.retro8bitdo-layout-active .callout-cross { right: 10px; top: 350px; }
+
+#controller-svg-retro8bitdo .svg-btn.highlighted {
+  fill: #ff7a7f !important;
+  stroke: #fff0cf !important;
+  stroke-width: 2.5px !important;
+  filter: drop-shadow(0 0 9px rgba(255, 80, 88, 0.9));
+}
+
 .callout-dot {
   width: 8px;
   height: 8px;
