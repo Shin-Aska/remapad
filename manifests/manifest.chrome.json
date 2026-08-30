@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Remapad — Gamepad Browser Controller",
   "short_name": "Remapad",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "minimum_chrome_version": "111",
   "description": "Navigate streaming sites with a gamepad. Map buttons, customize site profiles, and control playback, scrolling, and navigation.",
   "homepage_url": "https://gitlab.com/ShinAska/remapad",
