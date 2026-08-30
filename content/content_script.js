@@ -29,6 +29,8 @@
     MAX_DOM_ACTION_PAYLOAD_LENGTH,
     DEFAULT_NAV_SETTINGS,
     DEFAULT_PROFILE,
+    RETRO_8BITDO_DEFAULT_PROFILE,
+    N64_DEFAULT_PROFILE,
     GLYPHS,
     DOM_ACTION_OPERATIONS,
     TOGGLEABLE_DOM_ATTRIBUTES,
@@ -100,6 +102,7 @@
   let siteMappingActive = false;
   let activePageListenersAttached = false;
   let activeGamepadIndex = null;
+  let activeControllerStyle = null;
   const gamepadSnapshots = new Map();
 
   function resolveIconStyle() {
@@ -133,6 +136,7 @@
           callbacks: {
             getActiveProfile: getEffectiveProfile,
             getIconStyle: resolveIconStyle,
+            getControllerStyle: () => activeControllerStyle,
             getSettings: () => settings,
             openSiteMapping: () => messagingClient.openSiteMapping(),
             executeAction
@@ -170,6 +174,7 @@
             getSettings: () => settings,
             getActiveProfile: getEffectiveProfile,
             getIconStyle: resolveIconStyle,
+            getControllerStyle: () => activeControllerStyle,
             isSiteActive
           }
         });
@@ -314,6 +319,7 @@
     } else {
       if (gamepadConnected) {
         gamepadConnected = false;
+        activeControllerStyle = null;
         hudController?.hide();
       }
     }
@@ -323,9 +329,13 @@
     if (!isSiteActive()) return;
 
     const previous = controllerStyle.getDetected();
+    const previousActiveStyle = activeControllerStyle;
+    activeControllerStyle = controllerStyle.detect(gp.id);
     controllerStyle.update(gp.id);
+    if (activeControllerStyle !== previousActiveStyle && hudController?.isVisible()) {
+      hudController.update();
+    }
     if (controllerStyle.getDetected() !== previous && settings.iconStyle === 'auto') {
-      if (hudController?.isVisible()) hudController.update();
       if (typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.isOpen()) {
         const glyphs = GLYPHS[resolveIconStyle()] || GLYPHS.playstation;
         RemapadKeyboard.setShortcutGlyphs({
@@ -574,14 +584,11 @@
   }
 
   function getEffectiveProfile() {
-    const style = resolveIconStyle();
-    if (style === 'n64') {
-      const isDefaultSite = !settings.websiteMappings[currentHostname] || settings.websiteMappings[currentHostname] === 'default';
-      const isUnmodifiedDefault = JSON.stringify(activeProfile) === JSON.stringify(DEFAULT_PROFILE);
-      if (isDefaultSite && isUnmodifiedDefault) {
-        return N64_DEFAULT_PROFILE;
-      }
-    }
+    const style = activeControllerStyle;
+    const isUnmodifiedDefault = activeProfile && Object.keys(DEFAULT_PROFILE)
+      .every(button => activeProfile[button] === DEFAULT_PROFILE[button]);
+    if (style === 'retro8bitdo' && isUnmodifiedDefault) return RETRO_8BITDO_DEFAULT_PROFILE;
+    if (style === 'n64' && isUnmodifiedDefault) return N64_DEFAULT_PROFILE;
     return activeProfile;
   }
 
@@ -898,10 +905,12 @@
         break;
       }
       case 'scroll_left': {
+        domSimulator.getScrollableElement().scrollBy({ left: -150, behavior: 'smooth' });
         dispatchKeyEvent(document.activeElement || document.body, 'ArrowLeft', 'ArrowLeft');
         break;
       }
       case 'scroll_right': {
+        domSimulator.getScrollableElement().scrollBy({ left: 150, behavior: 'smooth' });
         dispatchKeyEvent(document.activeElement || document.body, 'ArrowRight', 'ArrowRight');
         break;
       }
@@ -1277,7 +1286,9 @@
     if (!['click', 'focus', 'hover'].includes(action)) return;
     const actionValue = `${action}_element:${selector}`;
     try {
-      activeProfile = await settingsStore.saveButtonMapping(button, actionValue);
+      const effectiveProfile = getEffectiveProfile();
+      const profileTemplate = effectiveProfile === activeProfile ? null : effectiveProfile;
+      activeProfile = await settingsStore.saveButtonMapping(button, actionValue, profileTemplate);
       settings = settingsStore.getSettings();
       hudController?.update();
       closeQuickMap();
@@ -1462,6 +1473,7 @@
     prevButtonStates = [];
     gamepadConnected = false;
     activeGamepadIndex = null;
+    activeControllerStyle = null;
     gamepadSnapshots.clear();
   }
 

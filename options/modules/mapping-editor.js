@@ -12,19 +12,57 @@
       RESERVED_OPTIONS_KEY,
       FRIENDLY_NAMES,
       OPTIONS_PAGE_PROFILE,
+      RETRO_8BITDO_OPTIONS_PAGE_PROFILE,
       DEFAULT_PROFILE,
+      RETRO_8BITDO_DEFAULT_PROFILE,
       ICON_STYLES,
+      CONTROLLER_STYLE_PATTERNS,
       ACTION_OPTIONS,
       BUTTON_NAMES
     } = constants;
     const { getFriendlyLabel, parseDomain, ensureSitePermission, removeSitePermission } = utils;
     let activeCalloutBtn = null;
+    let activeControllerId = null;
 
-    function getActiveMapping() {
+    function profilesMatch(left, right) {
+      if (!left || !right || typeof left !== 'object' || typeof right !== 'object') return false;
+      return Object.keys(right).every(button => left[button] === right[button]);
+    }
+
+    function getStoredActiveMapping() {
       const settings = state.getSettings();
       return state.getSelectedSiteKey() === 'default'
         ? settings.defaultMapping
         : settings.websiteMappings[state.getSelectedSiteKey()] || DEFAULT_PROFILE;
+    }
+
+    function getActiveMapping() {
+      const stored = getStoredActiveMapping();
+      if (getEditorControllerStyle() !== 'retro8bitdo') return stored;
+
+      if (state.getSelectedSiteKey() === RESERVED_OPTIONS_KEY) {
+        return profilesMatch(stored, OPTIONS_PAGE_PROFILE)
+          ? RETRO_8BITDO_OPTIONS_PAGE_PROFILE
+          : stored;
+      }
+      return profilesMatch(stored, DEFAULT_PROFILE)
+        ? RETRO_8BITDO_DEFAULT_PROFILE
+        : stored;
+    }
+
+    function getMutableActiveMapping() {
+      const settings = state.getSettings();
+      const selected = state.getSelectedSiteKey();
+      const stored = getStoredActiveMapping();
+      const effective = getActiveMapping();
+      if (stored === effective) return stored;
+
+      // Materialize compact defaults only when the user edits them. Until
+      // then, the stored universal profile remains untouched for other pads.
+      const editable = { ...effective };
+      if (selected === 'default') settings.defaultMapping = editable;
+      else settings.websiteMappings[selected] = editable;
+      return editable;
     }
 
     function renderEditorSiteSelect() {
@@ -162,31 +200,51 @@
 
     function detectControllerStyle(gamepadId) {
       const id = (gamepadId || '').toLowerCase();
-      if (/steam deck|steam controller|valve software|028e.*11ff|28de.*11ff|28de-11ff|28de/.test(id)) return 'steamdeck';
-      if (/0079.*0006|dragonrise|n64|dragon rise/.test(id)) return 'n64';
-      if (/xbox|microsoft|xinput|generic x/.test(id)) return 'xbox';
-      if (/dualsense|dualshock|sony|playstation|ps4|ps5/.test(id)) return 'playstation';
-      if (/nintendo|switch|pro controller/.test(id)) return 'nintendo';
+      for (const { test, style } of CONTROLLER_STYLE_PATTERNS) {
+        if (test.test(id)) return style;
+      }
       return null;
     }
 
     function resolveIconStyle() {
       const stored = state.getSettings().iconStyle || 'auto';
       if (stored !== 'auto') return stored;
+      const activeStyle = detectControllerStyle(activeControllerId);
+      if (activeStyle) return activeStyle;
       const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
       const gamepad = [...gamepads].find(item => item && item.connected);
       return detectControllerStyle(gamepad?.id) || 'playstation';
+    }
+
+    function getEditorControllerStyle() {
+      const activeStyle = detectControllerStyle(activeControllerId);
+      if (activeStyle === 'retro8bitdo') return activeStyle;
+      if (activeControllerId !== null) return resolveIconStyle();
+      const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+      const connected = [...gamepads].find(item => item && item.connected);
+      const detected = detectControllerStyle(connected?.id);
+      // Compact hardware capabilities take precedence over a cosmetic icon
+      // override so phantom D-pad/stick controls never become editable.
+      return detected === 'retro8bitdo' ? detected : resolveIconStyle();
     }
 
     function renderIconStyles() {
       const settings = state.getSettings();
       dom.iconStyleListEl.replaceChildren();
       const detected = resolveIconStyle();
+      const detectedName = {
+        playstation: 'PlayStation',
+        xbox: 'Xbox',
+        nintendo: 'Nintendo',
+        steamdeck: 'Steam Deck',
+        retro8bitdo: '8BitDo FC30 / NES30',
+        n64: 'N64'
+      }[detected] || detected;
       ICON_STYLES.forEach(style => {
         const isSelected = settings.iconStyle === style.id;
         const isAuto = style.id === 'auto';
         const subtitle = isAuto && settings.iconStyle === 'auto'
-          ? `Detected: ${detected.charAt(0).toUpperCase() + detected.slice(1)}`
+          ? `Detected: ${detectedName}`
           : style.sub;
         const item = document.createElement('div');
         item.className = 'icon-style-item' + (isSelected ? ' selected' : '');
@@ -235,14 +293,14 @@
           const previousStyle = settings.iconStyle;
           settings.iconStyle = style.id;
           renderIconStyles();
-          updateSvgTextLabels();
+          populateVisualLabels();
           try {
             await api.storage.local.set({ iconStyle: style.id });
             showToast('Controller layout updated.', 'success');
           } catch (error) {
             if (settings.iconStyle === style.id) settings.iconStyle = previousStyle;
             renderIconStyles();
-            updateSvgTextLabels();
+            populateVisualLabels();
             showToast('Unable to save controller layout: ' + error.message);
           }
         });
@@ -251,10 +309,11 @@
     }
 
     function updateSvgTextLabels() {
-      const style = resolveIconStyle();
+      const style = getEditorControllerStyle();
       const canvasEl = document.querySelector('.gamepad-canvas');
       if (canvasEl) {
         canvasEl.classList.toggle('n64-layout-active', style === 'n64');
+        canvasEl.classList.toggle('retro8bitdo-layout-active', style === 'retro8bitdo');
         canvasEl.dataset.controllerStyle = style;
         const activeSvgId = style === 'playstation'
           ? 'controller-svg-default'
@@ -273,12 +332,14 @@
       const triangleCallout = document.querySelector('.callout-triangle .callout-btn-name');
       const l1Callout = document.querySelector('.callout-l1 .callout-btn-name');
       const r1Callout = document.querySelector('.callout-r1 .callout-btn-name');
+      const l2Callout = document.querySelector('.callout-l2 .callout-btn-name');
+      const r2Callout = document.querySelector('.callout-r2 .callout-btn-name');
+      const l3Callout = document.querySelector('.callout-l3 .callout-btn-name');
+      const r3Callout = document.querySelector('.callout-r3 .callout-btn-name');
       const selectCallout = document.querySelector('.callout-select .callout-btn-name');
       const startCallout = document.querySelector('.callout-start .callout-btn-name');
 
       if (style === 'n64') {
-        const l2Callout = document.querySelector('.callout-l2 .callout-btn-name');
-        const r2Callout = document.querySelector('.callout-r2 .callout-btn-name');
         if (crossCallout) crossCallout.textContent = 'C-Up';
         if (circleCallout) circleCallout.textContent = 'C-Right';
         if (squareCallout) squareCallout.textContent = 'C-Down';
@@ -289,6 +350,21 @@
         if (r2Callout) r2Callout.textContent = 'R Bumper';
         if (selectCallout) selectCallout.textContent = 'Z Trigger';
         if (startCallout) startCallout.textContent = 'Start Button';
+        if (l3Callout) l3Callout.textContent = 'L3 Click';
+        if (r3Callout) r3Callout.textContent = 'R3 Click';
+      } else if (style === 'retro8bitdo') {
+        if (crossCallout) crossCallout.textContent = 'Button B';
+        if (circleCallout) circleCallout.textContent = 'Button A';
+        if (squareCallout) squareCallout.textContent = 'Button 2';
+        if (triangleCallout) triangleCallout.textContent = 'Button X';
+        if (l1Callout) l1Callout.textContent = 'Button Y (as L1)';
+        if (r1Callout) r1Callout.textContent = 'Button 5';
+        if (l2Callout) l2Callout.textContent = 'Left Shoulder';
+        if (r2Callout) r2Callout.textContent = 'Right Shoulder';
+        if (l3Callout) l3Callout.textContent = 'Select Button';
+        if (r3Callout) r3Callout.textContent = 'Start Button';
+        if (selectCallout) selectCallout.textContent = 'Button 8';
+        if (startCallout) startCallout.textContent = 'Button 9';
       } else if (style === 'nintendo') {
         if (crossCallout) crossCallout.textContent = 'Button B';
         if (circleCallout) circleCallout.textContent = 'Button A';
@@ -296,6 +372,10 @@
         if (triangleCallout) triangleCallout.textContent = 'Button X';
         if (l1Callout) l1Callout.textContent = 'L Bumper';
         if (r1Callout) r1Callout.textContent = 'R Bumper';
+        if (l2Callout) l2Callout.textContent = 'ZL Trigger';
+        if (r2Callout) r2Callout.textContent = 'ZR Trigger';
+        if (l3Callout) l3Callout.textContent = 'L3 Click';
+        if (r3Callout) r3Callout.textContent = 'R3 Click';
         if (selectCallout) selectCallout.textContent = 'Minus (-)';
         if (startCallout) startCallout.textContent = 'Plus (+)';
       } else if (style === 'steamdeck') {
@@ -305,6 +385,10 @@
         if (triangleCallout) triangleCallout.textContent = 'Button Y';
         if (l1Callout) l1Callout.textContent = 'L1 Bumper';
         if (r1Callout) r1Callout.textContent = 'R1 Bumper';
+        if (l2Callout) l2Callout.textContent = 'L2 Trigger';
+        if (r2Callout) r2Callout.textContent = 'R2 Trigger';
+        if (l3Callout) l3Callout.textContent = 'L3 Click';
+        if (r3Callout) r3Callout.textContent = 'R3 Click';
         if (selectCallout) selectCallout.textContent = 'View Button';
         if (startCallout) startCallout.textContent = 'Options Button';
       } else {
@@ -314,6 +398,10 @@
         if (triangleCallout) triangleCallout.textContent = style === 'xbox' ? 'Button Y' : 'Triangle (△)';
         if (l1Callout) l1Callout.textContent = style === 'xbox' ? 'LB Bumper' : 'L1 Bumper';
         if (r1Callout) r1Callout.textContent = style === 'xbox' ? 'RB Bumper' : 'R1 Bumper';
+        if (l2Callout) l2Callout.textContent = style === 'xbox' ? 'LT Trigger' : 'L2 Trigger';
+        if (r2Callout) r2Callout.textContent = style === 'xbox' ? 'RT Trigger' : 'R2 Trigger';
+        if (l3Callout) l3Callout.textContent = 'L3 Click';
+        if (r3Callout) r3Callout.textContent = 'R3 Click';
         if (selectCallout) selectCallout.textContent = style === 'xbox' ? 'View Button' : 'Select Button';
         if (startCallout) startCallout.textContent = style === 'xbox' ? 'Menu Button' : 'Start Button';
       }
@@ -390,7 +478,7 @@
       });
       dom.actionSelect.addEventListener('change', async () => {
         if (!activeCalloutBtn) return;
-        const mapping = getActiveMapping();
+        const mapping = getMutableActiveMapping();
         const currentValue = mapping[activeCalloutBtn] || '';
         let action = dom.actionSelect.value;
         const customAction = async (prefix, mode) => {
@@ -476,6 +564,7 @@
       updateSvgTextLabels,
       populateVisualLabels,
       detectControllerStyle,
+      setActiveControllerId: value => { activeControllerId = value || null; },
       closeDropdown,
       isDropdownOpen: () => dom.actionDropdown.style.display !== 'none',
       bind

@@ -9,7 +9,13 @@
   'use strict';
 
   function create({ state, constants, utils, dom, mappingEditor, cursor, modal, optionsTutorial, switchOptionsTab, reportIssues }) {
-    const { RESERVED_OPTIONS_KEY, BUTTON_NAMES, OPTIONS_NAV_REPEAT_MS } = constants;
+    const {
+      RESERVED_OPTIONS_KEY,
+      OPTIONS_PAGE_PROFILE,
+      RETRO_8BITDO_OPTIONS_PAGE_PROFILE,
+      BUTTON_NAMES,
+      OPTIONS_NAV_REPEAT_MS
+    } = constants;
     const { clamp } = utils;
     let previousPressed = [];
     let pollInterval = null;
@@ -175,7 +181,12 @@
     }
 
     function updateOptionsGamepadNav(gamepad, previousSnapshot) {
-      const profile = state.getSettings().websiteMappings[RESERVED_OPTIONS_KEY];
+      const storedProfile = state.getSettings().websiteMappings[RESERVED_OPTIONS_KEY];
+      const isStockOptionsProfile = storedProfile && Object.keys(OPTIONS_PAGE_PROFILE)
+        .every(button => storedProfile[button] === OPTIONS_PAGE_PROFILE[button]);
+      const profile = mappingEditor.detectControllerStyle(gamepad.id) === 'retro8bitdo' && isStockOptionsProfile
+        ? RETRO_8BITDO_OPTIONS_PAGE_PROFILE
+        : storedProfile;
       if (!profile) return;
       const directional = new Set([
         'focus_up', 'focus_down', 'focus_left', 'focus_right', 'nav_up', 'nav_down', 'nav_left', 'nav_right',
@@ -213,6 +224,13 @@
     }
 
     function updateDisconnectedStatus() {
+      const controllerStyleChanged = lastDetectedControllerStyle !== null;
+      lastDetectedControllerStyle = null;
+      mappingEditor.setActiveControllerId(null);
+      if (controllerStyleChanged) {
+        if (state.getSettings().iconStyle === 'auto') mappingEditor.renderIconStyles();
+        mappingEditor.populateVisualLabels();
+      }
       dom.deviceNameEl.textContent = 'No Controller Detected';
       dom.navControllerNameEl.textContent = 'No Controller';
       dom.statusBadgeEl.className = 'status-badge disconnected';
@@ -266,12 +284,13 @@
         return;
       }
       const detected = mappingEditor.detectControllerStyle(gamepad.id);
-      if (detected && detected !== lastDetectedControllerStyle) {
+      mappingEditor.setActiveControllerId(gamepad.id);
+      if (detected !== lastDetectedControllerStyle) {
         lastDetectedControllerStyle = detected;
         if (state.getSettings().iconStyle === 'auto') {
           mappingEditor.renderIconStyles();
-          mappingEditor.updateSvgTextLabels();
         }
+        mappingEditor.populateVisualLabels();
       }
       updateConnectedStatus(gamepad);
       const previousSnapshot = [...previousPressed];
@@ -291,7 +310,7 @@
         const wasPressed = previousSnapshot[index] || false;
         previousPressed[index] = isPressed;
         const callout = document.querySelector(`.editor-callout[data-btn="${index}"]`);
-        ['', 'n64-', 'xbox-', 'nin-', 'deck-'].forEach(prefix => {
+        ['', 'n64-', 'xbox-', 'nin-', 'deck-', 'retro-'].forEach(prefix => {
           const path = document.getElementById(`svg-${prefix}btn-${index}`);
           if (path) path.classList.toggle('highlighted', isPressed);
         });

@@ -75,9 +75,11 @@
         playstation: 'PlayStation',
         nintendo: 'Nintendo',
         steamdeck: 'Steam Deck',
+        retro8bitdo: '8BitDo FC30/NES30',
         n64: 'N64'
       };
-      return names[callbacks.getIconStyle()] || 'your';
+      const style = callbacks.getControllerStyle?.() || callbacks.getIconStyle();
+      return names[style] || 'your';
     }
 
     function getActivationChoice() {
@@ -93,12 +95,15 @@
       const leftMode = getStickMode('leftStick');
       const rightMode = getStickMode('rightStick');
       const controllerName = getControllerName();
+      const compactRetro = (callbacks.getControllerStyle?.() || callbacks.getIconStyle()) === 'retro8bitdo';
 
       return [
         {
           eyebrow: 'How navigation works',
-          title: 'Two thumbsticks, two simple jobs',
-          body: `By default, the left thumbstick moves a virtual cursor and the right thumbstick scrolls. On this site they are currently set to ${leftMode} and ${rightMode}. You can adjust their mode, cursor speed, and deadzone in Remapad’s navigation settings.`
+          title: compactRetro ? 'The D-pad is your navigation control' : 'Two thumbsticks, two simple jobs',
+          body: compactRetro
+            ? `The FC30/NES30 reports its D-pad through the left analog axes, so Remapad uses it for ${leftMode}. Its directions remain navigation input instead of mappable buttons.`
+            : `By default, the left thumbstick moves a virtual cursor and the right thumbstick scrolls. On this site they are currently set to ${leftMode} and ${rightMode}. You can adjust their mode, cursor speed, and deadzone in Remapad’s navigation settings.`
         },
         {
           eyebrow: 'Current site mapping',
@@ -108,12 +113,16 @@
         {
           eyebrow: 'Controller layouts',
           title: 'Different symbols, same button positions',
-          body: 'Remapad detects the connected controller and swaps the guide symbols automatically. Xbox uses A/B/X/Y, PlayStation uses ✕/○/□/△, and Nintendo uses B/A/Y/X.'
+          body: compactRetro
+            ? 'Remapad detected the original FC30/NES30 compact layout, including its legacy face-button slots. Other controllers keep their usual Xbox, PlayStation, or Nintendo symbols.'
+            : 'Remapad detects the connected controller and swaps the guide symbols automatically. Xbox uses A/B/X/Y, PlayStation uses ✕/○/□/△, and Nintendo uses B/A/Y/X.'
         },
         {
           eyebrow: 'Review or edit',
           title: 'Open the Navigation Guide',
-          body: guideButton !== undefined
+          body: compactRetro && guideButton === undefined
+            ? 'The compact default uses every practical physical button, so the Navigation Guide is left unmapped. Open Remapad from the extension menu whenever you want to review or edit this site.'
+            : guideButton !== undefined
             ? `Press ${guideGlyph} (Start/Menu) to open this site’s Navigation Guide, press D-pad Left twice to highlight Edit, then press ${getGlyph(0)} to select it.`
             : `This site does not currently have Navigation Guide mapped. Open Remapad from the extension menu and assign it to ${getGlyph(9)} (Start/Menu), then highlight Edit in the guide.`
         },
@@ -140,6 +149,18 @@
     function renderStepVisual(stepIndex, visual) {
       visual.replaceChildren();
       if (stepIndex === 0) {
+        if ((callbacks.getControllerStyle?.() || callbacks.getIconStyle()) === 'retro8bitdo') {
+          const dpad = document.createElement('div');
+          dpad.className = 'remapad-tutorial-dpad';
+          dpad.setAttribute('aria-label', 'D-pad reported as analog axes');
+          for (const glyph of ['↑', '←', '•', '→', '↓']) {
+            const direction = document.createElement('i');
+            direction.textContent = glyph;
+            dpad.appendChild(direction);
+          }
+          visual.appendChild(dpad);
+          return;
+        }
         const sticks = document.createElement('div');
         sticks.className = 'remapad-tutorial-sticks';
         sticks.setAttribute('aria-label', 'Thumbstick controls');
@@ -157,7 +178,10 @@
         const mappings = document.createElement('div');
         mappings.className = 'remapad-tutorial-mappings';
         const profile = callbacks.getActiveProfile();
-        for (const button of ['0', '1', '2', '3']) {
+        const faceButtons = (callbacks.getControllerStyle?.() || callbacks.getIconStyle()) === 'retro8bitdo'
+          ? ['0', '1', '3', '4']
+          : ['0', '1', '2', '3'];
+        for (const button of faceButtons) {
           const mapping = document.createElement('div');
           mapping.className = 'remapad-tutorial-mapping';
           const key = document.createElement('kbd');
@@ -172,11 +196,19 @@
         const layouts = document.createElement('div');
         layouts.className = 'remapad-tutorial-layouts';
         layouts.setAttribute('aria-label', 'Controller face-button layouts');
-        for (const [name, glyphs] of [
-          ['Xbox', ['A', 'B', 'X', 'Y']],
-          ['PlayStation', ['✕', '○', '□', '△']],
-          ['Nintendo', ['B', 'A', 'Y', 'X']]
-        ]) {
+        const compactRetro = (callbacks.getControllerStyle?.() || callbacks.getIconStyle()) === 'retro8bitdo';
+        const layoutRows = compactRetro
+          ? [
+            ['Xbox', ['A', 'B', 'X', 'Y']],
+            ['PlayStation', ['✕', '○', '□', '△']],
+            ['FC30/NES30', ['B', 'A', 'X', 'Y']]
+          ]
+          : [
+            ['Xbox', ['A', 'B', 'X', 'Y']],
+            ['PlayStation', ['✕', '○', '□', '△']],
+            ['Nintendo', ['B', 'A', 'Y', 'X']]
+          ];
+        for (const [name, glyphs] of layoutRows) {
           const row = document.createElement('span');
           const heading = document.createElement('strong');
           heading.textContent = name;
@@ -194,6 +226,11 @@
         flow.className = 'remapad-tutorial-edit-flow';
         flow.setAttribute('aria-label', 'Open guide, highlight Edit, and confirm');
         const guideButton = findMappedButton('toggle_hud');
+        if ((callbacks.getControllerStyle?.() || callbacks.getIconStyle()) === 'retro8bitdo' && guideButton === undefined) {
+          appendLabeledValue(flow, 'span', 'kbd', 'EXT', 'Open Remapad');
+          visual.appendChild(flow);
+          return;
+        }
         appendLabeledValue(flow, 'span', 'kbd', getGlyph(guideButton ?? 9), 'Open guide');
         const firstArrow = document.createElement('b');
         firstArrow.textContent = '→';

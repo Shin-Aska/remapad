@@ -43,6 +43,28 @@
     '15': 'scroll_right'
   };
 
+  // The original, non-Pro FC30 and NES30 expose their D-pad as axes and use
+  // non-standard button slots for the remaining physical controls. Keep this
+  // profile separate so newer 8BitDo controllers retain the standard layout.
+  const RETRO_8BITDO_OPTIONS_PAGE_PROFILE = {
+    '0': 'select',
+    '1': 'back',
+    '2': 'none',
+    '3': 'none',
+    '4': 'none',
+    '5': 'none',
+    '6': 'prev_tab',
+    '7': 'next_tab',
+    '8': 'none',
+    '9': 'none',
+    '10': 'none',
+    '11': 'none',
+    '12': 'none',
+    '13': 'none',
+    '14': 'none',
+    '15': 'none'
+  };
+
   const DEFAULT_PROFILE = {
     '0': 'click',
     '1': 'back',
@@ -60,6 +82,25 @@
     '13': 'scroll_down',
     '14': 'scroll_left',
     '15': 'scroll_right'
+  };
+
+  const RETRO_8BITDO_DEFAULT_PROFILE = {
+    '0': 'click',
+    '1': 'back',
+    '2': 'none',
+    '3': 'search',
+    '4': 'fullscreen',     // Physical Y is reported as L1
+    '5': 'none',
+    '6': 'scroll_left',    // Physical left shoulder is reported as L2
+    '7': 'scroll_right',   // Physical right shoulder is reported as R2
+    '8': 'none',
+    '9': 'none',
+    '10': 'fullscreen',    // Physical Select is reported as L3
+    '11': 'toggle_play',   // Physical Start is reported as R3
+    '12': 'none',          // D-pad directions are axes, not mappable buttons
+    '13': 'none',
+    '14': 'none',
+    '15': 'none'
   };
 
   const DEFAULT_NAV_SETTINGS = {
@@ -104,7 +145,20 @@
     { id: 'xbox', name: 'Xbox (Series X/S)', sub: 'A and B Layout', btns: ['A', 'B'] },
     { id: 'nintendo', name: 'Nintendo (Switch)', sub: 'Inverted Layout', btns: ['A', 'B'] },
     { id: 'steamdeck', name: 'Steam Deck', sub: 'SteamOS Layout', btns: ['A', 'B'] },
+    { id: 'retro8bitdo', name: '8BitDo FC30 / NES30', sub: 'Compact retro layout', btns: ['B', 'A'] },
     { id: 'n64', name: 'N64 (DragonRise)', sub: 'A, B & C-Pad Layout', btns: ['A', 'B'] }
+  ];
+
+  const CONTROLLER_STYLE_PATTERNS = [
+    // Original FC30 USB mode. Match the complete VID/PID pair before names so
+    // browser-supplied Xbox/generic suffixes cannot override the device model.
+    { test: /\b1235[-:]ab11\b/, style: 'retro8bitdo' },
+    { test: /8bitdo.*(?:fc30|nes30)(?![\s_-]*(?:pro|arcade))|(?:^|[-_\s])(?:fc30|nes30)(?![\s_-]*(?:pro|arcade))/, style: 'retro8bitdo' },
+    { test: /steam deck|steam controller|valve software|028e.*11ff|28de.*11ff|28de-11ff|28de/, style: 'steamdeck' },
+    { test: /0079.*0006|dragonrise|n64|dragon rise/, style: 'n64' },
+    { test: /xbox|microsoft|xinput|generic x/, style: 'xbox' },
+    { test: /dualsense|dualshock|sony|playstation|ps4|ps5/, style: 'playstation' },
+    { test: /nintendo|switch|pro controller/, style: 'nintendo' }
   ];
 
   const ACTION_OPTIONS = [
@@ -182,9 +236,12 @@
     WEBSITE_MAPPINGS_DEFAULT,
     FRIENDLY_NAMES,
     OPTIONS_PAGE_PROFILE,
+    RETRO_8BITDO_OPTIONS_PAGE_PROFILE,
     DEFAULT_PROFILE,
+    RETRO_8BITDO_DEFAULT_PROFILE,
     DEFAULT_NAV_SETTINGS,
     ICON_STYLES,
+    CONTROLLER_STYLE_PATTERNS,
     ACTION_OPTIONS,
     DOM_ACTION_LABELS,
     TOGGLEABLE_DOM_ATTRIBUTES,

@@ -11,14 +11,19 @@
 
   function create({ utils, constants, overlayStyles, callbacks }) {
     const { GLYPHS, ACTION_LABELS, DEADZONE } = constants;
-    // Item ordering: 16 controller buttons followed by left/right stick labels
-    // and the Edit control. This order drives D-pad left/right highlight motion.
-    const hudItems = [
+    // Item ordering drives D-pad/axis left-right highlight motion. Compact
+    // 8BitDo pads omit phantom Select/Start and D-pad button slots; their D-pad
+    // remains represented once as the axis navigation control.
+    const standardHudItems = [
       '0', '1', '2', '3', '4', '5', '6', '7',
       '8', '9', '10', '11', '12', '13', '14', '15',
       'ls', 'rs', 'edit'
     ];
-    const standardButtons = hudItems.slice(0, 16);
+    const retro8BitDoHudItems = [
+      '0', '1', '3', '4', '6', '7', '10', '11',
+      'ls', 'edit'
+    ];
+    let hudItems = standardHudItems;
     let hudElement = null;
     let hudTimeout = null;
     let hudVisible = false;
@@ -44,6 +49,10 @@
 
       const currentGlyphs = GLYPHS[callbacks.getIconStyle()] || GLYPHS.playstation;
       const activeProfile = callbacks.getActiveProfile();
+      const compactRetro = (callbacks.getControllerStyle?.() || callbacks.getIconStyle()) === 'retro8bitdo';
+      hudItems = compactRetro ? retro8BitDoHudItems : standardHudItems;
+      const standardButtons = hudItems.filter(item => /^\d+$/.test(item));
+      if (hudHighlightedIndex >= hudItems.length) hudHighlightedIndex = -1;
       const row = document.createElement('div');
       row.className = 'remapad-hud-row';
       standardButtons.forEach((btnIdx, arrayIndex) => {
@@ -73,10 +82,13 @@
       const sticks = document.createElement('div');
       sticks.className = 'remapad-hud-sticks';
       sticks.setAttribute('aria-label', 'Stick controls');
-      [
-        { glyph: 'LS', mode: navSettings.leftStick?.mode, index: 16 },
-        { glyph: 'RS', mode: navSettings.rightStick?.mode, index: 17 }
-      ].forEach(stick => {
+      const stickItems = compactRetro
+        ? [{ glyph: 'D', label: 'D-Pad axes', index: standardButtons.length }]
+        : [
+          { glyph: 'LS', mode: navSettings.leftStick?.mode, index: standardButtons.length },
+          { glyph: 'RS', mode: navSettings.rightStick?.mode, index: standardButtons.length + 1 }
+        ];
+      stickItems.forEach(stick => {
         const item = document.createElement('div');
         item.className = `remapad-hud-stick${hudHighlightedIndex === stick.index ? ' highlighted' : ''}`;
         item.dataset.hudSelectable = '';
@@ -85,13 +97,13 @@
         glyph.textContent = stick.glyph;
         const label = document.createElement('span');
         label.className = 'remapad-hud-label';
-        label.textContent = stickLabels[stick.mode] || 'Disabled';
+        label.textContent = stick.label || stickLabels[stick.mode] || 'Disabled';
         item.append(glyph, label);
         sticks.appendChild(item);
       });
       row.appendChild(sticks);
 
-      const editHighlighted = hudHighlightedIndex === 18;
+      const editHighlighted = hudHighlightedIndex === hudItems.indexOf('edit');
       const editButton = document.createElement('button');
       editButton.className = `remapad-hud-edit${editHighlighted ? ' highlighted' : ''}`;
       editButton.id = 'remapad-hud-edit-btn';
@@ -144,6 +156,7 @@
       }
 
       hudHighlightedIndex = -1;
+      update();
       hudPermanentlyHidden = false;
       hudElement.classList.add('visible');
       hudVisible = true;

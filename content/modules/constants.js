@@ -69,6 +69,27 @@
     '15': 'scroll_right'   // D-Pad Right
   };
 
+  // Original non-Pro 8BitDo FC30/NES30 pads expose the D-pad as axes and put
+  // their compact set of physical buttons in these legacy Gamepad API slots.
+  const RETRO_8BITDO_DEFAULT_PROFILE = {
+    '0': 'click',          // B / primary face button
+    '1': 'back',           // A / secondary face button
+    '2': 'none',
+    '3': 'search',
+    '4': 'fullscreen',     // Y is reported as L1
+    '5': 'none',
+    '6': 'scroll_left',    // Left shoulder is reported as L2
+    '7': 'scroll_right',   // Right shoulder is reported as R2
+    '8': 'none',
+    '9': 'none',
+    '10': 'fullscreen',    // Select is reported as L3
+    '11': 'toggle_play',   // Start is reported as R3
+    '12': 'none',          // D-pad directions remain axis navigation
+    '13': 'none',
+    '14': 'none',
+    '15': 'none'
+  };
+
   const GLYPHS = {
     playstation: {
       '0': '✕', '1': '○', '2': '□', '3': '△',
@@ -89,6 +110,11 @@
       '0': 'A', '1': 'B', '2': 'X', '3': 'Y',
       '4': 'L1', '5': 'R1', '6': 'L2', '7': 'R2',
       '8': 'View', '9': 'Options', '10': 'L3', '11': 'R3', '12': '↑', '13': '↓', '14': '←', '15': '→'
+    },
+    retro8bitdo: {
+      '0': 'B', '1': 'A', '2': '2', '3': 'X',
+      '4': 'Y', '5': '5', '6': 'L', '7': 'R',
+      '8': '8', '9': '9', '10': 'Select', '11': 'Start', '12': '↑', '13': '↓', '14': '←', '15': '→'
     },
     n64: {
       '0': 'C-Up', '1': 'C-Right', '2': 'C-Down', '3': 'C-Left',
@@ -223,6 +249,10 @@
   };
 
   const CONTROLLER_STYLE_PATTERNS = [
+    // Original FC30 USB mode. Match the complete VID/PID pair before names so
+    // browser-supplied Xbox/generic suffixes cannot override the device model.
+    { test: /\b1235[-:]ab11\b/, style: 'retro8bitdo' },
+    { test: /8bitdo.*(?:fc30|nes30)(?![\s_-]*(?:pro|arcade))|(?:^|[-_\s])(?:fc30|nes30)(?![\s_-]*(?:pro|arcade))/, style: 'retro8bitdo' },
     { test: /steam deck|steam controller|valve software|028e.*11ff|28de.*11ff|28de-11ff|28de/, style: 'steamdeck' },
     { test: /0079.*0006|dragonrise|n64|dragon rise/, style: 'n64' },
     { test: /xbox|microsoft|xinput|generic x/, style: 'xbox' },
@@ -257,6 +287,7 @@
     MAX_DOM_ACTION_PAYLOAD_LENGTH,
     DEFAULT_NAV_SETTINGS,
     DEFAULT_PROFILE,
+    RETRO_8BITDO_DEFAULT_PROFILE,
     N64_DEFAULT_PROFILE,
     GLYPHS,
     ACTION_LABELS,

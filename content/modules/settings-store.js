@@ -144,7 +144,7 @@
     function setSiteMappingActive(value) { siteMappingActive = value; }
     function updateWebsiteMappings(mappings) { settings.websiteMappings = mappings; }
 
-    async function saveButtonMapping(button, actionValue) {
+    async function saveButtonMapping(button, actionValue, profileTemplate = null) {
       // Re-read storage before writing to reduce stale in-memory overwrites and
       // preserve the latest mappings observed in storage.
       const data = await api.storage.local.get(['websiteMappings']);
@@ -154,9 +154,11 @@
           : settings.websiteMappings)
       };
       const storedProfile = websiteMappings[hostname];
-      const baseProfile = storedProfile && typeof storedProfile === 'object'
-        ? storedProfile
-        : activeProfile || settings.defaultMapping || DEFAULT_PROFILE;
+      const baseProfile = profileTemplate && typeof profileTemplate === 'object'
+        ? profileTemplate
+        : storedProfile && typeof storedProfile === 'object'
+          ? storedProfile
+          : activeProfile || settings.defaultMapping || DEFAULT_PROFILE;
       const updatedProfile = { ...baseProfile, [button]: actionValue };
 
       websiteMappings[hostname] = updatedProfile;
