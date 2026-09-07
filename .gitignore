@@ -11,3 +11,4 @@ build/
 graphify-out/
 .idea/
 .sisyphus/
+.omo/

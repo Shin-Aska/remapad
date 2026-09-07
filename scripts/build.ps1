@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('all', 'chrome', 'firefox')]
+    [ValidateSet('all', 'chrome', 'edge', 'firefox')]
     [string]$Target = 'all'
 )
 
@@ -40,7 +40,7 @@ function Read-Manifest {
     }
 
     try {
-        return Get-Content -Raw -LiteralPath $path | ConvertFrom-Json
+        return Get-Content -Raw -Encoding UTF8 -LiteralPath $path | ConvertFrom-Json
     }
     catch {
         throw "Invalid JSON in ${path}: $($_.Exception.Message)"
@@ -81,14 +81,41 @@ if ([string]::IsNullOrWhiteSpace($FirefoxManifest.browser_specific_settings.geck
 
 $Version = $ChromeManifest.version
 
+function Write-EdgeManifest {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path
+    )
+
+    $edgeManifest = (($ChromeManifest | ConvertTo-Json -Depth 20) | ConvertFrom-Json)
+    $edgeManifest.PSObject.Properties.Remove('update_url')
+    foreach ($field in @('name', 'description')) {
+        $value = [string]$edgeManifest.$field
+        if ([string]::IsNullOrWhiteSpace($value)) {
+            throw "Edge manifest $field must be a non-empty string"
+        }
+        if ([regex]::IsMatch($value, '(?i)\bchrome\b')) {
+            throw "Edge manifest $field must not contain Chrome branding"
+        }
+    }
+
+    $edgeJson = $edgeManifest | ConvertTo-Json -Depth 20
+    [IO.File]::WriteAllText($Path, "$edgeJson$([Environment]::NewLine)", (New-Object Text.UTF8Encoding($false)))
+    $writtenManifest = Get-Content -Raw -Encoding UTF8 -LiteralPath $Path | ConvertFrom-Json
+    if (($writtenManifest | ConvertTo-Json -Depth 20 -Compress) -ne ($edgeManifest | ConvertTo-Json -Depth 20 -Compress) -or $null -ne $writtenManifest.PSObject.Properties['update_url']) {
+        throw 'Generated Edge manifest must equal Chrome minus update_url'
+    }
+}
+
 function Build-Browser {
     param(
         [Parameter(Mandatory)]
-        [ValidateSet('chrome', 'firefox')]
+        [ValidateSet('chrome', 'edge', 'firefox')]
         [string]$Browser
     )
 
-    $manifestPath = Join-Path $ManifestDir "manifest.$Browser.json"
+    $manifestBrowser = if ($Browser -eq 'edge') { 'chrome' } else { $Browser }
+    $manifestPath = Join-Path $ManifestDir "manifest.$manifestBrowser.json"
     $outputDir = Join-Path $DistDir $Browser
     $archivePath = Join-Path $DistDir "remapad-$Browser-$Version.zip"
 
@@ -96,6 +123,7 @@ function Build-Browser {
     $outputFullPath = [IO.Path]::GetFullPath($outputDir)
     $allowedOutputPaths = @(
         [IO.Path]::GetFullPath((Join-Path $DistDir 'chrome')),
+        [IO.Path]::GetFullPath((Join-Path $DistDir 'edge')),
         [IO.Path]::GetFullPath((Join-Path $DistDir 'firefox'))
     )
     if ($outputFullPath -notin $allowedOutputPaths -or -not $outputFullPath.StartsWith($distFullPath, [StringComparison]::OrdinalIgnoreCase)) {
@@ -110,7 +138,12 @@ function Build-Browser {
     foreach ($sourceDir in $SourceDirs) {
         Copy-Item -LiteralPath (Join-Path $RootDir $sourceDir) -Destination $outputFullPath -Recurse
     }
-    Copy-Item -LiteralPath $manifestPath -Destination (Join-Path $outputFullPath 'manifest.json')
+    if ($Browser -eq 'edge') {
+        Write-EdgeManifest -Path (Join-Path $outputFullPath 'manifest.json')
+    }
+    else {
+        Copy-Item -LiteralPath $manifestPath -Destination (Join-Path $outputFullPath 'manifest.json')
+    }
     Copy-Item -LiteralPath (Join-Path $RootDir 'LICENSE') -Destination $outputFullPath
 
     if (Test-Path -LiteralPath $archivePath) {
@@ -133,6 +166,9 @@ New-Item -ItemType Directory -Path $DistDir -Force | Out-Null
 
 if ($Target -in @('all', 'chrome')) {
     Build-Browser -Browser 'chrome'
+}
+if ($Target -in @('all', 'edge')) {
+    Build-Browser -Browser 'edge'
 }
 if ($Target -in @('all', 'firefox')) {
     Build-Browser -Browser 'firefox'

@@ -77,7 +77,8 @@ and no bundler.
 ### Requirements
 
 - Git
-- Firefox 140+ and/or a Chromium-based browser 111+
+- Firefox 140+, Chrome 111+, and/or current desktop Microsoft Edge for manual
+  testing
 - Bash with Python 3, **or** PowerShell
 - A standard USB or Bluetooth gamepad for input testing
 
@@ -88,7 +89,7 @@ git clone https://gitlab.com/ShinAska/remapad.git
 cd remapad
 ```
 
-Build both browser variants with Bash:
+Build all three browser variants with Bash:
 
 ```bash
 bash scripts/build.sh
@@ -104,19 +105,23 @@ Build one target while iterating:
 
 ```bash
 bash scripts/build.sh chrome
+bash scripts/build.sh edge
 bash scripts/build.sh firefox
 ```
 
 ```powershell
 .\scripts\build.ps1 chrome
+.\scripts\build.ps1 edge
 .\scripts\build.ps1 firefox
 ```
 
-The build validates both manifests and creates:
+Both builders accept `all` (the default), `chrome`, `edge`, or `firefox`. They
+validate both canonical manifests and create:
 
 | Target | Unpacked extension | Store package |
 | --- | --- | --- |
 | Chrome | `dist/chrome/` | `dist/remapad-chrome-<version>.zip` |
+| Edge | `dist/edge/` | `dist/remapad-edge-<version>.zip` |
 | Firefox | `dist/firefox/` | `dist/remapad-firefox-<version>.zip` |
 
 ### Load the unpacked extension
@@ -127,6 +132,19 @@ The build validates both manifests and creates:
 2. Enable **Developer mode**.
 3. Select **Load unpacked**.
 4. Choose `dist/chrome/`.
+
+#### Edge
+
+1. Open `edge://extensions/`.
+2. Enable **Developer mode**.
+3. Select **Load unpacked**.
+4. Choose `dist/edge/`.
+
+Reload the Edge extension from `edge://extensions/` after rebuilding. Edge is a
+separate installation with its own local extension settings; this project does
+not transfer Chrome settings to Edge automatically. Test and record the exact
+current stable desktop Edge version used. This guidance does not make a compatibility
+claim for older or mobile Edge releases.
 
 #### Firefox
 
@@ -144,16 +162,21 @@ page before testing again.
 ```mermaid
 flowchart LR
     source["Shared extension source"]
-    chromeManifest["Chrome manifest"]
+    chromeManifest["Chrome manifest (canonical)"]
+    edgeManifest["Derived Edge manifest\n(Chrome minus update_url)"]
     firefoxManifest["Firefox manifest"]
     build["build.sh / build.ps1"]
     chrome["dist/chrome"]
+    edge["dist/edge"]
     firefox["dist/firefox"]
 
     source --> build
     chromeManifest --> build
+    chromeManifest --> edgeManifest
+    edgeManifest --> build
     firefoxManifest --> build
     build --> chrome
+    build --> edge
     build --> firefox
 ```
 
@@ -192,19 +215,22 @@ flowchart LR
 
 ## Cross-browser strategy
 
-Chrome and Firefox share all extension logic and assets. Only their manifests
-differ:
+Chrome, Edge, and Firefox share all extension logic and assets. Chrome and
+Firefox retain the two canonical manifests. The build derives Edge from the
+Chrome manifest and omits only its top-level `update_url` in the generated Edge
+copy; there is no separately maintained Edge manifest.
 
-| Concern | Chrome | Firefox |
-| --- | --- | --- |
-| Background entry | `service_worker` | `scripts` |
-| Browser metadata | `minimum_chrome_version` | `browser_specific_settings.gecko` |
-| Source code | Shared | Shared |
-| Build output | `dist/chrome/` | `dist/firefox/` |
+| Concern | Chrome | Edge | Firefox |
+| --- | --- | --- | --- |
+| Manifest source | `manifest.chrome.json` | Generated from Chrome | `manifest.firefox.json` |
+| Background entry | `service_worker` | `service_worker` | `scripts` |
+| Browser metadata | `minimum_chrome_version` | Chrome metadata except `update_url` | `browser_specific_settings.gecko` |
+| Source code | Shared | Shared | Shared |
+| Build output | `dist/chrome/` | `dist/edge/` | `dist/firefox/` |
 
 When changing shared manifest metadata—especially the name, description, or
-version—update both files under `manifests/`. The build fails when required
-shared fields drift.
+version—update both canonical files under `manifests/`. The build fails when
+required shared fields drift, then generates the matching Edge metadata.
 
 ## Working on Remapad
 
@@ -215,7 +241,7 @@ A productive development loop is:
 3. Reload the unpacked extension.
 4. Open the options page and confirm controller input.
 5. Test the affected mapping on a real site.
-6. Run the full two-browser build before submitting.
+6. Run the full three-browser build before submitting.
 
 There is currently no automated test suite, so compatibility reports should
 include the browser and version, operating system, controller model and
@@ -225,7 +251,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the complete validation checklist and
 merge-request guidance.
 
 Preparing a store release? Use the
-[Chrome and Firefox release checklist](docs/release-checklist.md) and the
+[three-browser release checklist](docs/release-checklist.md) and the
 [store listing notes](docs/store-listing.md).
 
 ## Permissions and privacy

@@ -19,9 +19,9 @@ SOURCE_DIRS=(
 )
 
 case "$TARGET" in
-  all|chrome|firefox) ;;
+  all|chrome|edge|firefox) ;;
   *)
-    echo "Usage: bash scripts/build.sh [all|chrome|firefox]" >&2
+    echo "Usage: bash scripts/build.sh [all|chrome|edge|firefox]" >&2
     exit 2
     ;;
 esac
@@ -89,14 +89,42 @@ print(manifests["chrome"]["version"])
 PY
 )"
 
+write_edge_manifest() {
+  "$PYTHON_BIN" - "$1" "$2" <<'PY'
+import json
+import pathlib
+import re
+import sys
+
+source = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+edge = dict(source)
+edge.pop("update_url", None)
+for field in ("name", "description"):
+    value = edge.get(field)
+    if not isinstance(value, str) or not value.strip():
+        raise SystemExit(f"Edge manifest {field} must be a non-empty string")
+    if re.search(r"\bchrome\b", value, flags=re.IGNORECASE):
+        raise SystemExit(f"Edge manifest {field} must not contain Chrome branding")
+path = pathlib.Path(sys.argv[2])
+path.write_text(json.dumps(edge, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+written = json.loads(path.read_text(encoding="utf-8"))
+if written != edge or "update_url" in written:
+    raise SystemExit("Generated Edge manifest must equal Chrome minus update_url")
+PY
+}
+
 build_browser() {
   local browser="$1"
-  local manifest_path="$MANIFEST_DIR/manifest.$browser.json"
+  local manifest_browser="$browser"
+  if [[ "$browser" == "edge" ]]; then
+    manifest_browser="chrome"
+  fi
+  local manifest_path="$MANIFEST_DIR/manifest.$manifest_browser.json"
   local output_dir="$DIST_DIR/$browser"
   local archive_path="$DIST_DIR/remapad-$browser-$VERSION.zip"
 
   case "$output_dir" in
-    "$DIST_DIR/chrome"|"$DIST_DIR/firefox") ;;
+    "$DIST_DIR/chrome"|"$DIST_DIR/edge"|"$DIST_DIR/firefox") ;;
     *)
       echo "Refusing unsafe output directory: $output_dir" >&2
       exit 1
@@ -109,7 +137,11 @@ build_browser() {
   for source_dir in "${SOURCE_DIRS[@]}"; do
     cp -R "$ROOT_DIR/$source_dir" "$output_dir/"
   done
-  cp "$manifest_path" "$output_dir/manifest.json"
+  if [[ "$browser" == "edge" ]]; then
+    write_edge_manifest "$manifest_path" "$output_dir/manifest.json"
+  else
+    cp "$manifest_path" "$output_dir/manifest.json"
+  fi
   cp "$ROOT_DIR/LICENSE" "$output_dir/LICENSE"
 
   rm -f -- "$archive_path"
@@ -136,6 +168,10 @@ mkdir -p "$DIST_DIR"
 
 if [[ "$TARGET" == "all" || "$TARGET" == "chrome" ]]; then
   build_browser chrome
+fi
+
+if [[ "$TARGET" == "all" || "$TARGET" == "edge" ]]; then
+  build_browser edge
 fi
 
 if [[ "$TARGET" == "all" || "$TARGET" == "firefox" ]]; then

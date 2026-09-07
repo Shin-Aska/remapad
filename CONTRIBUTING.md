@@ -18,7 +18,8 @@ You need:
 - Git
 - Python 3, used by the build scripts for manifest validation and ZIP creation
 - Either Bash or PowerShell
-- Firefox 140+ and/or a Chromium-based browser 111+ for manual testing
+- Firefox 140+, Chrome 111+, and/or current desktop Microsoft Edge for manual
+  testing
 - A standard USB or Bluetooth gamepad for changes to controller behavior
 
 Clone your fork and create a focused branch:
@@ -52,7 +53,7 @@ Generated files under `dist/` must not be committed.
 
 ## Build and validation
 
-Build and validate both browser variants before opening a merge request:
+Build and validate all three browser variants before opening a merge request:
 
 ```bash
 bash scripts/build.sh
@@ -64,19 +65,23 @@ On Windows PowerShell:
 ./scripts/build.ps1
 ```
 
-To build one browser while iterating, pass `chrome` or `firefox`:
+To build one browser while iterating, pass `chrome`, `edge`, or `firefox`:
 
 ```bash
 bash scripts/build.sh chrome
+bash scripts/build.sh edge
 bash scripts/build.sh firefox
 ```
 
-The build scripts validate that the two manifests share required metadata,
-check browser-specific manifest constraints, create unpacked builds under
-`dist/`, include the project license, and produce versioned ZIP packages.
+Both builders accept `all` (the default), `chrome`, `edge`, or `firefox`. The
+build scripts validate that the two canonical manifests share required
+metadata, derive the Edge manifest from the Chrome manifest with only
+`update_url` removed, check browser-specific constraints, create unpacked
+builds under `dist/`, include the project license, and produce versioned ZIP
+packages.
 
-There is currently no automated test suite. Manually load the unpacked build
-in each affected browser and verify:
+There is currently no automated test suite. Manually load the unpacked build in
+each affected desktop browser and verify:
 
 1. The extension installs without manifest or console errors.
 2. The popup and options page open and retain saved settings.
@@ -90,16 +95,20 @@ tested in the merge request.
 For store releases, follow the complete
 [release checklist](docs/release-checklist.md). Google Chrome 137 and later
 ignore command-line unpacked-extension loading, so Chrome release testing must
-use **Developer mode → Load unpacked**.
+use **Developer mode → Load unpacked**. Edge release testing uses
+`edge://extensions/` → **Developer mode** → **Load unpacked** with `dist/edge/`.
+Record the exact current stable desktop Edge version tested; do not claim older or
+mobile Edge compatibility without testing it.
 
 ## Making changes
 
 - Keep each change focused on one issue.
 - Follow the style and naming used in the surrounding files.
-- Keep Chrome and Firefox behavior aligned unless a browser difference is
-  intentional and documented.
+- Keep Chrome, Edge, and Firefox behavior aligned unless a browser difference
+  is intentional and documented.
 - When changing shared manifest metadata such as the extension version, name,
-  or description, update both files in `manifests/`.
+  or description, update both canonical files in `manifests/`; Edge is derived
+  during the build.
 - Add or update documentation when behavior, setup, or user-facing controls
   change.
 - Do not add minified third-party code or dependencies without explaining
@@ -118,7 +127,7 @@ Open a GitLab merge request and:
 - Describe manual validation and any known limitations.
 - Include screenshots or a short recording for visible UI changes.
 - Keep generated `dist/` artifacts out of the changes.
-- Confirm that both browser builds pass.
+- Confirm that all three browser builds pass.
 
 Maintainers may request changes. Please keep review follow-ups in the same
 branch so the discussion and pipeline history remain together.
