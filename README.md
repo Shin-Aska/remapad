@@ -17,6 +17,7 @@
   <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-ea4335">
   <img alt="Firefox 140+" src="https://img.shields.io/badge/Firefox-140%2B-ff7139">
   <img alt="Chrome 111+" src="https://img.shields.io/badge/Chrome-111%2B-4285f4">
+  <img alt="Microsoft Edge 111+" src="https://img.shields.io/badge/Microsoft_Edge-111%2B-0078d7">
   <img alt="No runtime dependencies" src="https://img.shields.io/badge/runtime_dependencies-none-2ea44f">
   <img alt="GPL-3.0-only" src="https://img.shields.io/badge/license-GPL--3.0--only-blue">
 </p>
@@ -28,9 +29,13 @@ controllers. It combines site-specific button mappings with gamepad-first
 navigation tools, giving developers a practical foundation for controller-driven
 web experiences on Firefox and Chromium-based browsers.
 
-- Firefox Add-ons: <https://addons.mozilla.org/en-US/firefox/addon/remapad/>
-- Chrome Web Store: <https://chromewebstore.google.com/detail/remapad-%E2%80%94-gamepad-browser/nbjngbeilcghlhgcofapgclljddnlaol>
-- Microsoft Edge Add-ons: <https://microsoftedge.microsoft.com/addons/detail/remapad-%E2%80%94-gamepad-browser/ihhkjgcalmhooihpdcdifapgladiblgj>
+### Browser add-ons
+
+| Browser | Store |
+| --- | --- |
+| Firefox | [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/remapad/) |
+| Google Chrome | [Chrome Web Store](https://chromewebstore.google.com/detail/remapad-%E2%80%94-gamepad-browser/nbjngbeilcghlhgcofapgclljddnlaol) |
+| Microsoft Edge | [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/remapad-%E2%80%94-gamepad-browser/ihhkjgcalmhooihpdcdifapgladiblgj) |
 
 ### Source repositories
 
@@ -81,7 +86,7 @@ and no bundler.
 ### Requirements
 
 - Git
-- Firefox 140+, Chrome 111+, and/or current desktop Microsoft Edge for manual
+- Firefox 140+, Chrome 111+, and/or Microsoft Edge 111+ for manual
   testing
 - Bash with Python 3, **or** PowerShell
 - A standard USB or Bluetooth gamepad for input testing
@@ -146,9 +151,8 @@ validate both canonical manifests and create:
 
 Reload the Edge extension from `edge://extensions/` after rebuilding. Edge is a
 separate installation with its own local extension settings; this project does
-not transfer Chrome settings to Edge automatically. Test and record the exact
-current stable desktop Edge version used. This guidance does not make a compatibility
-claim for older or mobile Edge releases.
+not transfer Chrome settings to Edge automatically. The generated Edge manifest
+inherits Chrome's `minimum_chrome_version` value of `111`.
 
 #### Firefox
 
