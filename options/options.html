@@ -102,13 +102,17 @@
           </section>
 
           <!-- Website Mappings -->
-          <section class="card" data-options-tutorial="website-mappings">
+          <section class="card" id="website-mappings-card" data-options-tutorial="website-mappings">
             <div class="card-title">Website Mappings</div>
+            <div class="site-add-guidance" id="site-add-guidance" hidden>
+              <strong>Add <span id="site-add-guidance-domain"></span></strong>
+              <span>Select <b>+ Add</b> below. Your browser will ask for permission, then Remapad will refresh the site to activate the mapping.</span>
+            </div>
             <div class="mapping-list-options" id="website-mappings-list">
               <!-- Filled by JS -->
             </div>
             <!-- Add Website Form -->
-            <div style="display:flex;gap:6px;margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06)">
+            <div id="site-add-form" style="display:flex;gap:6px;margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06)">
               <input type="text" id="new-site-input" placeholder="e.g. twitch.tv" style="flex:1;background:var(--surface-container);color:var(--on-surface);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:6px 10px;font-size:12px;outline:none;font-family:var(--font-body)">
               <button class="btn-ghost" id="add-site-btn" style="padding:6px 12px;font-size:12px;font-weight:600">+ Add</button>
             </div>

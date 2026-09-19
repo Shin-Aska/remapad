@@ -44,6 +44,8 @@
       customSelectorInput: get('custom-selector-input'), domOperationSelect: get('dom-operation-select'),
       domValueGroup: get('dom-value-group'), domValueLabel: get('dom-value-label'), domValueInput: get('dom-value-input'),
       modalCancelBtn: get('modal-cancel-btn'), modalConfirmBtn: get('modal-confirm-btn'),
+      websiteMappingsCard: get('website-mappings-card'), siteAddGuidance: get('site-add-guidance'),
+      siteAddGuidanceDomain: get('site-add-guidance-domain'),
       newSiteInput: get('new-site-input'), addSiteBtn: get('add-site-btn'),
       navEnabledInput: get('nav-enabled'), navStrategyInput: get('nav-strategy'),
       navRightEnabled: get('nav-right-enabled'), navRightMode: get('nav-right-mode'),

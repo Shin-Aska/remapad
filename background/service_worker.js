@@ -170,6 +170,44 @@ async function isActiveMappedTabSender(sender) {
   return Object.keys(websiteMappings || {}).some(key => normalizeMappedHostname(key) === hostname);
 }
 
+async function activateMappedSiteTab(hostnameValue, tabId) {
+  const hostname = normalizeMappedHostname(hostnameValue);
+  if (!hostname || !Number.isInteger(tabId) || tabId < 0) {
+    return { success: false, reloaded: false, error: 'Invalid site activation request.' };
+  }
+
+  const tab = await api.tabs.get(tabId);
+  let tabHostname;
+  try {
+    const url = new URL(tab?.url || '');
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      return { success: false, reloaded: false, error: 'The source tab is not a website.' };
+    }
+    tabHostname = normalizeMappedHostname(url.hostname);
+  } catch (_) {
+    return { success: false, reloaded: false, error: 'The source tab URL is unavailable.' };
+  }
+  if (tabHostname !== hostname) {
+    return { success: false, reloaded: false, error: 'The source tab does not match the mapped site.' };
+  }
+
+  const data = await api.storage.local.get(['websiteMappings', 'enabledSites', 'globalEnabled']);
+  const mapped = Object.keys(data.websiteMappings || {})
+    .some(key => normalizeMappedHostname(key) === hostname);
+  if (!mapped || data.globalEnabled === false || data.enabledSites?.[hostname] === false) {
+    return { success: false, reloaded: false, error: 'The site mapping is not active.' };
+  }
+
+  const patterns = [`*://${hostname}/*`, `*://www.${hostname}/*`];
+  if (!await api.permissions.contains({ origins: patterns })) {
+    return { success: false, reloaded: false, error: 'Site access has not been granted.' };
+  }
+
+  await queueMappedContentScriptSync();
+  await api.tabs.reload(tabId);
+  return { success: true, reloaded: true };
+}
+
 api.runtime.onInstalled.addListener(() => {
   queueMappedContentScriptSync().catch(error => {
     console.error('[Remapad BG] Unable to register mapped content scripts:', error);
@@ -210,6 +248,17 @@ queueMappedContentScriptSync().catch(error => {
 
 // Listen for messages from content scripts, popups, or options page
 api.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === 'ACTIVATE_SITE_MAPPING') {
+    if (sender.id !== api.runtime.id) {
+      sendResponse({ success: false, reloaded: false, error: 'Invalid sender.' });
+      return false;
+    }
+    activateMappedSiteTab(message.hostname, message.tabId)
+      .then(result => sendResponse(result))
+      .catch(error => sendResponse({ success: false, reloaded: false, error: error.message }));
+    return true;
+  }
+
   if (message?.type === 'GET_NOTIFICATION_SOURCES') {
     if (sender.id !== api.runtime.id) {
       sendResponse({ sources: [] });

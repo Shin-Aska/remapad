@@ -32,6 +32,14 @@ const WEBSITE_MAPPINGS_DEFAULT = {
   'primevideo.com': { ...DEFAULT_PROFILE },
 };
 
+function getSiteOriginPatterns(domain) {
+  return [`*://${domain}/*`, `*://www.${domain}/*`];
+}
+
+function hasSitePermission(domain) {
+  return api.permissions.contains({ origins: getSiteOriginPatterns(domain) });
+}
+
 function createGlobeIcon(size) {
   const namespace = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(namespace, 'svg');
@@ -66,6 +74,7 @@ function createGlobeIcon(size) {
 // ─── State ────────────────────────────────────────────────────────────────────
 
 let currentHostname = '';
+let currentTabId = null;
 let legacyProfiles = {};
 let settings = {
   iconStyle: 'auto',
@@ -100,9 +109,11 @@ async function init() {
     // 1. Get active tab
     const [tab] = await api.tabs.query({ active: true, currentWindow: true });
     if (tab && tab.url && tab.url.startsWith('http')) {
+      currentTabId = Number.isInteger(tab.id) ? tab.id : null;
       currentHostname = new URL(tab.url).hostname.replace(/^www\./, '');
       siteDomainEl.textContent = currentHostname;
     } else {
+      currentTabId = null;
       currentHostname = '';
       siteDomainEl.textContent = 'No active streaming site';
       siteToggle.disabled = true;
@@ -239,10 +250,28 @@ siteToggle.addEventListener('change', async () => {
   updateActiveIndicators();
 });
 
-customizeSiteBtn.addEventListener('click', () => {
-  const url = api.runtime.getURL('options/options.html') + (currentHostname ? '?site=' + encodeURIComponent(currentHostname) : '');
-  api.tabs.create({ url });
-  window.close();
+customizeSiteBtn.addEventListener('click', async () => {
+  if (!currentHostname) return;
+
+  customizeSiteBtn.disabled = true;
+  try {
+    const hasMapping = settings.websiteMappings[currentHostname] !== undefined;
+    const canEditMapping = hasMapping && await hasSitePermission(currentHostname);
+    const params = new URLSearchParams();
+    params.set(canEditMapping ? 'site' : 'addSite', currentHostname);
+    if (!canEditMapping && currentTabId !== null) {
+      params.set('sourceTabId', String(currentTabId));
+    }
+    const url = api.runtime.getURL('options/options.html') + '?' + params.toString();
+    await api.tabs.create({ url });
+    window.close();
+  } catch (error) {
+    console.error('[Remapad Popup] Unable to open site mapping:', error);
+    customizeSiteBtn.disabled = false;
+    mappingStatusBadge.textContent = 'Unable to open settings';
+    mappingStatusBadge.style.background = 'rgba(229, 9, 20, 0.15)';
+    mappingStatusBadge.style.color = '#e50914';
+  }
 });
 
 // Configure Options

@@ -11,6 +11,7 @@
   const Options = window.RemapadOptions || {};
   const dom = Options.Dom.create();
   const state = Options.StateStore.create({ api, constants: Options.Constants });
+  let pendingSiteTabId = null;
 
   function showToast(message, type = '') {
     dom.toastEl.textContent = message;
@@ -38,6 +39,51 @@
     collectionSettings.render();
     navigationSettings.render();
     keyboardSettings.render();
+  }
+
+  function showRequestedSiteAddPrompt() {
+    const params = new URLSearchParams(window.location.search);
+    const requestedSite = Options.Utils.parseDomain(params.get('addSite') || '');
+    if (!requestedSite || !requestedSite.includes('.')) return false;
+
+    const sourceTabId = Number.parseInt(params.get('sourceTabId') || '', 10);
+    pendingSiteTabId = Number.isInteger(sourceTabId) && sourceTabId >= 0 ? sourceTabId : null;
+
+    dom.newSiteInput.value = requestedSite;
+    dom.siteAddGuidanceDomain.textContent = requestedSite;
+    dom.siteAddGuidance.hidden = false;
+    dom.websiteMappingsCard.classList.add('site-add-prompt');
+
+    requestAnimationFrame(() => {
+      dom.websiteMappingsCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      dom.newSiteInput.focus({ preventScroll: true });
+      dom.newSiteInput.select();
+    });
+
+    params.delete('addSite');
+    params.delete('sourceTabId');
+    const query = params.toString();
+    const cleanUrl = window.location.pathname + (query ? '?' + query : '');
+    window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+    return true;
+  }
+
+  async function activateSiteMapping(domain) {
+    if (pendingSiteTabId === null) return { success: true, reloaded: false };
+
+    const tabId = pendingSiteTabId;
+    pendingSiteTabId = null;
+    try {
+      const response = await api.runtime.sendMessage({
+        type: 'ACTIVATE_SITE_MAPPING',
+        hostname: domain,
+        tabId
+      });
+      return response || { success: false, reloaded: false };
+    } catch (error) {
+      console.warn('[Remapad Options] Unable to activate mapped site tab:', error);
+      return { success: false, reloaded: false, error: error.message };
+    }
   }
 
   async function saveSettings() {
@@ -89,6 +135,7 @@
     renderAll,
     saveSettings,
     showToast,
+    activateSiteMapping,
     onDocumentClick: cursor.handleDocumentClick
   });
   const reportIssues = Options.ReportIssues ? Options.ReportIssues.create({ dom, showToast }) : null;
@@ -134,7 +181,8 @@
       tabs.activateTabById('tab-btn-report-issues');
     }
 
+    const showingSiteAddPrompt = loadResult.ok && showRequestedSiteAddPrompt();
     gamepad.startPolling();
-    optionsTutorial.showIfNeeded();
+    if (!showingSiteAddPrompt) optionsTutorial.showIfNeeded();
   })();
 })();

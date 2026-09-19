@@ -171,15 +171,7 @@
         const siteParam = params.get('site');
         if (siteParam) {
           const cleanSite = siteParam.trim().toLowerCase().replace(/^www\./, '');
-          if (cleanSite) {
-            if (!settings.websiteMappings[cleanSite]) {
-              settings.websiteMappings[cleanSite] = { ...settings.defaultMapping };
-              if (!settings.siteKeyboardLayouts[cleanSite]) settings.siteKeyboardLayouts[cleanSite] = 'auto';
-              await api.storage.local.set({
-                websiteMappings: settings.websiteMappings,
-                siteKeyboardLayouts: settings.siteKeyboardLayouts
-              });
-            }
+          if (cleanSite && settings.websiteMappings[cleanSite]) {
             selectedSiteKey = cleanSite;
           }
           const cleanUrl = global.location.protocol + '//' + global.location.host + global.location.pathname;

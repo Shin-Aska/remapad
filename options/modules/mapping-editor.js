@@ -7,7 +7,7 @@
 (function (global) {
   'use strict';
 
-  function create({ api, state, constants, utils, dom, modal, renderAll, saveSettings, showToast, onDocumentClick }) {
+  function create({ api, state, constants, utils, dom, modal, renderAll, saveSettings, showToast, activateSiteMapping, onDocumentClick }) {
     const {
       RESERVED_OPTIONS_KEY,
       FRIENDLY_NAMES,
@@ -23,6 +23,11 @@
     const { getFriendlyLabel, parseDomain, ensureSitePermission, removeSitePermission } = utils;
     let activeCalloutBtn = null;
     let activeControllerId = null;
+
+    function clearSiteAddPrompt() {
+      if (dom.siteAddGuidance) dom.siteAddGuidance.hidden = true;
+      if (dom.websiteMappingsCard) dom.websiteMappingsCard.classList.remove('site-add-prompt');
+    }
 
     function profilesMatch(left, right) {
       if (!left || !right || typeof left !== 'object' || typeof right !== 'object') return false;
@@ -537,7 +542,16 @@
         const settings = state.getSettings();
         if (settings.websiteMappings[domain]) {
           if (await ensureSitePermission(api, domain)) {
-            showToast(`${domain} is already mapped and has site access.`, 'success');
+            state.setSelectedSiteKey(domain);
+            dom.newSiteInput.value = '';
+            clearSiteAddPrompt();
+            renderAll();
+            const activation = await activateSiteMapping(domain);
+            showToast(activation.reloaded
+              ? `${domain} has site access and is being refreshed.`
+              : activation.success
+                ? `${domain} is already mapped and has site access.`
+                : `${domain} has site access. Reload the site to activate it.`, 'success');
           } else {
             showToast(`Site access was not granted for ${domain}.`);
           }
@@ -551,9 +565,24 @@
         settings.siteKeyboardLayouts[domain] = 'auto';
         state.setSelectedSiteKey(domain);
         state.markUnsaved();
+
+        const saveResult = await state.save();
+        if (!saveResult.ok) {
+          delete settings.websiteMappings[domain];
+          delete settings.siteKeyboardLayouts[domain];
+          state.setSelectedSiteKey('default');
+          await removeSitePermission(api, domain);
+          showToast(`Unable to save the mapping for ${domain}: ${saveResult.error.message}`);
+          return;
+        }
+
         dom.newSiteInput.value = '';
+        clearSiteAddPrompt();
         renderAll();
-        showToast(`Added mapping for ${domain}`, 'success');
+        const activation = await activateSiteMapping(domain);
+        showToast(activation.reloaded
+          ? `Added ${domain}. The site is being refreshed.`
+          : `Added mapping for ${domain}. Reload the site to activate it.`, 'success');
       });
     }
 
