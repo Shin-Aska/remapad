@@ -5,12 +5,7 @@
 <h1 align="center">Remapad</h1>
 
 <p align="center">
-  <strong>Turn a standard gamepad into a complete browser controller.</strong>
-</p>
-
-<p align="center">
-  Navigate streaming interfaces, control playback, move a virtual cursor, and
-  type with an on-screen keyboard—without reaching for a mouse or keyboard.
+  A browser extension that lets you control web pages with a gamepad.
 </p>
 
 <p align="center">
@@ -24,108 +19,83 @@
 
 ---
 
-Remapad is a cross-browser Manifest V3 extension for USB and Bluetooth
-controllers. It combines site-specific button mappings with gamepad-first
-navigation tools, giving developers a practical foundation for controller-driven
-web experiences on Firefox and Chromium-based browsers.
+Remapad is a cross-browser extension (Manifest V3) for USB and Bluetooth
+controllers. You set up button mappings per site, navigate with a virtual
+cursor, scroll, type with an on-screen keyboard, and interact with page
+elements directly. It works on Firefox 140+ and Chromium-based browsers
+(Chrome 111+, Edge 111+). No bundler, no dependencies, just plain HTML/CSS/JS.
 
-### Browser add-ons
+## Install
 
-| Browser | Store |
+| Browser | Link |
 | --- | --- |
 | Firefox | [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/remapad/) |
-| Google Chrome | [Chrome Web Store](https://chromewebstore.google.com/detail/remapad-%E2%80%94-gamepad-browser/nbjngbeilcghlhgcofapgclljddnlaol) |
-| Microsoft Edge | [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/remapad-%E2%80%94-gamepad-browser/ihhkjgcalmhooihpdcdifapgladiblgj) |
+| Chrome | [Chrome Web Store](https://chromewebstore.google.com/detail/remapad-%E2%80%94-gamepad-browser/nbjngbeilcghlhgcofapgclljddnlaol) |
+| Edge | [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/remapad-%E2%80%94-gamepad-browser/ihhkjgcalmhooihpdcdifapgladiblgj) |
 
-### Source repositories
+Source code lives on [GitLab](https://gitlab.com/Shin-Aska/remapad) (primary)
+with a [GitHub mirror](https://github.com/Shin-Aska/remapad).
 
-| Repository | Role |
-| --- | --- |
-| [GitLab](https://gitlab.com/Shin-Aska/remapad) | Primary development repository |
-| [GitHub](https://github.com/Shin-Aska/remapad) | Mirror |
+## Screenshots
 
-## See it in action
+### Mapping editor
 
-### Map browser actions visually
-
-Select a controller button and bind it to playback, navigation, keyboard, or
-direct DOM actions.
+Pick a button on the controller diagram and bind it to playback controls,
+navigation, keyboard shortcuts, or direct DOM actions.
 
 ![Remapad visual controller mapping editor](docs/assets/controller-mapping.png)
 
-### Type from the couch
+### On-screen keyboard
 
 ![Remapad on-screen virtual keyboard](docs/assets/virtualkeyboard.png)
 
-## What makes Remapad useful
+## Features
 
-- **Site-specific profiles** — customize Netflix, Prime Video, or any domain
-  while retaining a shared fallback profile.
-- **Visual mapping editor** — see connected controller input and edit bindings
-  from a controller-shaped interface.
-- **Configurable stick navigation** — assign either stick to a virtual cursor,
-  scrolling, directional navigation, or no action.
-- **Direct DOM actions** — click, focus, scroll to, fill, toggle, or control a
-  selected page element without depending on keyboard shortcuts.
-- **Keyboard capture** — bind physical keys and modifier combinations such as
-  `Ctrl+Alt+S`.
-- **On-screen keyboard** — enter text using a gamepad on pages designed around
-  physical keyboard input.
-- **Navigation HUD and tutorial** — expose the active bindings without leaving
-  the current page.
-- **Controller glyphs** — automatically select PlayStation, Xbox, or Nintendo
-  button labels, with a manual override.
-- **Page-level gamepad isolation** — prevent an enabled site from handling the
-  same controller input and causing duplicate actions.
+- Per-site profiles (Netflix, Prime Video, etc.) with a shared fallback
+- Visual mapping editor that shows your actual controller layout
+- Stick assignment: virtual cursor, scrolling, directional nav, or disabled
+- DOM actions: click, focus, scroll-to, fill, toggle, or control elements
+  directly instead of relying on keyboard shortcuts
+- Keyboard capture for binding physical keys and combos like `Ctrl+Alt+S`
+- On-screen keyboard for typing on pages that expect physical input
+- Navigation HUD that shows active bindings without leaving the page
+- Auto-detected controller glyphs (PlayStation, Xbox, Nintendo) with manual override
+- Page-level gamepad isolation to prevent sites from double-handling input
 
-## Developer quick start
+## Getting started (dev)
 
-Remapad uses plain HTML, CSS, and JavaScript. There is no package-manager install
-and no bundler.
+No `npm install`, no build tools. Just clone and go.
 
-### Requirements
+### What you need
 
 - Git
-- Firefox 140+, Chrome 111+, and/or Microsoft Edge 111+ for manual
-  testing
-- Bash with Python 3, **or** PowerShell
-- A standard USB or Bluetooth gamepad for input testing
+- Firefox 140+, Chrome 111+, or Edge 111+
+- Bash + Python 3, or PowerShell
+- A USB/Bluetooth gamepad for testing input
 
-Clone your fork or the upstream repository:
+### Clone and build
 
 ```bash
 git clone https://gitlab.com/ShinAska/remapad.git
 cd remapad
 ```
 
-Build all three browser variants with Bash:
+Build all three browser variants:
 
 ```bash
-bash scripts/build.sh
+bash scripts/build.sh        # or: .\scripts\build.ps1 on PowerShell
 ```
 
-Or run the native PowerShell build from PowerShell:
-
-```powershell
-.\scripts\build.ps1
-```
-
-Build one target while iterating:
+Build just one:
 
 ```bash
 bash scripts/build.sh chrome
-bash scripts/build.sh edge
 bash scripts/build.sh firefox
+bash scripts/build.sh edge
 ```
 
-```powershell
-.\scripts\build.ps1 chrome
-.\scripts\build.ps1 edge
-.\scripts\build.ps1 firefox
-```
-
-Both builders accept `all` (the default), `chrome`, `edge`, or `firefox`. They
-validate both canonical manifests and create:
+Both build scripts accept `all` (default), `chrome`, `edge`, or `firefox`.
+They validate both canonical manifests and produce:
 
 | Target | Unpacked extension | Store package |
 | --- | --- | --- |
@@ -133,149 +103,46 @@ validate both canonical manifests and create:
 | Edge | `dist/edge/` | `dist/remapad-edge-<version>.zip` |
 | Firefox | `dist/firefox/` | `dist/remapad-firefox-<version>.zip` |
 
-### Load the unpacked extension
+### Loading the extension
 
-#### Chrome
+**Chrome:** `chrome://extensions/` → Developer mode → Load unpacked → `dist/chrome/`
 
-1. Open `chrome://extensions/`.
-2. Enable **Developer mode**.
-3. Select **Load unpacked**.
-4. Choose `dist/chrome/`.
+**Edge:** `edge://extensions/` → Developer mode → Load unpacked → `dist/edge/`
 
-#### Edge
+Edge is a separate install with its own extension storage. Settings don't
+transfer from Chrome. The generated Edge manifest inherits Chrome's
+`minimum_chrome_version` of `111`.
 
-1. Open `edge://extensions/`.
-2. Enable **Developer mode**.
-3. Select **Load unpacked**.
-4. Choose `dist/edge/`.
+**Firefox:** `about:debugging#/runtime/this-firefox` → Load Temporary Add-on →
+`dist/firefox/manifest.json`
 
-Reload the Edge extension from `edge://extensions/` after rebuilding. Edge is a
-separate installation with its own local extension settings; this project does
-not transfer Chrome settings to Edge automatically. The generated Edge manifest
-inherits Chrome's `minimum_chrome_version` value of `111`.
+After rebuilding, reload the extension from the browser's extension page.
 
-#### Firefox
+For build pipeline diagrams, runtime flow, repo layout, and cross-browser
+details, see [docs/architecture.md](docs/architecture.md).
 
-1. Open `about:debugging#/runtime/this-firefox`.
-2. Select **Load Temporary Add-on…**.
-3. Choose `dist/firefox/manifest.json`.
+## Dev workflow
 
-After rebuilding, reload the extension from the browser’s extension debugging
-page before testing again.
-
-## Architecture
-
-### Build
-
-```mermaid
-flowchart LR
-    source["Shared extension source"]
-    chromeManifest["Chrome manifest (canonical)"]
-    edgeManifest["Derived Edge manifest\n(Chrome minus update_url)"]
-    firefoxManifest["Firefox manifest"]
-    build["build.sh / build.ps1"]
-    chrome["dist/chrome"]
-    edge["dist/edge"]
-    firefox["dist/firefox"]
-
-    source --> build
-    chromeManifest --> build
-    chromeManifest --> edgeManifest
-    edgeManifest --> build
-    firefoxManifest --> build
-    build --> chrome
-    build --> edge
-    build --> firefox
-```
-
-### Runtime
-
-```mermaid
-flowchart LR
-    options["Options page"] --> storage[("storage.local")]
-    storage --> worker["Background worker"]
-    worker --> blocker["MAIN world blocker<br/>document_start"]
-    worker --> runtime["Isolated controller runtime<br/>document_idle"]
-    gamepad["Gamepad API"] --> runtime
-    runtime --> actions["Cursor · scroll · keys · DOM · overlays"]
-    blocker -. prevents duplicate input .-> site["Mapped website"]
-    actions --> site
-```
-
-## Repository map
-
-| Path | What lives there |
-| --- | --- |
-| `background/` | Dynamic script registration and extension messaging |
-| `content/` | Gamepad polling, page actions, overlays, cursor, and navigation |
-| `options/` | Settings, mapping editor, tutorials, and input preview |
-| `popup/` | Toolbar popup |
-| `shared/` | Code reused by multiple extension surfaces |
-| `manifests/` | Browser-specific Manifest V3 files |
-| `scripts/` | Bash and PowerShell builds |
-| `_locales/` | Localized extension strings |
-| `assets/`, `icons/` | Runtime assets and extension icons |
-| `docs/assets/` | README screenshots |
-| `dist/` | Generated unpacked builds and ZIP packages |
-
-> Options and content modules are classic scripts loaded in a defined order;
-> their entry points own the runtime state.
-
-## Cross-browser strategy
-
-Chrome, Edge, and Firefox share all extension logic and assets. Chrome and
-Firefox retain the two canonical manifests. The build derives Edge from the
-Chrome manifest and omits only its top-level `update_url` in the generated Edge
-copy; there is no separately maintained Edge manifest.
-
-| Concern | Chrome | Edge | Firefox |
-| --- | --- | --- | --- |
-| Manifest source | `manifest.chrome.json` | Generated from Chrome | `manifest.firefox.json` |
-| Background entry | `service_worker` | `service_worker` | `scripts` |
-| Browser metadata | `minimum_chrome_version` | Chrome metadata except `update_url` | `browser_specific_settings.gecko` |
-| Source code | Shared | Shared | Shared |
-| Build output | `dist/chrome/` | `dist/edge/` | `dist/firefox/` |
-
-When changing shared manifest metadata—especially the name, description, or
-version—update both canonical files under `manifests/`. The build fails when
-required shared fields drift, then generates the matching Edge metadata.
-
-## Working on Remapad
-
-A productive development loop is:
-
-1. Make a focused source change.
-2. Run the build for the affected browser.
+1. Make a change.
+2. Build for the browser you're testing.
 3. Reload the unpacked extension.
-4. Open the options page and confirm controller input.
-5. Test the affected mapping on a real site.
+4. Check the options page and controller input.
+5. Test on a real site.
 6. Run the full three-browser build before submitting.
 
-There is currently no automated test suite, so compatibility reports should
-include the browser and version, operating system, controller model and
-connection type, and tested websites.
+There's no test suite yet, so include your browser version, OS, controller
+model, connection type, and tested sites in any compatibility report.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the complete validation checklist and
-merge-request guidance.
-
-Preparing a store release? Use the
-[three-browser release checklist](docs/release-checklist.md) and the
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full checklist.
+For store releases, see the [release checklist](docs/release-checklist.md) and
 [store listing notes](docs/store-listing.md).
 
-## Permissions and privacy
+## Privacy
 
-Remapad stores configuration in the browser’s local extension storage. Netflix
-and Prime Video are built-in profiles; access to any other site is requested
-only when the user adds that domain.
-
-Remapad has no analytics, advertising, telemetry, or remote code. See the
-[privacy policy](PRIVACY.md) for the complete data-handling statement.
-
-If you contribute a new permission or network dependency, document why it is
-required and keep its scope as narrow as possible.
+Remapad stores config in local extension storage. Netflix and Prime Video are
+built-in profiles; other sites are only accessed when you add them. No
+analytics, no telemetry, no remote code. See [PRIVACY.md](PRIVACY.md).
 
 ## License
 
-Remapad is distributed under the
-[GNU General Public License version 3](LICENSE), identified by the SPDX
-expression `GPL-3.0-only`.
+[GPL-3.0-only](LICENSE)
