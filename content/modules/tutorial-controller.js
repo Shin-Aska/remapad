@@ -1,6 +1,6 @@
 /**
  * Remapad — Injected Site Tutorial
- * A small, mapping-scoped onboarding dialog. It is shown once per hostname and
+ * A small, mapping-aware onboarding dialog. It is shown once across all sites and
  * consumes controller input while open so tutorial navigation cannot also act
  * on the underlying site.
  */
@@ -9,10 +9,11 @@
   'use strict';
 
   // Bump when onboarding content changes so existing users see the revised
-  // guidance once without resetting completion for unrelated sites.
+  // guidance once.
   const TUTORIAL_VERSION = 3;
-  const STORAGE_KEY = 'siteTutorialVersions';
-  const OUTCOME_STORAGE_KEY = 'siteTutorialOutcomes';
+  const STORAGE_KEY = 'siteTutorialVersion';
+  const OUTCOME_STORAGE_KEY = 'siteTutorialOutcome';
+  const LEGACY_STORAGE_KEY = 'siteTutorialVersions';
   const ACTIVATION_SOUND_OPTIONS = [
     { value: '__muted__', label: 'No notification (Muted)' },
     { value: 'access_point', label: 'Access Point' },
@@ -407,17 +408,9 @@
 
     async function markSeen(outcome) {
       try {
-        const data = await api.storage.local.get([STORAGE_KEY, OUTCOME_STORAGE_KEY]);
-        const versions = data[STORAGE_KEY] && typeof data[STORAGE_KEY] === 'object'
-          ? data[STORAGE_KEY]
-          : {};
-        const outcomes = data[OUTCOME_STORAGE_KEY] && typeof data[OUTCOME_STORAGE_KEY] === 'object'
-          ? data[OUTCOME_STORAGE_KEY]
-          : {};
-        if (versions[hostname] === TUTORIAL_VERSION && outcomes[hostname] === outcome) return;
         await api.storage.local.set({
-          [STORAGE_KEY]: { ...versions, [hostname]: TUTORIAL_VERSION },
-          [OUTCOME_STORAGE_KEY]: { ...outcomes, [hostname]: outcome }
+          [STORAGE_KEY]: TUTORIAL_VERSION,
+          [OUTCOME_STORAGE_KEY]: outcome
         });
       } catch (error) {
         console.warn('[Remapad CS] Unable to save tutorial progress:', error);
@@ -540,8 +533,13 @@
       if (tutorialElement || showCheckPromise || !callbacks.isSiteActive()) return;
       showCheckPromise = (async () => {
         try {
-          const data = await api.storage.local.get([STORAGE_KEY]);
-          if (!callbacks.isSiteActive() || data[STORAGE_KEY]?.[hostname] === TUTORIAL_VERSION) return;
+          const data = await api.storage.local.get([STORAGE_KEY, LEGACY_STORAGE_KEY]);
+          const legacyVersions = data[LEGACY_STORAGE_KEY] && typeof data[LEGACY_STORAGE_KEY] === 'object'
+            ? data[LEGACY_STORAGE_KEY]
+            : {};
+          const seenOnLegacySite = Object.values(legacyVersions)
+            .some(version => version === TUTORIAL_VERSION);
+          if (!callbacks.isSiteActive() || data[STORAGE_KEY] === TUTORIAL_VERSION || seenOnLegacySite) return;
 
           overlayStyles.inject();
           restoreFocusElement = document.activeElement;

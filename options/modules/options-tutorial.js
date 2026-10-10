@@ -10,6 +10,10 @@
   const STORAGE_KEY = 'optionsTutorialVersion';
   const OUTCOME_STORAGE_KEY = 'optionsTutorialOutcome';
   const TUTORIAL_VERSION = 1;
+  const WEBSITE_TUTORIAL_STORAGE_KEY = 'siteTutorialVersion';
+  const WEBSITE_TUTORIAL_OUTCOME_STORAGE_KEY = 'siteTutorialOutcome';
+  const LEGACY_WEBSITE_TUTORIAL_STORAGE_KEY = 'siteTutorialVersions';
+  const LEGACY_WEBSITE_TUTORIAL_OUTCOME_STORAGE_KEY = 'siteTutorialOutcomes';
   const WEBSITE_TUTORIAL_VERSION = 3;
 
   const STEPS = [
@@ -366,7 +370,12 @@
     }
 
     async function resetWebsiteTutorial() {
-      await api.storage.local.remove(['siteTutorialVersions', 'siteTutorialOutcomes']);
+      await api.storage.local.remove([
+        WEBSITE_TUTORIAL_STORAGE_KEY,
+        WEBSITE_TUTORIAL_OUTCOME_STORAGE_KEY,
+        LEGACY_WEBSITE_TUTORIAL_STORAGE_KEY,
+        LEGACY_WEBSITE_TUTORIAL_OUTCOME_STORAGE_KEY
+      ]);
       await refreshResetSwitches();
       showToast('Website tutorial reset. It will appear again on mapped sites.', 'success');
     }
@@ -379,27 +388,22 @@
       await show({ force: true });
     }
 
-    function getMappedSites(websiteMappings) {
-      const mappings = websiteMappings && typeof websiteMappings === 'object'
-        ? websiteMappings
-        : { 'netflix.com': true, 'primevideo.com': true };
-      return Object.keys(mappings).filter(site => site !== '__remapad_options__');
-    }
-
     async function refreshResetSwitches() {
       if (!resetControls) return;
       try {
         const data = await api.storage.local.get([
-          'websiteMappings',
-          'siteTutorialVersions',
+          WEBSITE_TUTORIAL_STORAGE_KEY,
+          LEGACY_WEBSITE_TUTORIAL_STORAGE_KEY,
           STORAGE_KEY
         ]);
-        const versions = data.siteTutorialVersions && typeof data.siteTutorialVersions === 'object'
-          ? data.siteTutorialVersions
+        const legacyVersions = data[LEGACY_WEBSITE_TUTORIAL_STORAGE_KEY] &&
+          typeof data[LEGACY_WEBSITE_TUTORIAL_STORAGE_KEY] === 'object'
+          ? data[LEGACY_WEBSITE_TUTORIAL_STORAGE_KEY]
           : {};
         if (resetControls.resetWebsiteTutorialToggle) {
-          resetControls.resetWebsiteTutorialToggle.checked = Object.values(versions)
-            .some(version => version === WEBSITE_TUTORIAL_VERSION);
+          resetControls.resetWebsiteTutorialToggle.checked =
+            data[WEBSITE_TUTORIAL_STORAGE_KEY] === WEBSITE_TUTORIAL_VERSION ||
+            Object.values(legacyVersions).some(version => version === WEBSITE_TUTORIAL_VERSION);
         }
         if (resetControls.resetOptionsTutorialToggle) {
           resetControls.resetOptionsTutorialToggle.checked = data[STORAGE_KEY] === TUTORIAL_VERSION;
@@ -410,28 +414,12 @@
     }
 
     async function skipWebsiteTutorial() {
-      const data = await api.storage.local.get([
-        'websiteMappings',
-        'siteTutorialVersions',
-        'siteTutorialOutcomes'
-      ]);
-      const sites = getMappedSites(data.websiteMappings);
-      const versions = data.siteTutorialVersions && typeof data.siteTutorialVersions === 'object'
-        ? { ...data.siteTutorialVersions }
-        : {};
-      const outcomes = data.siteTutorialOutcomes && typeof data.siteTutorialOutcomes === 'object'
-        ? { ...data.siteTutorialOutcomes }
-        : {};
-      sites.forEach(site => {
-        versions[site] = WEBSITE_TUTORIAL_VERSION;
-        outcomes[site] = 'skipped';
-      });
       await api.storage.local.set({
-        siteTutorialVersions: versions,
-        siteTutorialOutcomes: outcomes
+        [WEBSITE_TUTORIAL_STORAGE_KEY]: WEBSITE_TUTORIAL_VERSION,
+        [WEBSITE_TUTORIAL_OUTCOME_STORAGE_KEY]: 'skipped'
       });
       await refreshResetSwitches();
-      showToast('Website tutorial skipped on all mapped sites.', 'success');
+      showToast('Website tutorial skipped on every site.', 'success');
     }
 
     async function skipOptionsTutorial() {
@@ -446,7 +434,8 @@
 
     function onTutorialStorageChanged(changes, area) {
       if (area !== 'local') return;
-      if (!changes.websiteMappings && !changes.siteTutorialVersions &&
+      if (!changes[WEBSITE_TUTORIAL_STORAGE_KEY] &&
+          !changes[LEGACY_WEBSITE_TUTORIAL_STORAGE_KEY] &&
           !changes[STORAGE_KEY] && !changes[OUTCOME_STORAGE_KEY]) return;
       refreshResetSwitches();
     }

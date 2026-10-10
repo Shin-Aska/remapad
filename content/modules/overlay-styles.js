@@ -324,6 +324,11 @@
         .remapad-tutorial *, .remapad-tutorial *::before, .remapad-tutorial *::after {
           box-sizing: border-box !important;
         }
+        .remapad-tutorial button,
+        .remapad-tutorial input,
+        .remapad-tutorial select {
+          pointer-events: auto !important;
+        }
         .remapad-tutorial-card {
           position: relative !important;
           width: min(520px, 100%) !important;
