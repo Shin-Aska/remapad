@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Browse with Remapad</title>
+    <link rel="stylesheet" href="../shared/design-tokens.css" />
+    <link rel="stylesheet" href="browse.css" />
+  </head>
+  <body>
+    <header>
+      <div class="brand">
+        <img src="../icons/icon-48.png" alt="" />
+        <h1>Browse with Remapad</h1>
+      </div>
+      <div class="browse-actions">
+        <button id="back" disabled>← Back to tab</button>
+        <button id="close" disabled>Close Browse</button>
+      </div>
+    </header>
+    <main>
+      <form id="command">
+        <label class="field"
+          ><span class="sr-only">URL or search</span
+          ><input
+            id="query"
+            type="text"
+            placeholder="Enter a URL or search"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false" /></label
+        ><button type="button" id="keyboard" aria-expanded="true">Keyboard</button
+        ><button type="button" id="edit" disabled>Edit current URL</button>
+      </form>
+      <div class="layout">
+        <section class="matches" aria-labelledby="suggestions-title">
+          <h2 id="suggestions-title">Suggestions</h2>
+          <div id="results"></div>
+          <p id="empty">Enter an address, search, or choose an open tab.</p>
+          <details id="sources">
+            <summary>Suggestion sources</summary>
+            <p>
+              Open tabs use the titles and addresses your site access allows. Optional sources are
+              processed locally.
+            </p>
+            <div id="capabilities"></div>
+            <p id="capability-help" role="status" aria-live="polite"></p>
+          </details>
+        </section>
+        <section id="keyboard-dock" aria-label="On-screen keyboard"></section>
+      </div>
+    </main>
+    <footer>
+      <div><kbd>D-pad</kbd> Move <kbd>A</kbd> Select <kbd>B</kbd> Back <kbd>LT / RT</kbd> Switch tabs</div>
+      <span id="status" role="status" aria-live="polite">Ready</span>
+    </footer>
+    <script src="../shared/keyboard.js"></script>
+    <script src="../shared/navigation-mode.js"></script>
+    <script src="browse.js"></script>
+  </body>
+</html>

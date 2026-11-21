@@ -1,0 +1,268 @@
+:root {
+  color-scheme: dark;
+}
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+header,
+footer {
+  padding: 24px 5vw;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--outline);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.browse-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.brand img {
+  width: 36px;
+  height: 36px;
+}
+h1 {
+  font-size: 24px;
+}
+h2 {
+  font-size: 16px;
+  margin: 0 0 18px;
+}
+main {
+  width: min(1440px, 90vw);
+  margin: 32px auto;
+  flex: 1;
+}
+button,
+input,
+summary {
+  font: inherit;
+}
+button {
+  background: var(--surface-container-high);
+  color: var(--on-surface);
+  border: 1px solid var(--outline);
+  border-radius: 8px;
+  padding: 12px 16px;
+  cursor: pointer;
+}
+button:hover {
+  background: var(--surface-bright);
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+:focus-visible,
+.controller-focus {
+  outline: 2px solid #ff686e !important;
+  outline-offset: 3px;
+}
+#command {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+.field {
+  flex: 1;
+  min-width: 120px;
+}
+input {
+  width: 100%;
+  height: 100%;
+  min-height: 48px;
+  background: var(--surface-container);
+  border: 1px solid var(--outline);
+  border-radius: 8px;
+  color: var(--on-surface);
+  padding: 14px 18px;
+}
+.layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(420px, 1.1fr);
+  gap: 24px;
+  align-items: start;
+}
+.matches,
+#keyboard-dock {
+  background: var(--surface-container);
+  border: 1px solid var(--outline);
+  border-radius: 12px;
+  padding: 24px;
+  min-width: 0;
+}
+.result {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 10px;
+  padding: 16px;
+}
+.result small {
+  color: var(--on-surface-variant);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.result strong {
+  overflow-wrap: anywhere;
+}
+.result.primary {
+  border-color: var(--primary);
+}
+.kind {
+  color: var(--on-surface-variant);
+  font: 11px var(--font-label);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+p {
+  color: var(--on-surface-variant);
+  font-size: 14px;
+  line-height: 1.6;
+}
+details {
+  border-top: 1px solid var(--outline);
+  margin-top: 24px;
+  padding-top: 18px;
+}
+summary {
+  cursor: pointer;
+}
+details p {
+  margin: 14px 0;
+}
+#capabilities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+#capabilities button {
+  font-size: 12px;
+}
+#capability-help:empty {
+  display: none;
+}
+footer {
+  border-top: 1px solid var(--outline);
+  border-bottom: 0;
+  font-size: 13px;
+  color: var(--on-surface-variant);
+}
+kbd {
+  padding: 4px 7px;
+  border: 1px solid var(--outline);
+  border-radius: 4px;
+  margin: 0 4px 0 10px;
+}
+#status {
+  max-width: 50%;
+  text-align: right;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+#keyboard-dock .remapad-keyboard-docked {
+  position: static !important;
+  width: 100% !important;
+  max-width: none !important;
+  transform: none !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  z-index: auto !important;
+}
+#keyboard-dock .remapad-keyboard-header {
+  padding: 0 0 16px !important;
+}
+#keyboard-dock .remapad-keyboard-grid {
+  padding: 0 !important;
+}
+#keyboard-dock .remapad-keyboard-key {
+  min-width: 0 !important;
+  padding: 10px 2px !important;
+  font-size: 14px !important;
+}
+#keyboard-dock .remapad-keyboard-preview {
+  display: none;
+}
+#keyboard-dock .remapad-keyboard-key.focused,
+#keyboard-dock .remapad-keyboard-btn.focused {
+  outline: 2px solid #ff686e;
+  outline-offset: 2px;
+}
+#keyboard-dock:empty {
+  display: none;
+}
+@media (max-width: 950px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+  #keyboard-dock {
+    order: -1;
+    padding: 16px;
+  }
+  #keyboard-dock .remapad-keyboard-header {
+    position: sticky;
+    top: 8px;
+    z-index: 1;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    background: var(--surface-container);
+    padding: 8px 0 !important;
+  }
+  #keyboard-dock .remapad-keyboard-preview {
+    display: block;
+    max-width: 100%;
+    min-height: 24px;
+    overflow-x: auto;
+    text-overflow: clip;
+  }
+  header {
+    padding: 20px;
+  }
+  main {
+    width: calc(100% - 32px);
+    margin: 24px auto;
+  }
+  h1 {
+    font-size: 20px;
+  }
+  #command {
+    flex-wrap: wrap;
+  }
+  .field {
+    flex-basis: 100%;
+  }
+  footer {
+    flex-wrap: wrap;
+  }
+  #status {
+    max-width: 100%;
+    text-align: left;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}

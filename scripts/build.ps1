@@ -14,6 +14,7 @@ $SourceDirs = @(
     '_locales',
     'assets',
     'background',
+    'browse',
     'content',
     'icons',
     'options',
