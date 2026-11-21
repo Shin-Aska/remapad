@@ -33,7 +33,7 @@ elements directly. It works on Firefox 140+ and Chromium-based browsers
 | Chrome | [Chrome Web Store](https://chromewebstore.google.com/detail/remapad-%E2%80%94-gamepad-browser/nbjngbeilcghlhgcofapgclljddnlaol) |
 | Edge | [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/remapad-%E2%80%94-gamepad-browser/ihhkjgcalmhooihpdcdifapgladiblgj) |
 
-Source code lives on [GitLab](https://gitlab.com/Shin-Aska/remapad) (primary)
+Source code lives on [GitLab](https://gitlab.com/ShinAska/remapad) (primary)
 with a [GitHub mirror](https://github.com/Shin-Aska/remapad).
 
 ## Screenshots
