@@ -90,39 +90,6 @@
     '15': 'none'
   };
 
-  const GLYPHS = {
-    playstation: {
-      '0': '✕', '1': '○', '2': '□', '3': '△',
-      '4': 'L1', '5': 'R1', '6': 'L2', '7': 'R2',
-      '8': 'Share', '9': '☰', '10': 'L3', '11': 'R3', '12': '↑', '13': '↓', '14': '←', '15': '→'
-    },
-    xbox: {
-      '0': 'A', '1': 'B', '2': 'X', '3': 'Y',
-      '4': 'LB', '5': 'RB', '6': 'LT', '7': 'RT',
-      '8': 'View', '9': '☰', '10': 'L3', '11': 'R3', '12': '↑', '13': '↓', '14': '←', '15': '→'
-    },
-    nintendo: {
-      '0': 'B', '1': 'A', '2': 'Y', '3': 'X',
-      '4': 'L', '5': 'R', '6': 'ZL', '7': 'ZR',
-      '8': 'Minus', '9': 'Plus', '10': 'L3', '11': 'R3', '12': '↑', '13': '↓', '14': '←', '15': '→'
-    },
-    steamdeck: {
-      '0': 'A', '1': 'B', '2': 'X', '3': 'Y',
-      '4': 'L1', '5': 'R1', '6': 'L2', '7': 'R2',
-      '8': 'View', '9': 'Options', '10': 'L3', '11': 'R3', '12': '↑', '13': '↓', '14': '←', '15': '→'
-    },
-    retro8bitdo: {
-      '0': 'B', '1': 'A', '2': '2', '3': 'X',
-      '4': 'Y', '5': '5', '6': 'L', '7': 'R',
-      '8': '8', '9': '9', '10': 'Select', '11': 'Start', '12': '↑', '13': '↓', '14': '←', '15': '→'
-    },
-    n64: {
-      '0': 'C-Up', '1': 'C-Right', '2': 'C-Down', '3': 'C-Left',
-      '4': 'B', '5': 'A', '6': 'L', '7': 'R',
-      '8': 'Z', '9': 'Start', '10': 'L3', '11': 'R3', '12': '↑', '13': '↓', '14': '←', '15': '→'
-    }
-  };
-
   const ACTION_LABELS = {
     click: 'Select',
     back: 'Back',
@@ -251,7 +218,7 @@
   };
 
   // Firefox's isolated script global is separate from window.
-  const { CONTROLLER_STYLE_PATTERNS } = globalThis.RemapadNavigationMode;
+  const { CONTROLLER_STYLE_PATTERNS, CONTROLLER_GLYPHS: GLYPHS } = globalThis.RemapadNavigationMode;
 
   const N64_DEFAULT_PROFILE = {
     '0': 'scroll_up',      // C-Up

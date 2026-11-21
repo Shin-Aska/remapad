@@ -68,7 +68,9 @@ navigation, keyboard shortcuts, or direct DOM actions.
 
 Open **Browse with Remapad** from the popup or Navigation Guide. Use the side
 keyboard with D-pad and A, then choose **Done** to keep the query and focus
-suggestions. LT and RT switch browser tabs. B cancels keyboard edits or returns
+suggestions. The keyboard shows shortcuts for **Done**, **Backspace**, and
+**Cancel** for the connected controller. On Xbox, use X, Y, and B respectively.
+LT and RT switch browser tabs. B cancels keyboard edits or returns
 to the original tab when the keyboard is closed. **Close Browse** dismisses the
 launcher. You can also use the **Close Browser Tab** combination saved for the
 page that opened it. **Edit current URL** copies the original address when site

@@ -14,6 +14,7 @@ test('content constants load when window and the isolated script global are sepa
   const constants = fs.readFileSync(path.join(root, 'content/modules/constants.js'), 'utf8');
   vm.runInContext(constants, context);
   assert.equal(context.window.RemapadCS.Constants.CONTROLLER_STYLE_PATTERNS, context.RemapadNavigationMode.CONTROLLER_STYLE_PATTERNS);
+  assert.equal(context.window.RemapadCS.Constants.GLYPHS, context.RemapadNavigationMode.CONTROLLER_GLYPHS);
 });
 
 test('schema retains stable numeric ids and rejects duplicate or subset chords', () => {

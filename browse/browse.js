@@ -17,6 +17,8 @@ let focusResultsAfterRefresh = false;
 const gamepadSamples = new Map();
 let activeGamepadKey = null;
 let requireNeutralInput = true;
+let controllerLayout = RemapadNavigationMode.shortcutLayout();
+let keyboardControls = getKeyboardControls(controllerLayout);
 const keyboard = window.RemapadKeyboard;
 const closeDetector = RemapadNavigationMode.createChordDetector();
 function httpURL(value) {
@@ -90,6 +92,29 @@ function switchBrowserTab(action) {
     return result.switched;
   }, () => message('Could not switch tabs.'));
 }
+function getKeyboardControls(layout) {
+  const glyphs = RemapadNavigationMode.CONTROLLER_GLYPHS[layout];
+  const select = layout === 'n64' ? 5 : 0;
+  const cancel = layout === 'n64' ? 4 : 1;
+  // The compact 8BitDo layout uses its physical Y button for Done.
+  const confirm = layout === 'retro8bitdo' ? 4 : 2;
+  // Steam Deck reports X and Y in swapped slots, as on the site keyboard.
+  return {
+    select,
+    cancel,
+    confirm: layout === 'steamdeck' ? 3 : confirm,
+    backspace: layout === 'steamdeck' ? 2 : 3,
+    glyphs: { confirm: glyphs[confirm], cancel: glyphs[cancel], backspace: glyphs[3] }
+  };
+}
+function handleKeyboardShortcut(actions) {
+  if (!keyboard.isOpen()) return false;
+  if (actions.includes(keyboardControls.cancel)) keyboard.close(false);
+  else if (actions.includes(keyboardControls.confirm)) keyboard.close(true);
+  else if (actions.includes(keyboardControls.backspace)) keyboard.pressBackspace();
+  else return false;
+  return true;
+}
 function openKeyboard() {
   const originalValue = query.value;
   focusResultsAfterRefresh = false;
@@ -98,6 +123,7 @@ function openKeyboard() {
     dock,
     submitOnConfirm: false,
     confirmLabel: 'Done',
+    shortcutGlyphs: keyboardControls.glyphs,
     onClose: (_target, confirmed) => {
       if (!confirmed) query.value = originalValue;
       dock.hidden = true;
@@ -425,9 +451,15 @@ function selectController() {
     connected.find((pad) => !/^unknown gamepad/i.test(pad.id)) ||
     connected[0];
   const key = selected ? `${selected.index}:${selected.id}` : null;
-  if (key !== activeGamepadKey) {
+  const layout = RemapadNavigationMode.shortcutLayout(selected);
+  if (key !== activeGamepadKey || layout !== controllerLayout) {
     activeGamepadKey = key;
     baselineControllerInput();
+  }
+  if (layout !== controllerLayout) {
+    controllerLayout = layout;
+    keyboardControls = getKeyboardControls(layout);
+    keyboard.setShortcutGlyphs(keyboardControls.glyphs);
   }
   return selected;
 }
@@ -478,8 +510,7 @@ function controllerFrame(now) {
     // Focus changes and controller replacement must not carry held actions forward.
     if (!down.some(Boolean)) requireNeutralInput = false;
   } else {
-    const layout = RemapadNavigationMode.shortcutLayout(pad);
-    const closeShortcut = sourceShortcuts ? RemapadNavigationMode.resolveProfileShortcuts(sourceShortcuts, layout).closeTab : [];
+    const closeShortcut = sourceShortcuts ? RemapadNavigationMode.resolveProfileShortcuts(sourceShortcuts, controllerLayout).closeTab : [];
     const input = closeDetector.sample(down, { closeTab: closeShortcut }, now);
     const previous = input.actions.includes(6);
     const next = input.actions.includes(7);
@@ -501,12 +532,13 @@ function controllerFrame(now) {
           break;
         }
       }
-      if (!requireNeutralInput && input.actions.includes(layout === 'n64' ? 5 : 0)) {
+      const shortcutUsed = !requireNeutralInput && handleKeyboardShortcut(input.actions);
+      if (!requireNeutralInput && !shortcutUsed && input.actions.includes(keyboardControls.select)) {
         if (keyboard.isOpen()) keyboard.activateFocus();
         else if (document.activeElement === query) openKeyboard();
         else document.activeElement?.click();
       }
-      if (!requireNeutralInput && !navigationPending && input.actions.includes(layout === 'n64' ? 4 : 1)) {
+      if (!requireNeutralInput && !shortcutUsed && !navigationPending && input.actions.includes(keyboardControls.cancel)) {
         if (keyboard.isOpen()) keyboard.close(false);
         else back();
       }
