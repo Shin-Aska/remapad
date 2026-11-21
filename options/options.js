@@ -32,6 +32,7 @@
       dom.notificationVolumeSlider.value = vol;
       if (dom.notificationVolumeVal) dom.notificationVolumeVal.textContent = vol + '%';
     }
+    navigationMode.render();
     mappingEditor.renderEditorSiteSelect();
     mappingEditor.renderWebsiteMappings();
     mappingEditor.renderIconStyles();
@@ -87,6 +88,7 @@
   }
 
   async function saveSettings() {
+    if (navigationMode.isPermissionPending()) { showToast("Finish the browser permission prompt before saving."); return false; }
     if (dom.muteActivationToggle) {
       state.getSettings().muteActivation = !dom.muteActivationToggle.checked;
     }
@@ -97,8 +99,9 @@
       state.getSettings().notificationVolume = parseInt(dom.notificationVolumeSlider.value, 10);
     }
     const result = await state.save();
+    if (result.ok) { const modeResult = await navigationMode.save(); if (!modeResult.ok) { showToast(modeResult.error.message); return false; } }
     if (result.ok) {
-      showToast('Changes saved successfully!', 'success');
+      showToast(navigationMode.getSaveMessage() || 'Changes saved successfully!', 'success');
       renderAll();
     } else {
       showToast('Error saving settings: ' + result.error.message);
@@ -106,6 +109,11 @@
     return result.ok;
   }
 
+  const navigationMode = Options.NavigationMode.create({
+    api, state, showToast, saveSettings,
+    getShortcutLayout: pad => mappingEditor.getShortcutLayout(pad),
+    refresh: () => { mappingEditor.renderEditorSiteSelect(); mappingEditor.populateVisualLabels(); }
+  });
   const modal = Options.ConfigModal.create({ constants: Options.Constants, dom });
   const cursor = Options.VirtualCursor.create({ state, constants: Options.Constants, utils: Options.Utils, dom });
   const navigationSettings = Options.NavigationSettings.create({
@@ -136,12 +144,14 @@
     saveSettings,
     showToast,
     activateSiteMapping,
+    navigationMode,
     onDocumentClick: cursor.handleDocumentClick
   });
   const reportIssues = Options.ReportIssues ? Options.ReportIssues.create({ dom, showToast }) : null;
   const tabs = Options.Tabs.create({ collectionSettings, navigationSettings, keyboardSettings, reportIssues });
   const optionsTutorial = Options.OptionsTutorial.create({ api, showToast });
   const gamepad = Options.Gamepad.create({
+    api,
     state,
     constants: Options.Constants,
     utils: Options.Utils,
@@ -151,6 +161,8 @@
     modal,
     optionsTutorial,
     switchOptionsTab: tabs.switchBy,
+    showToast,
+    hasUnsavedChanges: () => state.getUnsavedChanges() || navigationMode.isDirty(),
     reportIssues
   });
 
@@ -170,19 +182,29 @@
 
   (async () => {
     const loadResult = await state.load();
-    if (loadResult.ok) renderAll();
+    if (loadResult.ok) { await navigationMode.load(); renderAll(); }
     tabs.init();
     navigationSettings.bind();
     if (reportIssues) reportIssues.prefillFromUrl();
 
     const urlParams = new URLSearchParams(window.location.search);
     const tabParam = urlParams.get('tab');
+    const migrationPopup = urlParams.get('nextTabMigrationPopup') === '1';
     if (tabParam === 'report-issues' || tabParam === 'report') {
       tabs.activateTabById('tab-btn-report-issues');
     }
 
     const showingSiteAddPrompt = loadResult.ok && showRequestedSiteAddPrompt();
     gamepad.startPolling();
-    if (!showingSiteAddPrompt) optionsTutorial.showIfNeeded();
+    const showedMigration = loadResult.ok && !showingSiteAddPrompt && !tabParam && await navigationMode.showNextTabMigration().catch(error => {
+      console.warn('[Remapad Options] Unable to show the tab-switching migration:', error);
+      return false;
+    });
+    if (migrationPopup) {
+      const currentWindow = await api.windows.getCurrent();
+      if (currentWindow.type === 'popup') await api.windows.remove(currentWindow.id);
+    } else if (!showingSiteAddPrompt && !showedMigration) {
+      optionsTutorial.showIfNeeded();
+    }
   })();
 })();

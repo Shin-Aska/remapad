@@ -70,7 +70,7 @@
 
     async function load() {
       const data = await api.storage.local.get([
-        'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'siteCollections', 'navSettings', 'muteActivation', 'notificationSound', 'notificationVolume', 'keyboardEnabled', 'keyboardTriggerMode', 'keyboardTriggerSelectors', 'keyboardLayout', 'keyboardAutoDetect', 'siteKeyboardLayouts', 'siteKeyboardTriggerModes', 'siteKeyboardTriggerSelectors', 'customKeyboardLayouts'
+        'navigationModeWebsiteMappings', 'navigationModeDefaultMapping', 'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'siteCollections', 'navSettings', 'muteActivation', 'notificationSound', 'notificationVolume', 'keyboardEnabled', 'keyboardTriggerMode', 'keyboardTriggerSelectors', 'keyboardLayout', 'keyboardAutoDetect', 'siteKeyboardLayouts', 'siteKeyboardTriggerModes', 'siteKeyboardTriggerSelectors', 'customKeyboardLayouts'
       ]);
 
       if (data.notificationSound && typeof data.notificationSound === 'string') settings.notificationSound = data.notificationSound;
@@ -131,6 +131,27 @@
       // come from the legacy `profiles` object, so overlay defaults on top.
       activeProfile = { ...DEFAULT_PROFILE, ...activeProfile };
 
+      let status = { active: isMapped, navigationMode: false };
+      try { status = await api.runtime.sendMessage({ type: 'GET_NAVIGATION_STATUS' }); } catch (_) {}
+      settings.navigationMode = status?.navigationMode === true;
+      settings.navigationProfileSet = RemapadNavigationMode.normalizeProfileSet(data.navigationModeWebsiteMappings?.[hostname], data.navigationModeDefaultMapping || { ...DEFAULT_PROFILE, 6: 'prev_tab', 7: 'next_tab' });
+      if (settings.navigationMode) {
+        let selected;
+        try { selected = await api.runtime.sendMessage({ type: 'GET_NAVIGATION_PROFILE' }); } catch (_) {}
+        if (selected?.success && selected.profileSet && selected.profile) {
+          settings.navigationProfileSet = RemapadNavigationMode.normalizeProfileSet(selected.profileSet, {});
+          settings.navigationProfileId = selected.profileId;
+          settings.navigationProfileName = selected.profile.name;
+          activeProfile = selected.profile.bindings;
+        } else {
+          // Permission or mode may have changed between the status and profile
+          // calls. Do not run stale local mappings after the broker rejects it.
+          settings.navigationMode = false;
+          status = { active: false, navigationMode: false };
+        }
+      }
+      isMapped = status?.active === true;
+      siteMappingActive = isMapped;
       return { isMapped };
     }
 
@@ -145,6 +166,17 @@
     function updateWebsiteMappings(mappings) { settings.websiteMappings = mappings; }
 
     async function saveButtonMapping(button, actionValue, profileTemplate = null) {
+      if (settings.navigationMode) {
+        const result = await api.runtime.sendMessage({
+          type: 'SAVE_NAVIGATION_BUTTON', button: Number(button), actionValue,
+          profileId: settings.navigationProfileId,
+          expectedBindings: { ...activeProfile },
+          profileTemplate
+        });
+        if (!result?.success) throw new Error(result?.error || 'Unable to save mapping.');
+        activeProfile = result.bindings;
+        return activeProfile;
+      }
       // Re-read storage before writing to reduce stale in-memory overwrites and
       // preserve the latest mappings observed in storage.
       const data = await api.storage.local.get(['websiteMappings']);

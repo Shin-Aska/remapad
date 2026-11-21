@@ -6,7 +6,7 @@
 (function (global) {
   'use strict';
 
-  const RESERVED_OPTIONS_KEY = '__remapad_options__';
+  const { OPTIONS_MAPPING_KEY: RESERVED_OPTIONS_KEY, OPTIONS_PAGE_PROFILE, CONTROLLER_STYLE_PATTERNS } = global.RemapadNavigationMode;
 
   const WEBSITE_MAPPINGS_DEFAULT = {
     'netflix.com': 'default',
@@ -22,25 +22,6 @@
     'disneyplus.com': 'Disney+',
     'hulu.com': 'Hulu',
     'max.com': 'Max'
-  };
-
-  const OPTIONS_PAGE_PROFILE = {
-    '0': 'select',
-    '1': 'back',
-    '2': 'none',
-    '3': 'none',
-    '4': 'prev_tab',
-    '5': 'next_tab',
-    '6': 'none',
-    '7': 'none',
-    '8': 'none',
-    '9': 'none',
-    '10': 'none',
-    '11': 'none',
-    '12': 'scroll_up',
-    '13': 'scroll_down',
-    '14': 'scroll_left',
-    '15': 'scroll_right'
   };
 
   // The original, non-Pro FC30 and NES30 expose their D-pad as axes and use
@@ -149,18 +130,6 @@
     { id: 'n64', name: 'N64 (DragonRise)', sub: 'A, B & C-Pad Layout', btns: ['A', 'B'] }
   ];
 
-  const CONTROLLER_STYLE_PATTERNS = [
-    // Original FC30 USB mode. Match the complete VID/PID pair before names so
-    // browser-supplied Xbox/generic suffixes cannot override the device model.
-    { test: /\b1235[-:]ab11\b/, style: 'retro8bitdo' },
-    { test: /8bitdo.*(?:fc30|nes30)(?![\s_-]*(?:pro|arcade))|(?:^|[-_\s])(?:fc30|nes30)(?![\s_-]*(?:pro|arcade))/, style: 'retro8bitdo' },
-    { test: /steam deck|steam controller|valve software|028e.*11ff|28de.*11ff|28de-11ff|28de/, style: 'steamdeck' },
-    { test: /0079.*0006|dragonrise|n64|dragon rise/, style: 'n64' },
-    { test: /xbox|microsoft|xinput|generic x/, style: 'xbox' },
-    { test: /dualsense|dualshock|sony|playstation|ps4|ps5/, style: 'playstation' },
-    { test: /nintendo|switch|pro controller/, style: 'nintendo' }
-  ];
-
   const ACTION_OPTIONS = [
     { value: 'none', label: '-- Unmapped --' },
     { value: 'click', label: 'Select / Click' },
@@ -179,8 +148,8 @@
     { value: 'volume_down', label: 'Volume Down' },
     { value: 'seek_forward', label: 'Seek Forward' },
     { value: 'seek_backward', label: 'Seek Backward' },
-    { value: 'next_tab', label: 'Next Tab' },
-    { value: 'prev_tab', label: 'Previous Tab' },
+    { value: 'next_tab', label: 'Next Browser Tab' },
+    { value: 'prev_tab', label: 'Previous Browser Tab' },
     { value: 'close_tab', label: 'Close Active Tab' },
     { value: 'open_options', label: 'Open Options Editor' },
     { value: 'nav_next_collection', label: '⬇ Next Row (Collection Nav)' },
@@ -193,8 +162,8 @@
     { value: 'nav_right', label: 'Navigate Right' },
     { value: 'select', label: 'Select / Activate' },
     { value: 'back', label: 'Back / Cancel' },
-    { value: 'prev_tab', label: 'Previous Tab' },
-    { value: 'next_tab', label: 'Next Tab' },
+    { value: 'prev_tab', label: 'Previous Browser Tab' },
+    { value: 'next_tab', label: 'Next Browser Tab' },
     { value: 'focus_up', label: 'Focus Up' },
     { value: 'focus_down', label: 'Focus Down' },
     { value: 'focus_left', label: 'Focus Left' },

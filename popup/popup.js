@@ -76,6 +76,10 @@ function createGlobeIcon(size) {
 let currentHostname = '';
 let currentTabId = null;
 let legacyProfiles = {};
+let navigationMappings = {};
+let navigationModeStatus = null;
+let workerActive = null;
+let statusRevision = 0;
 let settings = {
   iconStyle: 'auto',
   websiteMappings: { ...WEBSITE_MAPPINGS_DEFAULT },
@@ -123,9 +127,10 @@ async function init() {
 
     // 2. Load storage settings
     const data = await api.storage.local.get([
-      'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled'
+      'iconStyle', 'websiteMappings', 'defaultMapping', 'profiles', 'enabledSites', 'globalEnabled', 'navigationModeWebsiteMappings'
     ]);
 
+    navigationMappings = data.navigationModeWebsiteMappings || {};
     if (data.iconStyle) settings.iconStyle = data.iconStyle;
     if (data.websiteMappings && Object.keys(data.websiteMappings).length > 0) {
       settings.websiteMappings = data.websiteMappings;
@@ -148,6 +153,7 @@ async function init() {
 
     updateActiveIndicators();
     loadAutoplayStatus();
+    refreshNavigationStatus();
   } catch (e) {
     console.error('[Remapad Popup] Init error:', e);
   }
@@ -199,19 +205,27 @@ function renderAutoplayStatus(status) {
 
 function updateActiveIndicators() {
   const siteActive = currentHostname && settings.enabledSites[currentHostname] !== false;
-  const totalActive = settings.globalEnabled && siteActive;
+  const totalActive = settings.globalEnabled && siteActive && workerActive === true;
 
   if (totalActive) {
     activeIndicator.classList.add('active');
     activeIndicator.title = 'Active on this page';
   } else {
     activeIndicator.classList.remove('active');
-    activeIndicator.title = settings.globalEnabled ? 'Disabled on this site' : 'Disabled globally';
+    activeIndicator.title = !settings.globalEnabled ? 'Disabled globally' : !siteActive ? 'Disabled on this site' : 'Site controls are not active';
   }
 
   // Update Mapping Status Badge
   if (currentHostname) {
-    const hasCustom = settings.websiteMappings[currentHostname] !== undefined;
+    const usesNavigation = navigationModeStatus?.enabled;
+    const navigationSet = usesNavigation && navigationMappings[currentHostname];
+    const hasCustom = !!navigationSet || settings.websiteMappings[currentHostname] !== undefined;
+    if (usesNavigation) {
+      mappingStatusBadge.textContent = navigationSet ? `${navigationSet.profiles?.length || 1} navigation profiles` : 'Navigation defaults';
+      customizeSiteBtn.textContent = `Edit navigation profiles for ${currentHostname}`;
+      customizeSiteBtn.setAttribute('aria-label', customizeSiteBtn.textContent);
+      return;
+    }
     if (hasCustom) {
       const storedMapping = settings.websiteMappings[currentHostname];
       const mapping = typeof storedMapping === 'string'
@@ -256,9 +270,14 @@ customizeSiteBtn.addEventListener('click', async () => {
   customizeSiteBtn.disabled = true;
   try {
     const hasMapping = settings.websiteMappings[currentHostname] !== undefined;
-    const canEditMapping = hasMapping && await hasSitePermission(currentHostname);
+    const hasNavigationMapping = !!navigationMappings[currentHostname];
+    const usesNavigation = !!navigationModeStatus?.enabled;
+    const canEditMapping = usesNavigation || hasNavigationMapping || (hasMapping && await hasSitePermission(currentHostname));
     const params = new URLSearchParams();
     params.set(canEditMapping ? 'site' : 'addSite', currentHostname);
+    if (usesNavigation || (hasNavigationMapping && !hasMapping)) {
+      params.set('environment', 'navigation');
+    }
     if (!canEditMapping && currentTabId !== null) {
       params.set('sourceTabId', String(currentTabId));
     }
@@ -410,3 +429,60 @@ window.addEventListener('gamepaddisconnected', () => {
   await init();
   startPolling(); // poll gamepad immediately
 })();
+
+// Browse is opened by the background broker, which determines the trusted source.
+document.getElementById('browse-btn').addEventListener('click', async () => {
+  const label = document.getElementById('navigation-status');
+  try {
+    const result = await api.runtime.sendMessage({type:'OPEN_BROWSE'});
+    if (!result || result.success === false || result.error) throw new Error('Unavailable');
+    window.close();
+  } catch (_) { label.textContent = 'Could not open Browse. Try again.'; }
+});
+async function refreshNavigationStatus() {
+  const generation = ++statusRevision;
+  const label = document.getElementById('navigation-status');
+  try {
+    const [mode, stored] = await Promise.all([
+      api.runtime.sendMessage({type: 'NAVIGATION_MODE_STATUS'}),
+      api.storage.local.get(['globalEnabled', 'enabledSites', 'navigationModeWebsiteMappings'])
+    ]);
+    let ready = null;
+    if (currentTabId) {
+      try { ready = await api.tabs.sendMessage(currentTabId, {type: 'GET_REMAPAD_STATUS'}); }
+      catch (_) { /* The page may need refresh or be restricted. */ }
+    }
+    if (generation !== statusRevision) return;
+    navigationModeStatus = mode?.success ? mode : null;
+    navigationMappings = stored.navigationModeWebsiteMappings || {};
+    settings.globalEnabled = stored.globalEnabled !== false;
+    settings.enabledSites = stored.enabledSites || {};
+    globalToggle.checked = settings.globalEnabled;
+    if (currentHostname) siteToggle.checked = settings.enabledSites[currentHostname] !== false;
+    workerActive = ready?.active === true;
+    updateActiveIndicators();
+    if (!mode?.success || !mode.requestedEnabled) {
+      label.textContent = 'Browse URLs and search with your controller.';
+    } else if (!mode.enabled || !mode.hasBroad) {
+      label.textContent = 'Navigation Mode needs website access. Open Settings to finish setup.';
+    } else if (!settings.globalEnabled) {
+      label.textContent = 'Navigation Mode is paused globally.';
+    } else if (currentHostname && settings.enabledSites[currentHostname] === false) {
+      label.textContent = 'Navigation Mode is paused on this site.';
+    } else if (!currentTabId) {
+      label.textContent = 'Browse is available; this page cannot use site controls.';
+    } else {
+      label.textContent = workerActive
+        ? 'Navigation Mode is ready on this site.'
+        : 'Navigation Mode is enabled. Refresh this site to activate controls.';
+    }
+  } catch (_) {
+    if (generation !== statusRevision) return;
+    workerActive = false;
+    updateActiveIndicators();
+    label.textContent = 'Browse URLs and search with your controller.';
+  }
+}
+api.storage.onChanged.addListener((_changes, area) => {
+  if (area === 'local') refreshNavigationStatus();
+});

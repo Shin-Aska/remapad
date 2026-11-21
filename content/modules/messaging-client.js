@@ -12,7 +12,7 @@
   function createClient(api) {
     function browserAction(action) {
       try {
-        api.runtime.sendMessage({ type: 'BROWSER_ACTION', action }).catch(() => {});
+        api.runtime.sendMessage({ type: 'BROWSER_ACTION', action }).then(report).catch(error => report({ error: error.message }));
       } catch (_) {}
     }
 
@@ -22,7 +22,9 @@
       } catch (_) {}
     }
 
-    return { browserAction, openSiteMapping };
+    function report(result) { if (result?.error) global.document.dispatchEvent(new CustomEvent('remapad:runtime-error', { detail: result.error })); }
+    function openBrowse() { try { api.runtime.sendMessage({ type: 'OPEN_BROWSE' }).then(report).catch(error => report({ error: error.message })); } catch (error) { report({ error: error.message }); } }
+    return { browserAction, openSiteMapping, openBrowse };
   }
 
   global.RemapadCS = global.RemapadCS || {};

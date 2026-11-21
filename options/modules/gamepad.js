@@ -8,7 +8,7 @@
 (function (global) {
   'use strict';
 
-  function create({ state, constants, utils, dom, mappingEditor, cursor, modal, optionsTutorial, switchOptionsTab, reportIssues }) {
+  function create({ api, state, constants, utils, dom, mappingEditor, cursor, modal, optionsTutorial, switchOptionsTab, showToast, hasUnsavedChanges, reportIssues }) {
     const {
       RESERVED_OPTIONS_KEY,
       OPTIONS_PAGE_PROFILE,
@@ -17,6 +17,13 @@
       OPTIONS_NAV_REPEAT_MS
     } = constants;
     const { clamp } = utils;
+    const navigation = global.RemapadNavigationMode;
+    const chordDetector = navigation.createChordDetector();
+    const repeatingButtons = new Set();
+    const repeatableActions = new Set([
+      'focus_up', 'focus_down', 'focus_left', 'focus_right', 'nav_up', 'nav_down', 'nav_left', 'nav_right',
+      'scroll_up', 'scroll_down', 'scroll_left', 'scroll_right', 'prev_settings_section', 'next_settings_section'
+    ]);
     let previousPressed = [];
     let pollInterval = null;
     let lastDetectedControllerStyle = null;
@@ -24,17 +31,62 @@
     let testMode = false;
     let testTimer = null;
     let activeGamepadIndex = null;
+    let activeGamepadId = null;
+    let navigationProfile = null;
+    let navigationNeutral = true;
+    let profileRequest = 0;
+    let profilePending = false;
     const gamepadSnapshots = new Map();
+
+    function resetNavigationInput() {
+      chordDetector.reset();
+      repeatingButtons.clear();
+      navigationNeutral = true;
+    }
+
+    async function refreshNavigationProfile(direction) {
+      const request = ++profileRequest;
+      profilePending = true;
+      resetNavigationInput();
+      try {
+        const response = await api.runtime.sendMessage(direction
+          ? { type: 'SWITCH_NAVIGATION_PROFILE', direction }
+          : { type: 'GET_NAVIGATION_PROFILE' });
+        if (request !== profileRequest) return;
+        navigationProfile = response?.success ? response : null;
+        if (direction) showToast(navigationProfile ? `Active profile: ${navigationProfile.profile.name}` : response?.error || 'Unable to switch profiles.');
+      } catch (error) {
+        if (request !== profileRequest) return;
+        if (direction) showToast(error.message);
+        else navigationProfile = null;
+      } finally {
+        if (request === profileRequest) profilePending = false;
+      }
+    }
+
+    async function requestBrowserAction(type, action) {
+      resetNavigationInput();
+      if (action === 'close_tab' && hasUnsavedChanges()) {
+        showToast('Save Changes before closing Settings.');
+        return;
+      }
+      try {
+        const result = await api.runtime.sendMessage({ type, action });
+        if (!result?.success) showToast(result?.error || 'Unable to complete the browser action.');
+      } catch (error) {
+        showToast(error.message);
+      }
+    }
 
     function getInputActivity(gamepad) {
       const previous = gamepadSnapshots.get(gamepad.index);
       const buttons = gamepad.buttons.map(button => button.pressed || button.value > 0.5);
       const axes = [...gamepad.axes];
-      gamepadSnapshots.set(gamepad.index, { buttons, axes });
+      gamepadSnapshots.set(gamepad.index, { id: gamepad.id, buttons, axes });
 
       // A pressed button can be the first event that makes Chromium expose a
       // gamepad, so treat it as activity even before a baseline exists.
-      if (!previous) return buttons.some(Boolean) ? 2 : 0;
+      if (!previous || previous.id !== gamepad.id) return buttons.some(Boolean) ? 2 : 0;
 
       const buttonPressed = buttons.some((pressed, index) => pressed && !previous.buttons[index]);
       if (buttonPressed) return 2;
@@ -46,6 +98,9 @@
       const connected = [...gamepads].filter(gamepad => gamepad && gamepad.connected);
       if (!connected.length) {
         activeGamepadIndex = null;
+        activeGamepadId = null;
+        previousPressed = [];
+        resetNavigationInput();
         gamepadSnapshots.clear();
         return null;
       }
@@ -61,21 +116,24 @@
         .map(gamepad => ({ gamepad, activity: getInputActivity(gamepad) }))
         .reduce((best, candidate) => candidate.activity > best.activity ? candidate : best, { gamepad: null, activity: 0 })
         .gamepad;
-      const previous = connected.find(gamepad => gamepad.index === activeGamepadIndex);
+      const previous = connected.find(gamepad => gamepad.index === activeGamepadIndex && gamepad.id === activeGamepadId);
       const preferred = producingInput
         || previous
         || connected.find(gamepad => !/^unknown gamepad/i.test(gamepad.id))
         || connected[0];
 
-      if (preferred.index !== activeGamepadIndex) {
+      if (preferred.index !== activeGamepadIndex || preferred.id !== activeGamepadId) {
         activeGamepadIndex = preferred.index;
+        activeGamepadId = preferred.id;
         previousPressed = [];
+        resetNavigationInput();
       }
       return preferred;
     }
 
     function startPolling() {
       if (pollInterval) return;
+      refreshNavigationProfile();
       pollInterval = setInterval(pollGamepads, 50);
     }
 
@@ -152,7 +210,7 @@
       if (mappingEditor.isDropdownOpen()) mappingEditor.closeDropdown();
     }
 
-    function executeOptionsAction(action) {
+    function executeOptionsAction(action, settingsOnly) {
       if (cursor.isOverlayOpen()) {
         switch (action) {
           case 'focus_up': case 'nav_up': case 'scroll_up': cursor.moveOverlayFocus('up'); return;
@@ -161,8 +219,8 @@
           case 'focus_right': case 'nav_right': case 'scroll_right': cursor.moveOverlayFocus('right'); return;
           case 'select': case 'click': cursor.activateOverlayFocus(); return;
           case 'back': case 'backspace': optionsBack(); return;
-          case 'prev_tab': switchOptionsTab(-1); return;
-          case 'next_tab': switchOptionsTab(1); return;
+          case 'prev_settings_section': switchOptionsTab(-1); return;
+          case 'next_settings_section': switchOptionsTab(1); return;
         }
         return;
       }
@@ -175,35 +233,77 @@
           break;
         case 'select': case 'click': cursor.executeCursorClick(); break;
         case 'back': case 'backspace': optionsBack(); break;
-        case 'prev_tab': switchOptionsTab(-1); break;
-        case 'next_tab': switchOptionsTab(1); break;
+        case 'prev_settings_section': switchOptionsTab(-1); break;
+        case 'next_settings_section': switchOptionsTab(1); break;
+        case 'prev_tab': case 'next_tab':
+          if (!settingsOnly) requestBrowserAction('BROWSER_ACTION', action);
+          break;
+        case 'prev_profile': case 'next_profile':
+          if (navigationProfile && !settingsOnly) refreshNavigationProfile(action === 'next_profile' ? 'next' : 'previous');
+          break;
       }
     }
 
-    function updateOptionsGamepadNav(gamepad, previousSnapshot) {
+    function getStandardProfile(controllerStyle) {
       const storedProfile = state.getSettings().websiteMappings[RESERVED_OPTIONS_KEY];
       const isStockOptionsProfile = storedProfile && Object.keys(OPTIONS_PAGE_PROFILE)
         .every(button => storedProfile[button] === OPTIONS_PAGE_PROFILE[button]);
-      const profile = mappingEditor.detectControllerStyle(gamepad.id) === 'retro8bitdo' && isStockOptionsProfile
+      return controllerStyle === 'retro8bitdo' && isStockOptionsProfile
         ? RETRO_8BITDO_OPTIONS_PAGE_PROFILE
         : storedProfile;
+    }
+
+    function updateOptionsGamepadNav(previousSnapshot, controllerStyle, settingsOnly, shortcutButtons, layout) {
+      const profile = navigationProfile?.profile.bindings || getStandardProfile(controllerStyle);
       if (!profile) return;
-      const directional = new Set([
-        'focus_up', 'focus_down', 'focus_left', 'focus_right', 'nav_up', 'nav_down', 'nav_left', 'nav_right',
-        'scroll_up', 'scroll_down', 'scroll_left', 'scroll_right', 'prev_tab', 'next_tab'
-      ]);
       const now = Date.now();
-      gamepad.buttons.forEach((button, index) => {
-        const isPressed = button.pressed || button.value > 0.5;
-        const wasPressed = previousSnapshot[index] || false;
-        const action = profile[index.toString()];
-        if (!action || action === 'none') return;
-        const isDirectional = directional.has(action);
-        if (isPressed && (!wasPressed || isDirectional && now - lastOptionsActionTime > OPTIONS_NAV_REPEAT_MS)) {
-          executeOptionsAction(action);
+      if (!navigationProfile || settingsOnly) {
+        previousPressed.forEach((pressed, index) => {
+          let action = profile[index];
+          if (!pressed || !action || action === 'none') return;
+          if (!navigationProfile) {
+            if (action === 'prev_tab') action = 'prev_settings_section';
+            if (action === 'next_tab') action = 'next_settings_section';
+          }
+          if (!previousSnapshot[index] || (repeatableActions.has(action) && now - lastOptionsActionTime > OPTIONS_NAV_REPEAT_MS)) {
+            executeOptionsAction(action, settingsOnly);
+            lastOptionsActionTime = now;
+          }
+        });
+        return;
+      }
+
+      const shortcuts = navigation.resolveProfileShortcuts(navigationProfile.profileSet.profileShortcuts, layout);
+      const result = chordDetector.sample(shortcutButtons, shortcuts, performance.now());
+      if (result.direction) {
+        refreshNavigationProfile(result.direction);
+        return;
+      }
+      if (result.openBrowse || result.closeTab) {
+        if (result.openBrowse) requestBrowserAction('OPEN_BROWSE');
+        else requestBrowserAction('BROWSER_ACTION', 'close_tab');
+        return;
+      }
+
+      result.releases.forEach(index => repeatingButtons.delete(index));
+      for (const index of result.actions) {
+        if (layout === 'retro8bitdo' && index >= 12) continue;
+        const action = profile[index];
+        if (!action || action === 'none') continue;
+        executeOptionsAction(action, false);
+        lastOptionsActionTime = now;
+        if (navigationNeutral || profilePending) return;
+        if (previousPressed[index] && repeatableActions.has(action)) repeatingButtons.add(index);
+      }
+
+      for (const index of repeatingButtons) {
+        if (!previousPressed[index]) {
+          repeatingButtons.delete(index);
+        } else if (now - lastOptionsActionTime > OPTIONS_NAV_REPEAT_MS) {
+          executeOptionsAction(profile[index], false);
           lastOptionsActionTime = now;
         }
-      });
+      }
     }
 
     function updateConnectedStatus(gamepad) {
@@ -224,6 +324,8 @@
     }
 
     function updateDisconnectedStatus() {
+      cursor.hideCursor('left');
+      cursor.hideCursor('right');
       const controllerStyleChanged = lastDetectedControllerStyle !== null;
       lastDetectedControllerStyle = null;
       mappingEditor.setActiveControllerId(null);
@@ -264,8 +366,9 @@
       // The first two axes remain the analog stick; only read the dedicated
       // pair so full stick deflection cannot create a false D-pad press.
       const axes = gamepad.axes || [];
-      const horizontalAxis = axes.length >= 6 ? axes[5] : axes.length >= 4 ? axes[2] : 0;
-      const verticalAxis = axes.length >= 6 ? axes[4] : axes.length >= 4 ? axes[3] : 0;
+      const readAxis = index => Number.isFinite(axes[index]) && Math.abs(axes[index]) <= 1 ? axes[index] : 0;
+      const horizontalAxis = readAxis(axes.length >= 6 ? 5 : axes.length >= 4 ? 2 : -1);
+      const verticalAxis = readAxis(axes.length >= 6 ? 4 : axes.length >= 4 ? 3 : -1);
       const HIGH_THRESHOLD = 0.8;
 
       return {
@@ -277,6 +380,11 @@
     }
 
     function pollGamepads() {
+      if (global.RemapadOptions.navigationCaptureActive) {
+        previousPressed = [];
+        resetNavigationInput();
+        return;
+      }
       const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
       const gamepad = selectActiveGamepad(gamepads);
       if (!gamepad) {
@@ -346,26 +454,42 @@
         n64Thumb.setAttribute('cx', (220 + (gamepad.axes[0] || 0) * 8).toString());
         n64Thumb.setAttribute('cy', (180 + (gamepad.axes[1] || 0) * 8).toString());
       }
-      if (optionsTutorial?.handleGamepad(gamepad, previousSnapshot)) {
+      updateNavigationStickViz(gamepad);
+      if (document.hidden || !document.hasFocus() || testMode || profilePending || optionsTutorial?.handleGamepad(gamepad, previousSnapshot)) {
+        resetNavigationInput();
         cursor.hideCursor('left');
         cursor.hideCursor('right');
-        updateNavigationStickViz(gamepad);
         return;
       }
       const nav = state.getSettings().navSettings;
+      const settingsOnly = cursor.isOverlayOpen() || modal.isOpen() || mappingEditor.isDropdownOpen() || Boolean(document.querySelector('dialog[open]'));
+      if (settingsOnly) resetNavigationInput();
+      const useShortcuts = navigationProfile && !settingsOnly;
+      let bufferedStick = null;
+      if (useShortcuts) {
+        const layout = navigation.shortcutLayout(gamepad);
+        const shortcutButtons = navigation.sampleShortcutButtons(gamepad, layout);
+        if (navigationNeutral) {
+          if (navigation.areInputsNeutral(shortcutButtons, gamepad, nav, layout)) navigationNeutral = false;
+          return;
+        }
+        updateOptionsGamepadNav(previousSnapshot, detected, settingsOnly, shortcutButtons, layout);
+        if (navigationNeutral || profilePending) return;
+        bufferedStick = navigation.bufferedDpadStick(gamepad, layout, shortcutButtons, chordDetector);
+      }
+
       if (nav?.enabled) {
-        const rightX = gamepad.axes[2] || 0;
-        const rightY = gamepad.axes[3] || 0;
-        const leftX = gamepad.axes[0] || 0;
-        const leftY = gamepad.axes[1] || 0;
+        const rightX = bufferedStick === 'right' ? 0 : gamepad.axes[2] || 0;
+        const rightY = bufferedStick === 'right' ? 0 : gamepad.axes[3] || 0;
+        const leftX = bufferedStick === 'left' ? 0 : gamepad.axes[0] || 0;
+        const leftY = bufferedStick === 'left' ? 0 : gamepad.axes[1] || 0;
         updateOptionsStick('left', leftX, leftY, nav.leftStick);
         updateOptionsStick('right', rightX, rightY, nav.rightStick);
       } else {
         cursor.hideCursor('left');
         cursor.hideCursor('right');
       }
-      updateNavigationStickViz(gamepad);
-      updateOptionsGamepadNav(gamepad, previousSnapshot);
+      if (!useShortcuts) updateOptionsGamepadNav(previousSnapshot, detected, settingsOnly);
     }
 
     function updateOptionsStick(stickId, axisX, axisY, config) {
@@ -392,6 +516,16 @@
     function bind() {
       global.addEventListener('gamepadconnected', () => startPolling());
       global.addEventListener('gamepaddisconnected', () => pollGamepads());
+      global.addEventListener('blur', resetNavigationInput);
+      api.storage.onChanged.addListener((changes, area) => {
+        if (area !== 'local') return;
+        const modeChanged = ['navigationModeEnabled', 'globalEnabled'].some(key => changes[key]?.oldValue !== changes[key]?.newValue);
+        const bindingsChanged = ['navigationModeWebsiteMappings', 'websiteMappings'].some(key => {
+          const change = changes[key];
+          return change && JSON.stringify(change.oldValue?.[RESERVED_OPTIONS_KEY]) !== JSON.stringify(change.newValue?.[RESERVED_OPTIONS_KEY]);
+        });
+        if (modeChanged || bindingsChanged) refreshNavigationProfile();
+      });
       dom.testInputBtn.addEventListener('click', () => {
         if (testMode) return;
         testMode = true;
@@ -434,7 +568,7 @@
         }
       });
       global.addEventListener('beforeunload', event => {
-        if (state.getUnsavedChanges()) {
+        if (hasUnsavedChanges()) {
           event.preventDefault();
           event.returnValue = '';
         }

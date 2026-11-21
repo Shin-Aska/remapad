@@ -7,7 +7,7 @@
 (function (global) {
   'use strict';
 
-  function create({ api, state, constants, utils, dom, modal, renderAll, saveSettings, showToast, activateSiteMapping, onDocumentClick }) {
+  function create({ api, state, constants, utils, dom, modal, renderAll, saveSettings, showToast, activateSiteMapping, navigationMode, onDocumentClick }) {
     const {
       RESERVED_OPTIONS_KEY,
       FRIENDLY_NAMES,
@@ -21,8 +21,19 @@
       BUTTON_NAMES
     } = constants;
     const { getFriendlyLabel, parseDomain, ensureSitePermission, removeSitePermission } = utils;
+    const { SETTINGS_SECTION_ACTIONS, optionsNavigationBindings, shortcutLayout } = global.RemapadNavigationMode;
     let activeCalloutBtn = null;
+    let activeContext = null;
+    let activeCallout = null;
     let activeControllerId = null;
+
+    function editorContext() {
+      return `${state.getSelectedSiteKey()}|${navigationMode.isEditing()}|${navigationMode.getProfileId?.() ?? ''}`;
+    }
+
+    function canEdit() {
+      return !navigationMode.isPermissionPending() && (!navigationMode.isEditing() || !!navigationMode.getMapping());
+    }
 
     function clearSiteAddPrompt() {
       if (dom.siteAddGuidance) dom.siteAddGuidance.hidden = true;
@@ -35,17 +46,18 @@
     }
 
     function getStoredActiveMapping() {
+      const modeMapping = navigationMode.getMapping();
+      if (navigationMode.isEditing()) return modeMapping;
       const settings = state.getSettings();
       return state.getSelectedSiteKey() === 'default'
         ? settings.defaultMapping
         : settings.websiteMappings[state.getSelectedSiteKey()] || DEFAULT_PROFILE;
     }
 
-    function getActiveMapping() {
-      const stored = getStoredActiveMapping();
+    function getEffectiveStandardMapping(stored, site) {
       if (getEditorControllerStyle() !== 'retro8bitdo') return stored;
 
-      if (state.getSelectedSiteKey() === RESERVED_OPTIONS_KEY) {
+      if (site === RESERVED_OPTIONS_KEY) {
         return profilesMatch(stored, OPTIONS_PAGE_PROFILE)
           ? RETRO_8BITDO_OPTIONS_PAGE_PROFILE
           : stored;
@@ -53,6 +65,11 @@
       return profilesMatch(stored, DEFAULT_PROFILE)
         ? RETRO_8BITDO_DEFAULT_PROFILE
         : stored;
+    }
+
+    function getActiveMapping() {
+      const stored = getStoredActiveMapping();
+      return navigationMode.isEditing() ? stored : getEffectiveStandardMapping(stored, state.getSelectedSiteKey());
     }
 
     function getMutableActiveMapping() {
@@ -76,9 +93,9 @@
       dom.editorSiteSelect.replaceChildren();
       const defaultOption = document.createElement('option');
       defaultOption.value = 'default';
-      defaultOption.textContent = 'Default (All Other Sites)';
+      defaultOption.textContent = 'Site Mapping Defaults';
       dom.editorSiteSelect.appendChild(defaultOption);
-      Object.keys(settings.websiteMappings).forEach(domain => {
+      new Set([...Object.keys(settings.websiteMappings), ...navigationMode.getSiteKeys()]).forEach(domain => {
         const option = document.createElement('option');
         option.value = domain;
         option.textContent = `${getFriendlyLabel(domain, FRIENDLY_NAMES)} (${domain})`;
@@ -133,6 +150,7 @@
         siteDomain.title = domain;
         row.querySelector('.mapping-row-keyboard').style.display = isSelected ? 'flex' : 'none';
         row.querySelector('.mapping-row-main').addEventListener('click', () => {
+          if (navigationMode.isPermissionPending()) return;
           state.setSelectedSiteKey(domain);
           dom.editorSiteSelect.value = domain;
           populateVisualLabels();
@@ -187,6 +205,7 @@
         }
         deleteButton.addEventListener('click', async event => {
           event.stopPropagation();
+          if (navigationMode.isPermissionPending()) return;
           if (domain === RESERVED_OPTIONS_KEY) return;
           if (!confirm(`Remove mapping for ${domain}?`)) return;
           delete settings.websiteMappings[domain];
@@ -231,6 +250,19 @@
       // Compact hardware capabilities take precedence over a cosmetic icon
       // override so phantom D-pad/stick controls never become editable.
       return detected === 'retro8bitdo' ? detected : resolveIconStyle();
+    }
+
+    function getShortcutLayout(pad) {
+      if (!pad) {
+        const connected = [...(navigator.getGamepads?.() || [])].filter(item => item?.connected);
+        pad = connected.find(item => item.id === activeControllerId) || connected[0];
+      }
+      if (!pad) return getEditorControllerStyle();
+      const actual = shortcutLayout(pad);
+      const preferred = state.getSettings().iconStyle;
+      const adapterLayouts = ['retro8bitdo', 'n64'];
+      if (!preferred || preferred === 'auto' || adapterLayouts.includes(actual) || adapterLayouts.includes(preferred)) return actual;
+      return preferred;
     }
 
     function renderIconStyles() {
@@ -412,33 +444,100 @@
       }
     }
 
+    const PROFILE_ACTION_LABELS = {
+      next_profile: 'Swap to Next Profile',
+      prev_profile: 'Swap to Previous Profile'
+    };
+    const SETTINGS_ACTIONS = new Set([
+      'none', 'select', 'click', 'back', 'next_tab', 'prev_tab',
+      'scroll_up', 'scroll_down', 'scroll_left', 'scroll_right',
+      'nav_up', 'nav_down', 'nav_left', 'nav_right', 'focus_up', 'focus_down', 'focus_left', 'focus_right'
+    ]);
+
+    function allowsProfileActions() {
+      return navigationMode.isEditing() && canEdit() && state.getSelectedSiteKey() !== 'default';
+    }
+
+    function settingsActionLabel(action, defaultLabel) {
+      if (!navigationMode.isEditing()) {
+        if (action === 'next_tab') return SETTINGS_SECTION_ACTIONS.next_settings_section;
+        if (action === 'prev_tab') return SETTINGS_SECTION_ACTIONS.prev_settings_section;
+      }
+      return SETTINGS_SECTION_ACTIONS[action] || defaultLabel;
+    }
+
+    function syncActionChoices() {
+      const settings = state.getSelectedSiteKey() === RESERVED_OPTIONS_KEY;
+      const choices = new Map();
+      for (const { value, label } of ACTION_OPTIONS) {
+        if (!settings || SETTINGS_ACTIONS.has(value)) choices.set(value, settings ? settingsActionLabel(value, label) : label);
+      }
+      if (settings && navigationMode.isEditing()) {
+        for (const [value, label] of Object.entries(SETTINGS_SECTION_ACTIONS)) choices.set(value, label);
+      }
+      if (allowsProfileActions()) {
+        for (const [value, label] of Object.entries(PROFILE_ACTION_LABELS)) choices.set(value, label);
+      }
+      dom.actionSelect.replaceChildren(...Array.from(choices, ([value, label]) => {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = label;
+        return option;
+      }));
+    }
+
     function populateVisualLabels() {
+      closeDropdown();
+      updateSvgTextLabels();
+      navigationMode.render();
+      syncActionChoices();
       const mapping = getActiveMapping();
+      if (!mapping) return;
+      const context = document.getElementById('mapping-context-status');
+      const siteName = state.getSelectedSiteKey() === 'default' ? 'Site Mapping Defaults' : getFriendlyLabel(state.getSelectedSiteKey(), FRIENDLY_NAMES);
+      const hint = state.getUnsavedChanges() || navigationMode.isDirty() ? 'Changes are staged. Save Changes applies pending settings.' : 'Choose a controller button to edit its action.';
+      context.textContent = `${navigationMode.isEditing() ? 'Navigation' : 'Standard'} · ${siteName}${navigationMode.getProfileName?.() ? ' · ' + navigationMode.getProfileName() : ''}. ${hint}`;
+      dom.resetBtn.title = `Reset only this ${navigationMode.isEditing() ? 'Navigation' : 'Standard'} mapping; Save Changes to apply.`;
       Object.keys(BUTTON_NAMES).forEach(button => {
         const label = document.getElementById(`label-btn-${button}`);
         if (!label) return;
-        const action = mapping[button] || 'none';
+        const action = mapping?.[button] || 'none';
         let actionLabel;
         if (action.startsWith('click_element:')) actionLabel = `Click: ${action.substring('click_element:'.length)}`;
         else if (action.startsWith('hover_element:')) actionLabel = `Hover: ${action.substring('hover_element:'.length)}`;
         else if (action.startsWith('press_key:')) actionLabel = `Key: ${action.substring('press_key:'.length)}`;
         else if (action.startsWith('focus_element:')) actionLabel = `Focus: ${action.substring('focus_element:'.length)}`;
         else if (action.startsWith('dom_action:')) actionLabel = modal.formatDomActionLabel(action);
-        else actionLabel = ACTION_OPTIONS.find(option => option.value === action)?.label || action;
+        else if (Object.hasOwn(PROFILE_ACTION_LABELS, action)) actionLabel = allowsProfileActions() ? PROFILE_ACTION_LABELS[action] : 'No Action';
+        else {
+          actionLabel = ACTION_OPTIONS.find(option => option.value === action)?.label || action;
+          if (state.getSelectedSiteKey() === RESERVED_OPTIONS_KEY) actionLabel = settingsActionLabel(action, actionLabel);
+        }
         label.textContent = actionLabel;
         label.title = actionLabel;
+        const callout = label.closest('.editor-callout');
+        callout?.setAttribute('aria-label', `Remap ${callout.querySelector('.callout-btn-name').textContent}: ${actionLabel}`);
       });
-      updateSvgTextLabels();
     }
 
-    function closeDropdown() {
+    function closeDropdown(restoreFocus = false) {
+      const previous = activeCallout;
       dom.actionDropdown.style.display = 'none';
+      activeCallout?.setAttribute('aria-expanded', 'false');
       activeCalloutBtn = null;
+      activeContext = null;
+      activeCallout = null;
+      if (restoreFocus && previous?.isConnected && canEdit()) previous.focus();
     }
 
     function openDropdownForCallout(callout) {
-      if (!callout) return;
+      if (!callout || !canEdit() || getComputedStyle(callout).display === 'none') return;
+      closeDropdown();
+      syncActionChoices();
+      activeCallout = callout;
       activeCalloutBtn = callout.dataset.btn;
+      activeContext = editorContext();
+      callout.setAttribute('aria-expanded', 'true');
       const currentAction = getActiveMapping()[activeCalloutBtn] || 'none';
       dom.actionSelect.value = currentAction.startsWith('click_element:') ? 'click_element'
         : currentAction.startsWith('hover_element:') ? 'hover_element'
@@ -446,21 +545,17 @@
             : currentAction.startsWith('focus_element:') ? 'focus_element'
               : currentAction.startsWith('dom_action:') ? 'dom_action'
                 : currentAction;
-      const rect = callout.getBoundingClientRect();
-      const parentRect = callout.offsetParent.getBoundingClientRect();
-      dom.actionDropdown.style.top = `${rect.top - parentRect.top + callout.offsetHeight + 6}px`;
-      dom.actionDropdown.style.left = `${rect.left - parentRect.left}px`;
+      document.getElementById('action-select-label').textContent = `Action for ${callout.querySelector('.callout-btn-name').textContent}`;
       dom.actionDropdown.style.display = 'block';
+      dom.actionSelect.focus({ preventScroll: true });
+      dom.actionDropdown.scrollIntoView({ block: 'nearest' });
     }
 
     function bind() {
-      ACTION_OPTIONS.forEach(option => {
-        const element = document.createElement('option');
-        element.value = option.value;
-        element.textContent = option.label;
-        dom.actionSelect.appendChild(element);
-      });
+      document.addEventListener('remapad:mapping-context-change', () => closeDropdown());
+      syncActionChoices();
       dom.editorSiteSelect.addEventListener('change', () => {
+        if (navigationMode.isPermissionPending()) { dom.editorSiteSelect.value = state.getSelectedSiteKey(); return; }
         state.setSelectedSiteKey(dom.editorSiteSelect.value);
         populateVisualLabels();
         closeDropdown();
@@ -469,6 +564,8 @@
       document.querySelectorAll('.editor-callout').forEach(callout => {
         callout.setAttribute('role', 'button');
         callout.setAttribute('tabindex', '0');
+        callout.setAttribute('aria-controls', 'action-dropdown');
+        callout.setAttribute('aria-expanded', 'false');
         callout.setAttribute('aria-label', `Remap ${callout.querySelector('.callout-btn-name')?.textContent || `button ${callout.dataset.btn}`}`);
         callout.addEventListener('click', event => {
           event.stopPropagation();
@@ -481,11 +578,29 @@
           openDropdownForCallout(callout);
         });
       });
+      document.querySelectorAll('.controller-svg .svg-btn').forEach(hit => {
+        hit.addEventListener('click', event => {
+          event.stopPropagation();
+          const button = hit.id.match(/-btn-(\d+)$/)?.[1];
+          if (button) openDropdownForCallout(document.querySelector(`.editor-callout[data-btn="${button}"]`));
+        });
+      });
+      document.getElementById('action-editor-close').addEventListener('click', () => closeDropdown(true));
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && activeCalloutBtn !== null && !modal.isOpen()) {
+          event.preventDefault();
+          closeDropdown(true);
+        }
+      });
       dom.actionSelect.addEventListener('change', async () => {
-        if (!activeCalloutBtn) return;
-        const mapping = getMutableActiveMapping();
-        const currentValue = mapping[activeCalloutBtn] || '';
+        if (activeCalloutBtn === null || !canEdit() || activeContext !== editorContext()) { closeDropdown(); return; }
+        const editedButton = activeCalloutBtn;
+        const editedContext = activeContext;
+        const editedSite = state.getSelectedSiteKey();
+        const returnFocus = activeCallout;
+        const currentValue = getActiveMapping()[editedButton] || '';
         let action = dom.actionSelect.value;
+        if (Object.hasOwn(PROFILE_ACTION_LABELS, action) && !allowsProfileActions()) return;
         const customAction = async (prefix, mode) => {
           const initialValue = currentValue.startsWith(prefix) ? currentValue.substring(prefix.length) : '';
           const value = await modal.open(mode, initialValue);
@@ -506,10 +621,34 @@
           }
         }
         if (!action) return;
-        mapping[activeCalloutBtn] = action;
-        state.markUnsaved();
-        populateVisualLabels();
-        closeDropdown();
+        const needsScopeDialog = ['next_tab', 'prev_tab'].includes(action)
+          && !navigationMode.isEditing()
+          && !['default', RESERVED_OPTIONS_KEY].includes(editedSite);
+        if (needsScopeDialog) {
+          closeDropdown();
+          try {
+            const activated = await navigationMode.scopeDialog(action, async () => {
+              if (!canEdit() || editedContext !== editorContext()) {
+                throw new Error('The selected mapping changed. Choose the binding again in the editor.');
+              }
+              await state.saveSiteBinding(editedSite, editedButton, action, profile => getEffectiveStandardMapping(profile, editedSite));
+              if (navigationMode.isDirty()) state.markUnsaved();
+            });
+            if (activated) {
+              document.getElementById('mapping-environment-select').focus();
+              return;
+            }
+          } catch (error) {
+            showToast(error.message);
+          }
+        } else {
+          if (!canEdit() || editedContext !== editorContext()) { closeDropdown(); return; }
+          getMutableActiveMapping()[editedButton] = action;
+          if (navigationMode.isEditing()) navigationMode.touch();
+          state.markUnsaved();
+          populateVisualLabels();
+        }
+        returnFocus?.focus();
       });
       document.addEventListener('click', event => {
         if (!dom.actionDropdown.contains(event.target)) closeDropdown();
@@ -518,10 +657,19 @@
       });
       dom.saveBtn.addEventListener('click', saveSettings);
       dom.resetBtn.addEventListener('click', () => {
-        if (!confirm('Revert all bindings in this mapping to defaults?')) return;
+        if (!canEdit()) return;
+        if (!confirm(`Reset this ${navigationMode.isEditing() ? 'Navigation profile' : 'Standard mapping'} to defaults? Changes are staged until Save Changes.`)) return;
         const settings = state.getSettings();
         const selected = state.getSelectedSiteKey();
-        if (selected === 'default') settings.defaultMapping = { ...DEFAULT_PROFILE };
+        if (navigationMode.isEditing() && navigationMode.getMapping()) {
+          const mapping = navigationMode.getMapping();
+          Object.keys(mapping).forEach(key => delete mapping[key]);
+          Object.assign(mapping, selected === RESERVED_OPTIONS_KEY
+            ? optionsNavigationBindings(settings.websiteMappings[selected])
+            : { ...DEFAULT_PROFILE, 6: 'prev_tab', 7: 'next_tab' });
+          navigationMode.touch();
+        }
+        else if (selected === 'default') settings.defaultMapping = { ...DEFAULT_PROFILE };
         else if (selected === RESERVED_OPTIONS_KEY) settings.websiteMappings[selected] = { ...OPTIONS_PAGE_PROFILE };
         else settings.websiteMappings[selected] = { ...settings.defaultMapping };
         state.markUnsaved();
@@ -529,6 +677,7 @@
         showToast('Mapping reset to default.');
       });
       dom.addSiteBtn.addEventListener('click', async () => {
+        if (navigationMode.isPermissionPending()) { showToast('Finish the browser permission prompt before changing sites.'); return; }
         const domain = parseDomain(dom.newSiteInput.value);
         if (!domain) return;
         if (!domain.includes('.')) {
@@ -593,6 +742,7 @@
       updateSvgTextLabels,
       populateVisualLabels,
       detectControllerStyle,
+      getShortcutLayout,
       setActiveControllerId: value => { activeControllerId = value || null; },
       closeDropdown,
       isDropdownOpen: () => dom.actionDropdown.style.display !== 'none',

@@ -56,6 +56,7 @@
     let selectedSiteKey = 'default';
     let selectedCollectionSite = '';
     let unsavedChanges = false;
+    let savedSnapshot = null;
 
     function mergeProfileWithDefaults(profile) {
       return profile && typeof profile === 'object'
@@ -177,6 +178,7 @@
           const cleanUrl = global.location.protocol + '//' + global.location.host + global.location.pathname;
           global.history.replaceState({ path: cleanUrl }, '', cleanUrl);
         }
+        savedSnapshot = structuredClone(settings);
         return { ok: true };
       } catch (error) {
         console.error('[Remapad Options] Load settings failed:', error);
@@ -186,7 +188,7 @@
 
     async function save() {
       try {
-        await api.storage.local.set({
+        const values = {
           iconStyle: settings.iconStyle,
           websiteMappings: settings.websiteMappings,
           defaultMapping: settings.defaultMapping,
@@ -206,7 +208,10 @@
           siteKeyboardTriggerModes: settings.siteKeyboardTriggerModes,
           siteKeyboardTriggerSelectors: settings.siteKeyboardTriggerSelectors,
           customKeyboardLayouts: settings.customKeyboardLayouts
-        });
+        };
+        const changes = Object.fromEntries(Object.entries(values).filter(([key, value]) => !savedSnapshot || JSON.stringify(value) !== JSON.stringify(savedSnapshot[key])));
+        if (Object.keys(changes).length) await api.storage.local.set(changes);
+        savedSnapshot = structuredClone(settings);
         unsavedChanges = false;
         return { ok: true };
       } catch (error) {
@@ -214,9 +219,33 @@
       }
     }
 
+    async function saveSiteBinding(hostname, button, action, effectiveMapping) {
+      const { websiteMappings: stored } = await api.storage.local.get('websiteMappings');
+      const latest = Object.keys(stored || {}).length ? stored : savedSnapshot.websiteMappings;
+      if (!Object.hasOwn(latest, hostname)) {
+        throw new Error('This site mapping changed. Reload Options and try again.');
+      }
+
+      const base = effectiveMapping(mergeProfileWithDefaults(latest[hostname]));
+      const saved = { ...base, [button]: action };
+      await api.storage.local.set({ websiteMappings: { ...latest, [hostname]: saved } });
+
+      // Reapply other local edits over the saved mapping without committing them.
+      const previous = savedSnapshot.websiteMappings[hostname] || {};
+      const staged = Object.entries(settings.websiteMappings[hostname] || {}).filter(([key, value]) =>
+        key !== button && value !== previous[key]
+      );
+      settings.websiteMappings[hostname] = { ...saved, ...Object.fromEntries(staged) };
+      savedSnapshot.websiteMappings[hostname] = saved;
+      if (unsavedChanges) {
+        unsavedChanges = Object.keys(settings).some(key => JSON.stringify(settings[key]) !== JSON.stringify(savedSnapshot[key]));
+      }
+    }
+
     return {
       load,
       save,
+      saveSiteBinding,
       mergeNavSettings,
       getSettings: () => settings,
       getSelectedSiteKey: () => selectedSiteKey,

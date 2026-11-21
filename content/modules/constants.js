@@ -138,6 +138,8 @@
     seek_forward: 'Forward',
     seek_backward: 'Rewind',
     open_options: 'Options',
+    next_profile: 'Swap to Next Profile',
+    prev_profile: 'Swap to Previous Profile',
     next_tab: 'Next Tab',
     prev_tab: 'Prev Tab',
     close_tab: 'Close Tab',
@@ -248,17 +250,8 @@
     }
   };
 
-  const CONTROLLER_STYLE_PATTERNS = [
-    // Original FC30 USB mode. Match the complete VID/PID pair before names so
-    // browser-supplied Xbox/generic suffixes cannot override the device model.
-    { test: /\b1235[-:]ab11\b/, style: 'retro8bitdo' },
-    { test: /8bitdo.*(?:fc30|nes30)(?![\s_-]*(?:pro|arcade))|(?:^|[-_\s])(?:fc30|nes30)(?![\s_-]*(?:pro|arcade))/, style: 'retro8bitdo' },
-    { test: /steam deck|steam controller|valve software|028e.*11ff|28de.*11ff|28de-11ff|28de/, style: 'steamdeck' },
-    { test: /0079.*0006|dragonrise|n64|dragon rise/, style: 'n64' },
-    { test: /xbox|microsoft|xinput|generic x/, style: 'xbox' },
-    { test: /dualsense|dualshock|sony|playstation|ps4|ps5/, style: 'playstation' },
-    { test: /nintendo|switch|pro controller/, style: 'nintendo' }
-  ];
+  // Firefox's isolated script global is separate from window.
+  const { CONTROLLER_STYLE_PATTERNS } = globalThis.RemapadNavigationMode;
 
   const N64_DEFAULT_PROFILE = {
     '0': 'scroll_up',      // C-Up
