@@ -1,10 +1,11 @@
 # Remapad Privacy Policy
 
-Effective date: July 26, 2026
+Effective date: November 21, 2026
 
 Remapad turns a gamepad into a browser controller. It operates locally in your
 browser and does not collect, sell, share, or transmit personal data to the
-developer or to third parties.
+developer. Browser navigation and searches you choose contact their destination
+websites or your default search provider.
 
 ## Data Remapad handles
 
@@ -12,6 +13,9 @@ Remapad may handle the following information on your device so its features can
 work:
 
 - the hostname of the active website;
+- permission-visible open-tab titles and URLs for Browse with Remapad;
+- bookmarks and recent browsing history for local suggestions, only if you
+  independently grant those optional permissions;
 - gamepad connection state and button or stick input;
 - controller mappings, navigation preferences, custom page selectors, and
   tutorial progress you configure;
@@ -38,10 +42,24 @@ and the on-screen keyboard.
 Remapad does not read or change pages for advertising, profiling, credit
 scoring, or any purpose unrelated to its visible controller features.
 
+## Optional navigation and Browse capabilities
+
+Navigation Mode can request access to all websites to run controller controls
+across ordinary web pages. The global and per-site switches still apply.
+Browse with Remapad processes suggestions in memory. It does not store or export
+history queries or suggestion results. A temporary browser-session association
+links Browse to its original tab; this is not browsing history storage.
+Bookmarks, history, and default search permissions are optional and independent.
+You can grant or remove them under Browse’s Suggestion sources or in browser
+extension settings. Without them, Browse still supports visible open tabs and
+addresses. Default search sends your chosen search text to the browser’s default
+search provider, just as a search entered in the browser would.
+
 ## Network requests
 
 Remapad does not send browsing history, settings, controller input, or page
-content over the network. All executable code and runtime assets are packaged
+content to its developer. Opening a destination or choosing a search causes the
+browser to contact that website or your default search provider. All executable code and runtime assets are packaged
 with the extension.
 
 ## Data sharing and transfers

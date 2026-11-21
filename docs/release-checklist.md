@@ -11,12 +11,10 @@ must not be committed.
       manifests; the Edge manifest is generated from Chrome during the build.
 - [ ] Keep one source version for the coordinated Chrome, Edge, and Firefox
       packages, while tracking each store submission and approval separately.
-- [ ] At release time, check every store dashboard. Do not lower a store
-      version or assume the stores have the same publication history. The
-      current source version is `1.0.2`; an initial Edge submission may use it
-      only when it is still the current build and has not already been published
-      to Edge. For a later changed release, raise both canonical source manifests
-      together above the versions already published in their respective stores.
+- [ ] At release time, check every store dashboard. Use the current source
+      version for a first submission. For an update, verify that the version
+      in both canonical manifests is higher than the version already published
+      in each store.
 - [ ] Review `PRIVACY.md` after every permission, storage, or network change.
 - [ ] Update screenshots when the visible controls or defaults change.
 - [ ] Push `PRIVACY.md`, then confirm the public privacy-policy and support URLs
@@ -134,6 +132,62 @@ The controller portions of these checks require a physical gamepad. If one is
 unavailable, record only the controller release gate as pending; simulated input
 does not complete it. Still complete the permission and lifecycle checks through
 the options page and extension DevTools.
+
+### Browser Navigation Mode and Browse release gate
+
+Run these checks separately in desktop Chrome, Edge, and Firefox. Record the
+browser/OS versions, controller model, USB or Bluetooth connection, tested sites,
+and any duplicate Gamepad API entries. These are required manual checks, not a
+record that hardware validation has already passed.
+
+- [ ] With a fresh profile, deny Navigation Mode’s broad website-access prompt.
+      Choose **Save Site Binding Only** and confirm the binding saves, other
+      staged changes stay staged, and the mode stays off. Open the dialog again,
+      grant access, then choose **Cancel**. Confirm the binding was discarded
+      and the website access granted for this attempt was released. If the
+      browser asks to restore previous site access, allow it and check that the
+      original sites still work.
+- [ ] Grant access in the tab-binding dialog and select **Save and Turn On
+      Navigation Mode**. Confirm the binding and mode save from the dialog, the
+      editor displays the selected site's Navigation profiles, and the mode
+      works after refreshing a non-built-in test site.
+- [ ] Confirm the popup reflects runtime readiness, global Off, per-site Off,
+      and revoked broad access. Re-grant broad access from browser extension
+      settings and confirm this external regrant alone leaves the mode off.
+      Explicitly enable the mode in Remapad and Save Changes; verify recovery.
+- [ ] Create two independent navigation profiles on one site; record a held
+      multi-button shortcut for next/previous profile. Confirm one switch per
+      hold, neutral release before another switch, stable profile selection
+      across reload, and independent profiles on a second site.
+- [ ] Map an individual button to Swap to Next Profile, and another to Swap to
+      Previous Profile. Confirm a fresh press switches immediately once, holding
+      does not repeat, and release permits the next press. Confirm the recorded
+      multi-button shortcut switches after the hold shown in Profile Shortcuts.
+- [ ] On Windows, connect an Xbox/XInput-compatible controller. If Chromium
+      exposes duplicate controller entries, confirm only the device producing
+      fresh input controls the page. Disconnect/reconnect and change active
+      controllers; held A/B or D-pad input must not trigger an unintended action.
+- [ ] Alt-tab away and return while holding a button. Repeat after focusing the
+      URL field or another control. Release before trying a new action; confirm
+      there are no carried-over clicks, returns, or tab changes.
+- [ ] Open Browse from both popup and Navigation Guide. With only D-pad/A/B,
+      enter text, use Done to reach suggestions, switch an open tab, open a typed
+      address in a new tab, edit the source URL, and return to the source. Confirm
+      each successful destination closes Browse. Reopen it and verify LT/RT,
+      the source page’s saved Close Browser Tab combination, and Close Browse.
+      Close the source tab and confirm Browse disables its source actions.
+- [ ] Expand Suggestion sources with D-pad/A. Independently deny, grant, and
+      revoke bookmarks, history, and search. Confirm denied/revoked sources
+      disappear, addresses still work, searches use the browser default provider,
+      and no history queries are persisted. Confirm controller A on an Allow
+      button keeps focus and explains how to open the prompt with Enter or a
+      click.
+- [ ] Type quickly while tab titles/URLs change. Confirm late suggestions do not
+      overwrite the current query, unchanged rows keep their DOM/focus, and an
+      updated focused result stays selected when still present.
+- [ ] Verify the side keyboard at desktop width and stacked layout at a narrow
+      width. Confirm visible focus and no horizontal overflow. Restart the
+      browser and repeat Navigation Mode activation and profile checks.
 
 ## 7. Firefox runtime test
 

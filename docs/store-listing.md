@@ -40,9 +40,20 @@ user.
 
 ### Optional host access
 
-Users can add any website. Remapad requests access only to the specific hostname
-the user adds, at the moment they add it. The optional wildcard declaration
-allows those explicit per-site requests without granting access to every site.
+Users can add a website with a specific hostname grant. Separately, enabling
+Browser Navigation Mode requests optional wildcard website access so the
+packaged controller runtime can follow navigation across ordinary web pages.
+This broader grant is opt-in; global and per-site switches continue to apply.
+
+### Optional `bookmarks`, `history`, and `search`
+
+Browse with Remapad can independently request bookmarks and recent history for
+local destination suggestions. Open-tab suggestions use only metadata available
+under existing site grants. Queries and suggestions remain in memory; they are
+not saved, exported, or transmitted to the developer. Optional `search` sends a
+chosen query through the browser’s default search provider. Without these
+permissions, direct HTTP(S) addresses and visible open-tab suggestions still work.
+Each optional permission can be removed independently.
 
 ## Chrome privacy form
 
@@ -91,7 +102,7 @@ Remapad includes built-in profiles for Netflix and Prime Video. You can add anot
 
 When a page has a text field, Remapad can open an on-screen keyboard that you navigate with the gamepad. The options page lets you inspect and edit mappings, navigation behavior, cursor settings, keyboard settings, and tutorial progress. Settings and mappings are stored in Edge's local extension storage so they remain available on that device.
 
-Remapad has no login, subscription, analytics, advertising, telemetry, or developer-operated service. The active-site hostname, gamepad input, settings, and page elements needed for the visible controller features are processed locally in the browser. Remapad does not collect, sell, share, or transmit that information to the developer or to third parties. All executable code and runtime assets are packaged with the extension; Remapad does not download or execute remote code. Remapad is an independent project and is not affiliated with Microsoft, Netflix, Amazon, or any other supported website.
+Remapad has no login, subscription, analytics, advertising, telemetry, or developer-operated service. The active-site hostname, gamepad input, settings, and page elements needed for the visible controller features are processed locally in the browser. Remapad does not collect, sell, share, or transmit that information to the developer. Destinations and default-provider searches selected in Browse contact those websites as ordinary browser navigation. All executable code and runtime assets are packaged with the extension; Remapad does not download or execute remote code. Remapad is an independent project and is not affiliated with Microsoft, Netflix, Amazon, or any other supported website.
 
 ### Short description
 
