@@ -94,6 +94,13 @@ switches continue to control whether Remapad runs. See [PRIVACY.md](PRIVACY.md).
 
 ## Browser Navigation Mode
 
+After choosing the activation sound in the website tutorial, choose **Control
+mapped websites** or **Navigate the browser**. Browser setup opens the website
+access prompt and turns on Navigation Mode once access is allowed. An optional
+**Allow history suggestions** button adds recently visited sites to Browse with
+Remapad suggestions. If you have custom mappings, you can review and copy them
+into the mode before turning it on.
+
 When assigning **Next Browser Tab** or **Previous Browser Tab** to a site, allow
 all-sites access in the setup dialog and select **Save and Turn On Navigation
 Mode**. This saves the binding and pending Options changes, turns on the mode,
@@ -105,6 +112,8 @@ Users who already had **Next Browser Tab** assigned when the update arrived see
 Remapad is active or open Settings. **Migrate to Navigation Mode** copies all
 saved website mappings and Site Mapping Defaults into a separate set. Choose
 **Keep Current Mappings** to dismiss the offer.
+If you finished the website tutorial before this update and have other custom
+mappings, Remapad offers to copy them into Navigation Mode once.
 
 In **Miscellaneous Options**, you can also choose **Allow website access**,
 **Turn on Navigation Mode**, and **Save Changes**. The mode uses independent

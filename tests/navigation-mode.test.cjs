@@ -243,6 +243,7 @@ test('an older saved profile accepts new Browse and Close Browser Tab shortcuts'
 
 test('only one Settings page claims migration for existing Next Browser Tab mappings', async () => {
   const b = await background({ data: {
+    siteTutorialVersion: 3,
     defaultMapping: undefined,
     profiles: { default: { 7: 'next_tab' }, oldSite: { 3: 'next_tab' } },
     websiteMappings: {
@@ -256,6 +257,7 @@ test('only one Settings page claims migration for existing Next Browser Tab mapp
   assert.equal(first.offer.includesDefaults, true);
   assert.equal(first.offer.hostnames.join(','), 'example.com');
   assert.equal(second.offer, null);
+  assert.equal((await b.request({ type: 'CLAIM_SAVED_MAPPINGS_MIGRATION' })).offer, null);
   assert.equal(b.data.navigationModeEnabled, false);
   assert.equal(b.data.websiteMappings['example.com'], 'oldSite');
 });
@@ -317,6 +319,67 @@ test('a background website or failed window leaves the migration available in Se
     assert.equal(b.popupWindows.length, 0);
     assert.equal((await b.request({ type: 'CLAIM_NEXT_TAB_MIGRATION' })).offer.hostnames.join(','), 'netflix.com');
   }
+});
+
+test('returning users get one copy offer for custom mappings across their sites', async () => {
+  const sourceUrl = 'https://primevideo.com/watch';
+  const websiteMappings = { 'netflix.com': 'custom', 'primevideo.com': { 9: 'toggle_hud' } };
+  const b = await background({ sourceUrl, data: {
+    siteTutorialVersion: 3,
+    profiles: { default: { 2: 'none' }, custom: { 5: 'back' } },
+    websiteMappings
+  } });
+  b.grants.add('https://primevideo.com/*');
+  const sender = { id: 'extension', frameId: 0, url: sourceUrl, tab: { id: 4, url: sourceUrl } };
+  const onSite = { type: 'OFFER_MAPPING_MIGRATION_ON_SITE' };
+  await Promise.all([b.request(onSite, sender), b.request(onSite, sender)]);
+  assert.equal(b.popupWindows.length, 1);
+  const { url } = b.popupWindows[0];
+  assert.equal(new URL(url).searchParams.get('savedMappingsMigrationPopup'), '1');
+  const claim = { type: 'CLAIM_SAVED_MAPPINGS_MIGRATION' };
+  assert.equal((await b.request(claim)).offer, null);
+  const offer = (await b.request(claim, { id: 'extension', url })).offer;
+  assert.equal(offer.includesDefaults, true);
+  assert.equal(offer.hostnames.join(','), 'netflix.com');
+  assert.equal((await b.request(claim, { id: 'extension', url })).offer, null);
+  assert.equal(b.data.navigationModeEnabled, false);
+  assert.equal((await b.request({ type: 'SET_NAVIGATION_MODE', enabled: true })).success, true);
+  assert.equal(b.data.navigationModeDefaultMapping[2], 'none');
+  assert.equal(b.data.navigationModeWebsiteMappings['netflix.com'].profiles[0].bindings[5], 'back');
+  assert.equal(b.data.websiteMappings, websiteMappings);
+});
+
+test('onboarding ignores factory mappings and can review mappings added after the one-time check', async () => {
+  const b = await background({ data: {
+    siteTutorialVersion: 3,
+    defaultMapping: { 9: 'toggle_hud' },
+    websiteMappings: { 'netflix.com': { 9: 'toggle_hud' }, '__remapad_options__': { 9: 'back' } }
+  } });
+  const review = { type: 'GET_NAVIGATION_MODE_SETUP_MAPPINGS' };
+  const claim = { type: 'CLAIM_SAVED_MAPPINGS_MIGRATION' };
+  assert.equal((await b.request(review)).offer, null);
+  b.data.websiteMappings['new.example'] = { 9: 'toggle_hud' };
+  assert.equal((await b.request(claim)).offer, null);
+  assert.equal((await b.request(review)).offer.hostnames.join(','), 'new.example');
+});
+
+test('only the focused mapped site can open the tutorial permission screen', async () => {
+  const url = 'https://example.com/';
+  const b = await background({ tabs: [
+    { id: 4, url, active: true, windowId: 2 },
+    { id: 5, url, active: false, windowId: 2 }
+  ] });
+  b.grants.delete('*://*/*');
+  b.grants.add('https://example.com/*');
+  const sender = { id: 'extension', frameId: 0, url, tab: { id: 4, url } };
+  const message = { type: 'OPEN_NAVIGATION_MODE_SETUP' };
+  assert.equal((await b.request(message, { ...sender, frameId: 1 })).success, false);
+  assert.equal((await b.request(message, { ...sender, tab: { id: 5, url } })).success, false);
+  assert.equal((await b.request(message, sender)).success, true);
+  assert.equal(b.createdTabs.length, 1);
+  assert.equal(b.createdTabs[0].windowId, 2);
+  assert.equal(new URL(b.createdTabs[0].url).searchParams.get('navigationModeSetup'), '1');
+  assert.equal(b.data.navigationModeEnabled, false);
 });
 
 test('Chrome subset removal retains exact restoration backup before release', async () => {

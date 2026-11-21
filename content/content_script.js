@@ -121,15 +121,16 @@
     return settings.enabledSites[currentHostname] !== false;
   }
 
-  let checkedNextTabMigration = false;
-  async function maybeOfferNextTabMigration() {
-    if (checkedNextTabMigration || !isSiteActive() || settings.navigationMode || document.hidden || !document.hasFocus()) return;
-    checkedNextTabMigration = true;
+  let checkedMappingMigration = false;
+  async function maybeOfferMappingMigration() {
+    if (checkedMappingMigration || !isSiteActive() || settings.navigationMode ||
+        tutorialController?.isVisible() || document.hidden || !document.hasFocus()) return;
+    checkedMappingMigration = true;
     try {
-      const result = await api.runtime.sendMessage({ type: 'OFFER_NEXT_TAB_MIGRATION_ON_SITE' });
-      if (!result?.success || result.deferred) checkedNextTabMigration = false;
+      const result = await api.runtime.sendMessage({ type: 'OFFER_MAPPING_MIGRATION_ON_SITE' });
+      if (!result?.success || result.deferred) checkedMappingMigration = false;
     } catch (_) {
-      checkedNextTabMigration = false;
+      checkedMappingMigration = false;
     }
   }
 
@@ -228,8 +229,7 @@
         document.dispatchEvent(new CustomEvent('remapad:activate'));
         document.documentElement.setAttribute('data-remapad-active', 'true');
         hudController.update();
-        tutorialController.showIfNeeded();
-        maybeOfferNextTabMigration();
+        tutorialController.showIfNeeded().then(maybeOfferMappingMigration);
       } else {
         removeHUD(true);
       }
@@ -1721,7 +1721,7 @@
     else init(true);
   });
   window.addEventListener('blur', () => { if (settings.navigationMode) resetModeInput(); });
-  window.addEventListener('focus', maybeOfferNextTabMigration);
+  window.addEventListener('focus', maybeOfferMappingMigration);
 
   // ─── Boot ───────────────────────────────────────────────────────────────────
 

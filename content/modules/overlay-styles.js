@@ -450,6 +450,47 @@
           line-height: 14px !important;
           text-align: center !important;
         }
+        .remapad-tutorial-card--usage {
+          min-height: 0 !important;
+          max-height: calc(100dvh - 48px) !important;
+          overflow: auto !important;
+        }
+        .remapad-tutorial-usage {
+          display: grid !important;
+          gap: 10px !important;
+          width: 100% !important;
+          margin: 22px 0 18px !important;
+        }
+        .remapad-tutorial-usage button {
+          display: grid !important;
+          gap: 5px !important;
+          padding: 13px 16px !important;
+          border: 1px solid #494749 !important;
+          border-radius: 12px !important;
+          background: #252426 !important;
+          color: #fff !important;
+          font-family: inherit !important;
+          text-align: left !important;
+          cursor: pointer !important;
+        }
+        .remapad-tutorial-usage button:hover { background: #302d30 !important; }
+        .remapad-tutorial-usage button:focus {
+          outline: 2px solid #00a8e1 !important;
+          outline-offset: 2px !important;
+          background: #302d30 !important;
+        }
+        .remapad-tutorial-usage strong {
+          font-size: 14px !important;
+          line-height: 20px !important;
+        }
+        .remapad-tutorial-usage span,
+        .remapad-tutorial-usage p {
+          color: #c9c2c4 !important;
+          font-size: 12px !important;
+          line-height: 18px !important;
+          margin: 0 !important;
+        }
+        .remapad-tutorial-usage p:empty { display: none !important; }
         .remapad-tutorial-action-icon {
           width: 88px !important;
           height: 88px !important;
@@ -687,6 +728,7 @@
         @media (max-width: 560px), (max-height: 560px) {
           .remapad-tutorial { padding: 12px !important; }
           .remapad-tutorial-card { min-height: 0 !important; padding: 34px 24px 20px !important; }
+          .remapad-tutorial-card--usage { max-height: calc(100dvh - 24px) !important; }
           .remapad-tutorial-visual { height: 80px !important; margin-bottom: 10px !important; transform: scale(0.78) !important; }
           .remapad-tutorial-visual--activation { height: 132px !important; margin-bottom: 4px !important; transform: scale(0.88) !important; }
           .remapad-tutorial-copy { min-height: 0 !important; margin-bottom: 14px !important; }

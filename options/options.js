@@ -189,18 +189,36 @@
 
     const urlParams = new URLSearchParams(window.location.search);
     const tabParam = urlParams.get('tab');
-    const migrationPopup = urlParams.get('nextTabMigrationPopup') === '1';
+    const nextTabMigrationPopup = urlParams.get('nextTabMigrationPopup') === '1';
+    const savedMappingsMigrationPopup = urlParams.get('savedMappingsMigrationPopup') === '1';
     if (tabParam === 'report-issues' || tabParam === 'report') {
       tabs.activateTabById('tab-btn-report-issues');
     }
 
     const showingSiteAddPrompt = loadResult.ok && showRequestedSiteAddPrompt();
     gamepad.startPolling();
-    const showedMigration = loadResult.ok && !showingSiteAddPrompt && !tabParam && await navigationMode.showNextTabMigration().catch(error => {
-      console.warn('[Remapad Options] Unable to show the tab-switching migration:', error);
+    if (loadResult.ok && urlParams.get('navigationModeSetup') === '1') {
+      try {
+        const enabled = await navigationMode.showNavigationModeSetup();
+        const tab = enabled ? null : await api.tabs.getCurrent();
+        if (Number.isInteger(tab?.id)) await api.tabs.remove(tab.id);
+        else window.history.replaceState(null, '', window.location.pathname);
+      } catch (error) {
+        showToast(error.message);
+      }
+      return;
+    }
+
+    async function showPendingMigration() {
+      if (savedMappingsMigrationPopup) return navigationMode.showMappingMigration(false);
+      const showedNextTabMigration = await navigationMode.showMappingMigration(true);
+      return showedNextTabMigration || (!nextTabMigrationPopup && await navigationMode.showMappingMigration(false));
+    }
+    const showedMigration = loadResult.ok && !showingSiteAddPrompt && !tabParam && await showPendingMigration().catch(error => {
+      console.warn('[Remapad Options] Unable to show the mapping migration:', error);
       return false;
     });
-    if (migrationPopup) {
+    if (nextTabMigrationPopup || savedMappingsMigrationPopup) {
       const currentWindow = await api.windows.getCurrent();
       if (currentWindow.type === 'popup') await api.windows.remove(currentWindow.id);
     } else if (!showingSiteAddPrompt && !showedMigration) {

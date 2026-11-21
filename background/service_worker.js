@@ -42,7 +42,13 @@ const DEFAULT_WEBSITE_MAPPINGS = Object.freeze({
   'netflix.com': true,
   'primevideo.com': true
 });
-const NEXT_TAB_MIGRATION_KEY = 'nextTabMigration';
+const DEFAULT_SITE_BINDINGS = Object.freeze({
+  0: 'click', 1: 'back', 2: 'fullscreen', 3: 'search', 4: 'seek_backward', 5: 'seek_forward',
+  6: 'volume_down', 7: 'volume_up', 8: 'toggle_play', 9: 'toggle_hud', 10: 'none', 11: 'none',
+  12: 'scroll_up', 13: 'scroll_down', 14: 'scroll_left', 15: 'scroll_right'
+});
+const NEXT_TAB_MIGRATION = { key: 'nextTabMigration', popupParam: 'nextTabMigrationPopup' };
+const SAVED_MAPPINGS_MIGRATION = { key: 'savedMappingsMigration', popupParam: 'savedMappingsMigrationPopup' };
 let contentScriptSyncQueue = Promise.resolve();
 const notificationSourceCache = new Map();
 
@@ -225,6 +231,14 @@ async function isActiveMappedTabSender(sender) {
   const mapped = Object.keys(websiteMappings || {}).some(key => normalizeMappedHostname(key) === hostname);
   const actual = actualUrl;
   return broad || (mapped && await api.permissions.contains({ origins: [`${actual.protocol}//${actual.hostname}/*`] }));
+}
+
+async function getFocusedMappedTab(sender) {
+  if (!await isActiveMappedTabSender(sender)) return null;
+  const tab = await api.tabs.get(sender.tab.id);
+  return tab.active && sameHttpOrigin(sender.url || sender.tab.url, tab.url) && (await api.windows.get(tab.windowId)).focused
+    ? tab
+    : null;
 }
 
 async function activateMappedSiteTab(hostnameValue, tabId) {
@@ -500,77 +514,105 @@ function queueNavigationWrite(work) {
   return task;
 }
 
-queueNavigationWrite(initializeNextTabMigration).catch(error => {
-  console.warn('[Remapad BG] Unable to check existing Next Browser Tab bindings:', error);
+queueNavigationWrite(initializeMappingMigrations).catch(error => {
+  console.warn('[Remapad BG] Unable to check saved mappings for Navigation Mode:', error);
 });
 
-async function getNextTabMigrationOffer() {
+async function getMappingMigrationOffer(migration) {
   const data = await api.storage.local.get([
     'navigationModeEnabled', 'navigationModeInitialized', 'defaultMapping', 'websiteMappings', 'profiles'
   ]);
   if (data.navigationModeEnabled || data.navigationModeInitialized) return null;
 
-  const hasNextTab = bindings => Object.entries(bindings || {}).some(([button, action]) =>
-    /^(?:[0-9]|1[0-5])$/.test(button) && action === 'next_tab'
-  );
+  const matches = (bindings, hostname) => {
+    if (migration === NEXT_TAB_MIGRATION) {
+      return Object.entries(bindings || {}).some(([button, action]) =>
+        Object.hasOwn(DEFAULT_SITE_BINDINGS, button) && action === 'next_tab');
+    }
+    return Boolean(hostname && !Object.hasOwn(DEFAULT_WEBSITE_MAPPINGS, hostname)) ||
+      Object.entries(bindings || {}).some(([button, action]) =>
+        Object.hasOwn(DEFAULT_SITE_BINDINGS, button) && action !== DEFAULT_SITE_BINDINGS[button]);
+  };
   const defaults = data.profiles?.default ?? data.defaultMapping;
-  const includesDefaults = hasNextTab(defaults);
+  const includesDefaults = matches(defaults);
   const hostnames = [];
   for (const [hostname, mapping] of Object.entries(data.websiteMappings || {})) {
-    if (!normalizeMappedHostname(hostname)) continue;
+    const normalized = normalizeMappedHostname(hostname);
+    if (!normalized) continue;
     const bindings = typeof mapping === 'string' ? data.profiles?.[mapping] ?? defaults : mapping;
-    if (hasNextTab(bindings)) hostnames.push(hostname);
+    if (matches(bindings, normalized)) hostnames.push(hostname);
   }
   return includesDefaults || hostnames.length ? { includesDefaults, hostnames } : null;
 }
 
-async function initializeNextTabMigration() {
-  const data = await api.storage.local.get(NEXT_TAB_MIGRATION_KEY);
-  if (data[NEXT_TAB_MIGRATION_KEY] !== undefined) return;
+async function initializeMappingMigrations() {
+  const data = await api.storage.local.get([
+    NEXT_TAB_MIGRATION.key, SAVED_MAPPINGS_MIGRATION.key, 'siteTutorialVersion', 'siteTutorialVersions'
+  ]);
+  if (data[NEXT_TAB_MIGRATION.key] !== undefined && data[SAVED_MAPPINGS_MIGRATION.key] !== undefined) return;
 
-  // Snapshot eligibility on the first run of this code, before new edits.
-  const offer = await getNextTabMigrationOffer();
-  await api.storage.local.set({ [NEXT_TAB_MIGRATION_KEY]: offer ? 'pending' : 'handled' });
+  // Snapshot existing mappings, and give the dedicated tab-switching offer precedence.
+  const nextTabOffer = await getMappingMigrationOffer(NEXT_TAB_MIGRATION);
+  const update = {};
+  if (data[NEXT_TAB_MIGRATION.key] === undefined) {
+    update[NEXT_TAB_MIGRATION.key] = nextTabOffer ? 'pending' : 'handled';
+  }
+  if (data[SAVED_MAPPINGS_MIGRATION.key] === undefined) {
+    const finishedTutorial = data.siteTutorialVersion > 0 ||
+      Object.values(data.siteTutorialVersions || {}).some(version => version > 0);
+    const offer = finishedTutorial && !nextTabOffer && await getMappingMigrationOffer(SAVED_MAPPINGS_MIGRATION);
+    update[SAVED_MAPPINGS_MIGRATION.key] = offer ? 'pending' : 'handled';
+  }
+  await api.storage.local.set(update);
 }
 
-async function claimNextTabMigration(fromPopup) {
-  const data = await api.storage.local.get(NEXT_TAB_MIGRATION_KEY);
+async function claimMappingMigration(migration, fromPopup) {
+  const data = await api.storage.local.get(migration.key);
   const expectedState = fromPopup ? 'popup' : 'pending';
-  if (data[NEXT_TAB_MIGRATION_KEY] !== expectedState) return { success: true, offer: null };
+  if (data[migration.key] !== expectedState) return { success: true, offer: null };
 
-  const offer = await getNextTabMigrationOffer();
-  await api.storage.local.set({ [NEXT_TAB_MIGRATION_KEY]: 'handled' });
+  const offer = await getMappingMigrationOffer(migration);
+  await api.storage.local.set({ [migration.key]: 'handled' });
   return { success: true, offer };
 }
 
-async function offerNextTabMigrationOnSite(sender) {
-  const data = await api.storage.local.get(NEXT_TAB_MIGRATION_KEY);
-  if (data[NEXT_TAB_MIGRATION_KEY] !== 'pending') return { success: true };
-  if (!await isActiveMappedTabSender(sender)) return { success: true, deferred: true };
-  const source = await api.tabs.get(sender.tab.id);
-  if (!source.active || !sameHttpOrigin(sender.url || sender.tab.url, source.url) || !(await api.windows.get(source.windowId)).focused) {
+async function offerMappingMigrationOnSite(sender) {
+  const data = await api.storage.local.get([NEXT_TAB_MIGRATION.key, SAVED_MAPPINGS_MIGRATION.key]);
+  const migration = [NEXT_TAB_MIGRATION, SAVED_MAPPINGS_MIGRATION].find(item => data[item.key] === 'pending');
+  if (!migration) return { success: true };
+  if (!await getFocusedMappedTab(sender)) {
     return { success: true, deferred: true };
   }
 
-  if (!await getNextTabMigrationOffer()) {
-    await api.storage.local.set({ [NEXT_TAB_MIGRATION_KEY]: 'handled' });
+  if (!await getMappingMigrationOffer(migration)) {
+    await api.storage.local.set({ [migration.key]: 'handled' });
     return { success: true };
   }
 
   // Reserve the same one-time offer before opening the extension window.
-  await api.storage.local.set({ [NEXT_TAB_MIGRATION_KEY]: 'popup' });
+  await api.storage.local.set({ [migration.key]: 'popup' });
   try {
     await api.windows.create({
-      url: api.runtime.getURL('options/options.html') + '?nextTabMigrationPopup=1',
+      url: api.runtime.getURL(OPTIONS_PAGE) + '?' + migration.popupParam + '=1',
       type: 'popup',
       width: 760,
       height: 720,
       focused: true
     });
   } catch (error) {
-    await api.storage.local.set({ [NEXT_TAB_MIGRATION_KEY]: 'pending' });
+    await api.storage.local.set({ [migration.key]: 'pending' });
     throw error;
   }
+  return { success: true };
+}
+
+async function openNavigationModeSetup(sender) {
+  const source = await getFocusedMappedTab(sender);
+  if (!source) return { success: false, error: 'Return to the active website to continue setup.' };
+  await api.tabs.create({
+    windowId: source.windowId,
+    url: api.runtime.getURL(OPTIONS_PAGE) + '?navigationModeSetup=1'
+  });
   return { success: true };
 }
 
@@ -749,7 +791,7 @@ async function setNavigationMode(message) {
     }
     const update = { navigationModeEnabled: true, navigationModeOwnsBroadAccess: data.navigationModeOwnsBroadAccess === true || (data.navigationModeEnabled !== true && message.acquiredBroad === true) };
     if (!data.navigationModeInitialized) {
-      const standard = data.defaultMapping || data.profiles?.default || { 0: 'click', 1: 'back', 2: 'fullscreen', 3: 'search', 4: 'seek_backward', 5: 'seek_forward', 6: 'volume_down', 7: 'volume_up', 8: 'toggle_play', 9: 'toggle_hud', 10: 'none', 11: 'none', 12: 'scroll_up', 13: 'scroll_down', 14: 'scroll_left', 15: 'scroll_right' };
+      const standard = { ...DEFAULT_SITE_BINDINGS, ...(data.profiles?.default ?? data.defaultMapping) };
       update.navigationModeDefaultMapping = { ...standard, 6: 'prev_tab', 7: 'next_tab' };
       update.navigationModeWebsiteMappings = {};
       for (const [hostname, value] of Object.entries(data.websiteMappings || DEFAULT_WEBSITE_MAPPINGS)) {
@@ -868,15 +910,22 @@ api.runtime.onMessage.addListener((message, sender, respond) => {
   let work;
   if (message?.type === 'GET_BROWSE_CONTEXT') {
     work = getBrowseContext(sender);
-  } else if (message?.type === 'OFFER_NEXT_TAB_MIGRATION_ON_SITE') {
-    work = queueNavigationWrite(() => offerNextTabMigrationOnSite(sender));
-  } else if (message?.type === 'CLAIM_NEXT_TAB_MIGRATION') {
-    if (sender.id !== api.runtime.id || sender.url?.split(/[?#]/)[0] !== api.runtime.getURL('options/options.html')) {
-      respond({ success: false, error: 'Only Options may open the tab-switching migration.' });
+  } else if (message?.type === 'OFFER_MAPPING_MIGRATION_ON_SITE' || message?.type === 'OFFER_NEXT_TAB_MIGRATION_ON_SITE') {
+    work = queueNavigationWrite(() => offerMappingMigrationOnSite(sender));
+  } else if (message?.type === 'OPEN_NAVIGATION_MODE_SETUP') {
+    work = openNavigationModeSetup(sender);
+  } else if (['CLAIM_NEXT_TAB_MIGRATION', 'CLAIM_SAVED_MAPPINGS_MIGRATION', 'GET_NAVIGATION_MODE_SETUP_MAPPINGS'].includes(message?.type)) {
+    if (sender.id !== api.runtime.id || !isExtensionPage(sender.url, OPTIONS_PAGE)) {
+      respond({ success: false, error: 'Only Settings can review saved mappings for Navigation Mode.' });
       return false;
     }
-    const fromPopup = new URL(sender.url).searchParams.get('nextTabMigrationPopup') === '1';
-    work = queueNavigationWrite(() => claimNextTabMigration(fromPopup));
+    if (message.type === 'GET_NAVIGATION_MODE_SETUP_MAPPINGS') {
+      work = queueNavigationWrite(async () => ({ success: true, offer: await getMappingMigrationOffer(SAVED_MAPPINGS_MIGRATION) }));
+    } else {
+      const migration = message.type === 'CLAIM_NEXT_TAB_MIGRATION' ? NEXT_TAB_MIGRATION : SAVED_MAPPINGS_MIGRATION;
+      const fromPopup = new URL(sender.url).searchParams.get(migration.popupParam) === '1';
+      work = queueNavigationWrite(() => claimMappingMigration(migration, fromPopup));
+    }
   } else if (['NAVIGATION_MODE_STATUS', 'NAVIGATION_MODE_RECONCILE', 'SET_NAVIGATION_MODE', 'SAVE_NAVIGATION_MODE_MAPPINGS', 'BEGIN_NAVIGATION_MODE_PERMISSION_DRAFT', 'FINISH_NAVIGATION_MODE_PERMISSION_DRAFT', 'CANCEL_NAVIGATION_MODE_PERMISSION_DRAFT'].includes(message?.type)) {
     if (!trustedExtensionPage(sender)) { respond({ success: false, error: 'Invalid extension page.' }); return false; }
     if (message.type === 'SET_NAVIGATION_MODE' || message.type === 'SAVE_NAVIGATION_MODE_MAPPINGS' || message.type.endsWith('_NAVIGATION_MODE_PERMISSION_DRAFT')) {

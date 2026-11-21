@@ -34,6 +34,8 @@
     let restoreFocusElement = null;
     let showCheckPromise = null;
     let closePromise = null;
+    let showUsageChoice = false;
+    let openingSetup = false;
 
     function isVisible() {
       return Boolean(tutorialElement);
@@ -133,7 +135,12 @@
           body: 'The activation sound confirms that Remapad is running on a mapped website. You can customize it later under Miscellaneous Options → Play probe sound on activation, or choose a sound—or no notification—right now.',
           visualClass: 'remapad-tutorial-visual--activation',
           activation: true
-        }
+        },
+        ...(showUsageChoice ? [{
+          eyebrow: 'Browser setup',
+          title: 'How do you want to use Remapad?',
+          chooseUsage: true
+        }] : [])
       ];
     }
 
@@ -300,6 +307,30 @@
       }
     }
 
+    function renderUsageChoices(before) {
+      const group = document.createElement('div');
+      group.className = 'remapad-tutorial-usage';
+      for (const [value, title, detail] of [
+        ['site', 'Control mapped websites', 'Control playback and navigate sites like Netflix and Prime Video.'],
+        ['browser', 'Navigate the browser', 'Switch tabs and open websites with your controller. Requires all-sites access.']
+      ]) {
+        const choice = document.createElement('button');
+        choice.type = 'button';
+        choice.dataset.remapadUsage = value;
+        const label = document.createElement('strong');
+        label.textContent = title;
+        const description = document.createElement('span');
+        description.textContent = detail;
+        choice.append(label, description);
+        group.appendChild(choice);
+      }
+      const status = document.createElement('p');
+      status.dataset.remapadUsageStatus = '';
+      status.setAttribute('role', 'status');
+      group.appendChild(status);
+      before.before(group);
+    }
+
     function render() {
       if (!tutorialElement) return;
       const steps = buildSteps();
@@ -320,15 +351,26 @@
         </div>`);
 
       const visual = tutorialElement.querySelector('.remapad-tutorial-visual');
-      if (step.visualClass) visual.classList.add(step.visualClass);
-      renderStepVisual(activeStep, visual);
+      const copy = tutorialElement.querySelector('.remapad-tutorial-copy');
+      const next = tutorialElement.querySelector('[data-remapad-tutorial-next]');
+      if (step.chooseUsage) {
+        tutorialElement.querySelector('.remapad-tutorial-card').classList.add('remapad-tutorial-card--usage');
+        visual.remove();
+        copy.remove();
+        renderUsageChoices(tutorialElement.querySelector('.remapad-tutorial-controls'));
+        next.hidden = true;
+      } else {
+        if (step.visualClass) visual.classList.add(step.visualClass);
+        renderStepVisual(activeStep, visual);
+        copy.textContent = step.body;
+      }
       tutorialElement.querySelector('.remapad-tutorial-eyebrow').textContent = `${step.eyebrow} · ${activeStep + 1}/${steps.length}`;
       tutorialElement.querySelector('#remapad-tutorial-title').textContent = step.title;
-      tutorialElement.querySelector('.remapad-tutorial-copy').textContent = step.body;
       tutorialElement.querySelector('[data-remapad-tutorial-prev]').disabled = activeStep === 0;
-      tutorialElement.querySelector('[data-remapad-tutorial-next]').textContent = activeStep === steps.length - 1 ? 'Done' : 'Next';
-      tutorialElement.querySelector('.remapad-tutorial-gamepad-hint').textContent =
-        `${step.activation ? 'D-pad ↑ ↓ changes sound · ' : 'D-pad ← → to browse · '}${getGlyph(0)} confirm · ${getGlyph(1)} close`;
+      next.textContent = activeStep === steps.length - 1 ? 'Done' : 'Next';
+      const dpadHint = step.chooseUsage ? 'D-pad ↑ ↓ to choose · ← back'
+        : step.activation ? 'D-pad ↑ ↓ changes sound' : 'D-pad ← → to browse';
+      tutorialElement.querySelector('.remapad-tutorial-gamepad-hint').textContent = `${dpadHint} · ${getGlyph(0)} confirm · ${getGlyph(1)} close`;
 
       const dots = tutorialElement.querySelector('.remapad-tutorial-dots');
       steps.forEach((_, index) => {
@@ -341,7 +383,7 @@
         dots.appendChild(dot);
       });
 
-      tutorialElement.querySelector('[data-remapad-tutorial-next]')?.focus({ preventScroll: true });
+      (step.chooseUsage ? tutorialElement.querySelector('[data-remapad-usage]') : next).focus({ preventScroll: true });
     }
 
     function setActivationStatus(message) {
@@ -445,14 +487,50 @@
     }
 
     function finishOrAdvance() {
-      if (activeStep < buildSteps().length - 1) {
+      const steps = buildSteps();
+      if (activeStep < steps.length - 1) {
         move(1);
-      } else {
+      } else if (!steps[activeStep].chooseUsage) {
         close({ outcome: 'completed' });
       }
     }
 
+    function moveUsageFocus(direction) {
+      const choices = [...tutorialElement.querySelectorAll('[data-remapad-usage]')];
+      const current = choices.indexOf(document.activeElement);
+      const index = current < 0 ? 0 : (current + direction + choices.length) % choices.length;
+      choices[index]?.focus();
+    }
+
+    async function openNavigationSetup() {
+      const dialog = tutorialElement;
+      const status = dialog.querySelector('[data-remapad-usage-status]');
+      openingSetup = true;
+      dialog.setAttribute('aria-busy', 'true');
+      status.textContent = 'Opening Navigation Mode setup…';
+      try {
+        const response = await api.runtime.sendMessage({ type: 'OPEN_NAVIGATION_MODE_SETUP' });
+        if (!response?.success) throw new Error(response?.error || 'Could not open Navigation Mode setup. Try again.');
+        if (tutorialElement === dialog) await close({ outcome: 'completed' });
+      } catch (error) {
+        status.textContent = error.message;
+      } finally {
+        openingSetup = false;
+        dialog.removeAttribute('aria-busy');
+      }
+    }
+
     function onClick(event) {
+      if (openingSetup || closePromise) return;
+      const choice = event.target.closest('[data-remapad-usage]');
+      if (choice?.dataset.remapadUsage === 'site') {
+        close({ outcome: 'completed' });
+        return;
+      }
+      if (choice?.dataset.remapadUsage === 'browser') {
+        openNavigationSetup();
+        return;
+      }
       if (event.target.closest('[data-remapad-tutorial-close]')) {
         close();
       } else if (event.target.closest('[data-remapad-tutorial-next]')) {
@@ -493,6 +571,18 @@
       if (!handledKeys.includes(event.key)) return;
       event.preventDefault();
       event.stopImmediatePropagation();
+      if (openingSetup || closePromise) return;
+      const step = buildSteps()[activeStep];
+      if (step.chooseUsage) {
+        if (event.key === 'ArrowUp' || event.key === 'ArrowDown') moveUsageFocus(event.key === 'ArrowUp' ? -1 : 1);
+        else if (event.key === 'ArrowLeft') move(-1);
+        else if (event.key === 'Escape') close();
+        else if (event.key === 'Enter' || event.key === ' ') {
+          const button = event.target.closest('button');
+          if (tutorialElement.contains(button)) button.click();
+        }
+        return;
+      }
       if (event.target.matches('[data-remapad-activation-sound]') &&
           (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
         cycleActivationChoice(event.key === 'ArrowUp' ? -1 : 1);
@@ -506,8 +596,7 @@
         event.target.dispatchEvent(new Event('change', { bubbles: true }));
         return;
       }
-      const activationStep = buildSteps()[activeStep]?.activation;
-      if (activationStep && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+      if (step.activation && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
         cycleActivationChoice(event.key === 'ArrowUp' ? -1 : 1);
         return;
       }
@@ -519,9 +608,17 @@
 
     function handleButtonPress(button) {
       if (!tutorialElement) return false;
-      const activationStep = buildSteps()[activeStep]?.activation;
-      if (activationStep && button === 12) cycleActivationChoice(-1);
-      else if (activationStep && button === 13) cycleActivationChoice(1);
+      if (openingSetup || closePromise) return true;
+      const step = buildSteps()[activeStep];
+      if (step.chooseUsage) {
+        if (button === 12 || button === 13) moveUsageFocus(button === 12 ? -1 : 1);
+        else if (button === 14) move(-1);
+        else if (button === 0 && document.activeElement?.matches('[data-remapad-usage]')) document.activeElement.click();
+        else if (button === 1 || button === 9) close();
+        return true;
+      }
+      if (step.activation && button === 12) cycleActivationChoice(-1);
+      else if (step.activation && button === 13) cycleActivationChoice(1);
       else if (button === 12 || button === 14) move(-1);
       else if (button === 13 || button === 15) move(1);
       else if (button === 0) finishOrAdvance();
@@ -543,6 +640,7 @@
 
           overlayStyles.inject();
           restoreFocusElement = document.activeElement;
+          showUsageChoice = !callbacks.getSettings().navigationMode;
           activeStep = 0;
           tutorialElement = document.createElement('div');
           tutorialElement.className = 'remapad-tutorial';

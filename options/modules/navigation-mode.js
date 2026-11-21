@@ -774,48 +774,99 @@
       return { row, status };
     }
 
-    async function showNextTabMigration() {
+    function historyPermissionButton(parent, mouseNote, onChange) {
+      const history = permissionRow(parent, "History suggestions", "Optional",
+        "Browser address bar access is limited. Browse with Remapad can suggest destinations from history on this device.");
+      const control = button("Allow history suggestions", history.row, async () => {
+        hasHistory = await requestHistoryAccess(history.status, onChange);
+        onChange(control);
+      });
+      control.setAttribute("aria-describedby", mouseNote.id);
+      return control;
+    }
+
+    function updateHistoryPermissionButton(control, busy) {
+      control.textContent = hasHistory ? "History allowed" : "Allow history suggestions";
+      control.disabled = busy || permissionPending || hasHistory;
+      control.toggleAttribute("data-allowed", hasHistory);
+    }
+
+    async function showMappingMigration(nextTab) {
       if (effectiveEnabled || draft.navigationModeInitialized) return false;
-      const result = await api.runtime.sendMessage({ type: "CLAIM_NEXT_TAB_MIGRATION" });
-      if (!result?.success) throw new Error(result?.error || "Unable to check saved Next Browser Tab bindings.");
+      const type = nextTab ? "CLAIM_NEXT_TAB_MIGRATION" : "CLAIM_SAVED_MAPPINGS_MIGRATION";
+      const result = await api.runtime.sendMessage({ type });
+      if (!result?.success) throw new Error(result?.error || "Unable to check saved mappings.");
       if (!result.offer || disposed || document.querySelector("dialog[open]")) return false;
+      await showModeSetup(result.offer, { nextTab });
+      return true;
+    }
 
-      const { includesDefaults, hostnames } = result.offer;
-      const sources = [];
-      if (includesDefaults) sources.push("Site Mapping Defaults");
-      if (hostnames.length === 1) sources.push(hostnames[0]);
-      if (hostnames.length > 1) sources.push(`${hostnames.length} websites`);
+    async function showNavigationModeSetup() {
+      if (effectiveEnabled) return true;
+      const result = await api.runtime.sendMessage({ type: "GET_NAVIGATION_MODE_SETUP_MAPPINGS" });
+      if (!result?.success) throw new Error(result?.error || "Unable to check saved mappings.");
+      return showModeSetup(result.offer, { onboarding: true });
+    }
 
+    function showModeSetup(offer, { nextTab = false, onboarding = false } = {}) {
+      const enableOnGrant = onboarding && !offer;
       const hadAccess = hadBroad;
       let busy = false;
+      let enabled = false;
       const dialog = element("dialog");
-      dialog.id = "next-tab-migration";
+      dialog.id = nextTab ? "next-tab-migration" : onboarding ? "navigation-mode-onboarding" : "saved-mappings-migration";
       dialog.className = "navigation-mode-dialog";
-      dialog.setAttribute("aria-labelledby", "next-tab-migration-title");
-      dialog.setAttribute("aria-describedby", "next-tab-migration-summary");
+      dialog.setAttribute("aria-labelledby", `${dialog.id}-title`);
+      dialog.setAttribute("aria-describedby", `${dialog.id}-summary`);
 
       const header = element("header", "", dialog);
       header.className = "navigation-mode-dialog__header";
-      const title = element("h2", "Move tab switching to Navigation Mode", header);
-      title.id = "next-tab-migration-title";
+      const titleText = nextTab ? "Move tab switching to Navigation Mode"
+        : offer ? "Bring your mappings to Navigation Mode" : "Set up Gamepad Browser Navigation Mode";
+      const title = element("h2", titleText, header);
+      title.id = `${dialog.id}-title`;
       title.tabIndex = -1;
       const summary = element("p", "", header);
-      summary.id = "next-tab-migration-summary";
-      element("strong", "Next Browser Tab", summary);
-      summary.append(` is already mapped in ${sources.join(" and ")}.`);
+      summary.id = `${dialog.id}-summary`;
+      if (offer) {
+        const sources = [];
+        if (offer.includesDefaults) sources.push("Site Mapping Defaults");
+        if (offer.hostnames.length === 1) sources.push(offer.hostnames[0]);
+        if (offer.hostnames.length > 1) sources.push(`${offer.hostnames.length} websites`);
+        if (nextTab) {
+          element("strong", "Next Browser Tab", summary);
+          summary.append(` is already mapped in ${sources.join(" and ")}.`);
+        } else {
+          summary.textContent = `Remapad found saved mappings in ${sources.join(" and ")}.`;
+        }
+      } else {
+        summary.textContent = "Switch tabs and open websites with your controller.";
+      }
 
       const body = element("div", "", dialog);
       body.className = "navigation-mode-dialog__body";
-      element("p", "Navigation Mode copies all your saved website mappings and Site Mapping Defaults into its own set. You can return to your current mappings by turning the mode off in Miscellaneous Options.", body);
-      renderInitialMappings(body, hostnames[0]);
-      const mouseNote = permissionMouseNote(body, "migration-permission-mouse-note");
-      const access = permissionRow(body, "All-sites access", "Required to migrate", "Remapad needs access to supported websites for controller shortcuts across tabs. This can affect sites with their own gamepad controls.");
-      const grant = grantButton("Allow all-sites access", access.row, access.status, dialog, () => {
+      if (offer) {
+        element("p", "Navigation Mode copies all your saved website mappings and Site Mapping Defaults into its own set. You can return to your current mappings by turning the mode off in Miscellaneous Options.", body);
+        renderInitialMappings(body, offer.hostnames[0]);
+      } else {
+        element("p", draft.navigationModeInitialized
+          ? "Turning on Navigation Mode resumes your saved Navigation profiles."
+          : "LT and RT switch between browser tabs. Open Browse with Remapad from the Navigation Guide to enter an address or choose a suggestion.", body);
+      }
+      const mouseNote = permissionMouseNote(body, nextTab ? "migration-permission-mouse-note" : `${dialog.id}-mouse-note`);
+      // Offer history first because granting website access can finish setup.
+      const historyButton = onboarding ? historyPermissionButton(body, mouseNote, updateControls) : null;
+      const access = permissionRow(body, "All-sites access", offer ? "Required to migrate" : "Required for this mode",
+        "Remapad needs access to supported websites for controller shortcuts across tabs. This can affect sites with their own gamepad controls.");
+      const grantLabel = enableOnGrant ? "Allow access and turn on" : "Allow all-sites access";
+      const grant = grantButton(grantLabel, access.row, access.status, dialog, () => {
         updateControls();
-        if (dialog.open && !permissionPending) (hadBroad ? migrateButton : grant).focus({ preventScroll: true });
-      }, "Access declined. You can keep your current mappings.");
+        if (!dialog.open || permissionPending) return;
+        if (enableOnGrant && hadBroad) turnOn();
+        else (hadBroad ? enableButton : grant).focus({ preventScroll: true });
+      }, "Access declined. You can keep using Remapad on your mapped websites.");
       grant.setAttribute("aria-describedby", mouseNote.id);
-      element("p", "After migrating, restart your browser (recommended) or reload your open tabs. Use the browser’s tab controls to leave restricted pages such as browser settings.", body);
+      element("p", "After turning on Navigation Mode, restart your browser (recommended) or reload your open tabs. Use the browser’s tab controls to leave restricted pages such as browser settings.", body);
 
       const footer = element("footer", "", dialog);
       footer.className = "navigation-mode-dialog__footer";
@@ -824,20 +875,28 @@
       status.setAttribute("role", "status");
       const actions = element("div", "", footer);
       actions.className = "navigation-mode-dialog__actions";
-      const migrateButton = button("Migrate to Navigation Mode", actions, migrate);
-      migrateButton.classList.add("navigation-mode-dialog__primary");
-      const keepButton = button("Keep Current Mappings", actions, keepCurrent);
+      const enableLabel = nextTab ? "Migrate to Navigation Mode" : offer ? "Copy Mappings and Turn On" : "Turn On Navigation Mode";
+      const enableButton = button(enableLabel, actions, turnOn);
+      enableButton.classList.add("navigation-mode-dialog__primary");
+      const keepButton = button(onboarding ? "Keep Site-Only Controls" : "Keep Current Mappings", actions, keepCurrent);
 
-      function updateControls() {
-        mouseNote.hidden = hadBroad;
-        grant.textContent = hadBroad ? "Access allowed" : "Allow all-sites access";
+      function updateControls(trigger) {
+        mouseNote.hidden = hadBroad && (!historyButton || hasHistory);
+        grant.textContent = hadBroad ? "Access allowed" : grantLabel;
         grant.disabled = busy || permissionPending || hadBroad;
         grant.toggleAttribute("data-allowed", hadBroad);
-        migrateButton.disabled = busy || permissionPending || !hadBroad;
+        grant.classList.toggle("navigation-mode-dialog__primary", enableOnGrant && !hadBroad);
+        enableButton.hidden = onboarding && !hadBroad;
+        enableButton.disabled = busy || permissionPending || !hadBroad;
         keepButton.disabled = busy || permissionPending;
+        if (historyButton) updateHistoryPermissionButton(historyButton, busy);
+        if (trigger && dialog.open && !permissionPending) {
+          const target = trigger.disabled ? (hadBroad ? enableButton : grant) : trigger;
+          target.focus({ preventScroll: true });
+        }
       }
 
-      async function migrate() {
+      async function turnOn() {
         if (busy || permissionPending || !hadBroad) return;
         busy = true;
         status.textContent = "";
@@ -846,16 +905,17 @@
           const response = await enableNavigationMode();
           if (!response?.success || !response.enabled) throw new Error(response?.error || "Could not turn on Navigation Mode.");
           acquiredBroad = false;
+          enabled = true;
           await load();
           refresh();
           dialog.close();
           document.getElementById("mapping-environment-select").focus({ preventScroll: true });
-          showToast("Navigation Mode is ready.", "success");
+          showToast("Navigation Mode is on. Restart your browser or reload open tabs.", "success");
         } catch (error) {
           status.textContent = error.message;
           busy = false;
           updateControls();
-          (hadBroad ? migrateButton : grant).focus({ preventScroll: true });
+          (hadBroad ? enableButton : grant).focus({ preventScroll: true });
         }
       }
 
@@ -878,7 +938,7 @@
       });
       const dismissed = new Promise(resolve => dialog.addEventListener("close", () => {
         dialog.remove();
-        resolve(true);
+        resolve(enabled);
       }, { once: true }));
       updateControls();
       document.body.append(dialog);
@@ -949,14 +1009,9 @@
         permissions.setAttribute("aria-labelledby", permissionsHeading.id);
         const mouseNote = permissionMouseNote(permissions, "setup-permission-mouse-note");
         const website = permissionRow(permissions, "All-sites access", "Required for this mode", "Remapad needs access to supported sites to keep switching tabs. It may intercept site gamepad controls. Use per-site Off or Report Issues if needed.");
-        const history = permissionRow(permissions, "History suggestions", "Optional", "Browser address bar access is limited. Browse with Remapad can suggest destinations from history on this device.");
         const websiteButton = grantButton("Allow all-sites access", website.row, website.status, dialog, () => updatePermissionControls(websiteButton));
-        const historyButton = button("Allow history suggestions", history.row, async () => {
-          hasHistory = await requestHistoryAccess(history.status, updatePermissionControls);
-          updatePermissionControls(historyButton);
-        });
+        const historyButton = historyPermissionButton(permissions, mouseNote, updatePermissionControls);
         websiteButton.setAttribute("aria-describedby", mouseNote.id);
-        historyButton.setAttribute("aria-describedby", mouseNote.id);
 
         const footer = element("footer", "", dialog);
         footer.className = "navigation-mode-dialog__footer";
@@ -982,9 +1037,7 @@
           websiteButton.textContent = hadBroad ? "Access allowed" : "Allow all-sites access";
           websiteButton.disabled = saving || permissionPending || hadBroad;
           websiteButton.toggleAttribute("data-allowed", hadBroad);
-          historyButton.textContent = hasHistory ? "History allowed" : "Allow history suggestions";
-          historyButton.disabled = saving || permissionPending || hasHistory;
-          historyButton.toggleAttribute("data-allowed", hasHistory);
+          updateHistoryPermissionButton(historyButton, saving);
           enableButton.hidden = effectiveEnabled || !hadBroad;
           siteButton.hidden = bindingSaved;
           siteButton.classList.toggle("navigation-mode-dialog__primary", enableButton.hidden);
@@ -1092,7 +1145,7 @@
       if (!tracked)
         releaseUnusedGrant().catch(() => {});
     });
-    return { load, save, render, getMapping, touch, scopeDialog, showNextTabMigration, getProfileId: () => canEditMappings() && site() !== "default" ? selectedProfile().profileId : null, getProfileName: () => canEditMappings() && site() !== "default" ? selectedProfile().name : null, isPermissionPending: () => permissionPending, getSaveMessage: () => saveMessage, getSiteKeys: () => editing ? [...new Set([...Object.keys(draft.navigationModeWebsiteMappings), ...requestedNavigation && requestedSite ? [requestedSite] : []])] : [], isEditing: () => editing, stopCapture, isDirty: () => dirty, isPendingEnable: () => pendingEnable, markSaved(value) {
+    return { load, save, render, getMapping, touch, scopeDialog, showMappingMigration, showNavigationModeSetup, getProfileId: () => canEditMappings() && site() !== "default" ? selectedProfile().profileId : null, getProfileName: () => canEditMappings() && site() !== "default" ? selectedProfile().name : null, isPermissionPending: () => permissionPending, getSaveMessage: () => saveMessage, getSiteKeys: () => editing ? [...new Set([...Object.keys(draft.navigationModeWebsiteMappings), ...requestedNavigation && requestedSite ? [requestedSite] : []])] : [], isEditing: () => editing, stopCapture, isDirty: () => dirty, isPendingEnable: () => pendingEnable, markSaved(value) {
       if (value)
         draft = structuredClone(value);
       baseline = structuredClone(draft);
