@@ -139,10 +139,10 @@
             <div class="editor-header">
               <div>
                 <div class="editor-title">Visual Mapping Editor</div>
-                <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
-                  <span class="editor-subtitle" style="margin-top:0">Mapping for:</span>
+                <div class="editor-site-field">
+                  <label class="editor-subtitle" for="editor-site-select" style="margin-top:0">Mapping for:</label>
                   <select id="editor-site-select" style="background:var(--surface-container-high);color:var(--on-surface);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:4px 8px;font-size:12px;font-family:var(--font-body);outline:none;cursor:pointer">
-                    <option value="default">Default (All Other Sites)</option>
+                    <option value="default">Site Mapping Defaults</option>
                   </select>
                 </div>
               </div>
@@ -151,6 +151,14 @@
                 <button class="btn-secondary" id="save-btn">Save Changes</button>
               </div>
             </div>
+
+            <section id="navigation-mode-editor" class="card" style="padding:16px;margin:12px 0"></section>
+            <p id="mapping-context-status" class="mapping-context-status" role="status"></p>
+            <section id="navigation-mode-unavailable" class="navigation-editor-empty" aria-labelledby="navigation-mode-unavailable-title" hidden>
+              <h3 id="navigation-mode-unavailable-title">Navigation Mode is off</h3>
+              <p>Turn it on to edit controller mappings and site profiles.</p>
+              <button type="button" class="btn-secondary" id="navigation-mode-setup-btn">Open Miscellaneous Options</button>
+            </section>
 
             <!-- Gamepad Visual Editor -->
             <div class="gamepad-canvas">
@@ -483,12 +491,16 @@
               </div>
             </div>
 
-            <!-- Inline Popover Action Dropdown (positioned dynamically by JS) -->
+            <!-- Inline action editor -->
             <div class="action-dropdown" id="action-dropdown">
+              <label id="action-select-label" for="action-select">Button action</label>
               <select id="action-select">
                 <option value="none">-- Unmapped --</option>
               </select>
+              <button type="button" class="btn-ghost" id="action-editor-close">Close</button>
+              <p>Choose an action, then Save Changes to apply it.</p>
             </div>
+            <section id="navigation-mode-shortcuts" hidden aria-label="Profile Shortcuts"></section>
 
           </section>
         </div><!-- right-col -->
@@ -923,6 +935,8 @@
           <main class="nav-editor">
             <div class="nav-config-grid" style="grid-template-columns:1fr">
 
+              <section id="navigation-mode-controls" class="card nav-section-card"></section>
+
               <!-- Master switch -->
               <section class="card nav-section-card" data-options-tutorial="virtual-keyboard">
                 <div class="nav-section-header">
@@ -1220,9 +1234,11 @@
 <script src="../shared/safe-dom.js"></script>
 <script src="../shared/keyboard.js"></script>
 <script src="../content/modules/utils.js"></script>
+<script src="../shared/navigation-mode.js"></script>
 <script src="modules/constants.js"></script>
 <script src="modules/utils.js"></script>
 <script src="modules/dom.js"></script>
+<script src="modules/navigation-mode.js"></script>
 <script src="modules/state-store.js"></script>
 <script src="modules/config-modal.js"></script>
 <script src="modules/navigation-settings.js"></script>

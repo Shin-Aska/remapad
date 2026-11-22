@@ -17,11 +17,11 @@
     const standardHudItems = [
       '0', '1', '2', '3', '4', '5', '6', '7',
       '8', '9', '10', '11', '12', '13', '14', '15',
-      'ls', 'rs', 'edit'
+      'ls', 'rs', 'edit', 'browse'
     ];
     const retro8BitDoHudItems = [
       '0', '1', '3', '4', '6', '7', '10', '11',
-      'ls', 'edit'
+      'ls', 'edit', 'browse'
     ];
     let hudItems = standardHudItems;
     let hudElement = null;
@@ -117,7 +117,13 @@
       closeButton.title = 'Hide this guide';
       closeButton.setAttribute('aria-label', 'Hide controller guide');
       closeButton.textContent = '✕';
-      hudElement.replaceChildren(row, editButton, closeButton);
+      const browseButton = document.createElement('button');
+      browseButton.type = 'button'; browseButton.className = 'remapad-hud-edit'; browseButton.dataset.hudSelectable = '';
+      browseButton.textContent = 'Browse with Remapad';
+      browseButton.addEventListener('click', event => { if (event.isTrusted) callbacks.openBrowse?.(); });
+      const profileStatus = document.createElement('span'); profileStatus.setAttribute('role', 'status');
+      profileStatus.textContent = callbacks.getSettings()?.navigationMode ? 'Navigation Mode · ' + callbacks.getSettings().navigationProfileName : '';
+      hudElement.replaceChildren(row, editButton, browseButton, profileStatus, closeButton);
 
       hudElement.querySelector('#remapad-hud-close-btn')?.addEventListener('click', event => {
         event.stopPropagation();
@@ -198,7 +204,7 @@
 
       if (btnIdx === 0) {
         const target = hudItems[hudHighlightedIndex];
-        if (target === 'edit') {
+        if (target === 'browse') { callbacks.openBrowse?.(); hide(); } else if (target === 'edit') {
           callbacks.openSiteMapping();
           hide();
         } else if (target !== 'ls' && target !== 'rs') {

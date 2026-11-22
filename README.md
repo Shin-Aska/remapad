@@ -33,7 +33,7 @@ elements directly. It works on Firefox 140+ and Chromium-based browsers
 | Chrome | [Chrome Web Store](https://chromewebstore.google.com/detail/remapad-%E2%80%94-gamepad-browser/nbjngbeilcghlhgcofapgclljddnlaol) |
 | Edge | [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/remapad-%E2%80%94-gamepad-browser/ihhkjgcalmhooihpdcdifapgladiblgj) |
 
-Source code lives on [GitLab](https://gitlab.com/Shin-Aska/remapad) (primary)
+Source code lives on [GitLab](https://gitlab.com/ShinAska/remapad) (primary)
 with a [GitHub mirror](https://github.com/Shin-Aska/remapad).
 
 ## Screenshots
@@ -58,9 +58,82 @@ navigation, keyboard shortcuts, or direct DOM actions.
   directly instead of relying on keyboard shortcuts
 - Keyboard capture for binding physical keys and combos like `Ctrl+Alt+S`
 - On-screen keyboard for typing on pages that expect physical input
+- Navigation Mode for controller browsing across websites, with global and per-site switches
+- Browse with Remapad: URLs, default browser search, visible open tabs, and optional bookmark/history suggestions
 - Navigation HUD that shows active bindings without leaving the page
 - Auto-detected controller glyphs (PlayStation, Xbox, Nintendo) with manual override
 - Page-level gamepad isolation to prevent sites from double-handling input
+
+## Browse with Remapad
+
+Open **Browse with Remapad** from the popup or Navigation Guide. Use the side
+keyboard with D-pad and A, then choose **Done** to keep the query and focus
+suggestions. The keyboard shows shortcuts for **Done**, **Backspace**, and
+**Cancel** for the connected controller. On Xbox, use X, Y, and B respectively.
+LT and RT switch browser tabs. B cancels keyboard edits or returns
+to the original tab when the keyboard is closed. **Close Browse** dismisses the
+launcher. You can also use the **Close Browser Tab** combination saved for the
+page that opened it. **Edit current URL** copies the original address when site
+access makes it visible.
+Addresses, bookmarks, and history entries also switch to an
+existing permission-visible tab with the same canonical URL, including tabs
+opened after suggestions appeared; otherwise they open a new tab. Searches open
+a new tab. Browse closes once you reach the destination. Suggestions offer
+HTTP and HTTPS destinations.
+
+For a controller alternative to opening a new tab, record **Browse with
+Remapad** under a site's **Profile Shortcuts** in Navigation Mode. Save the
+mapping, then hold the combination for the duration shown in the editor.
+
+Open-tab suggestions use metadata visible under existing site grants. Bookmarks,
+recent history, and default browser search each ask for separate optional access
+from **Suggestion sources**. They can be removed there or in browser settings.
+Suggestions and history queries stay in memory and are not saved or exported.
+Navigation Mode requests broad website access when enabled; global and per-site
+switches continue to control whether Remapad runs. See [PRIVACY.md](PRIVACY.md).
+
+## Browser Navigation Mode
+
+After choosing the activation sound in the website tutorial, choose **Control
+mapped websites** or **Navigate the browser**. Browser setup opens the website
+access prompt and turns on Navigation Mode once access is allowed. An optional
+**Allow history suggestions** button adds recently visited sites to Browse with
+Remapad suggestions. If you have custom mappings, you can review and copy them
+into the mode before turning it on.
+
+When assigning **Next Browser Tab** or **Previous Browser Tab** to a site, allow
+all-sites access in the setup dialog and select **Save and Turn On Navigation
+Mode**. This saves the binding and pending Options changes, turns on the mode,
+and opens its mappings for the selected site. Choose **Save Site Binding Only**
+to save just that assignment, or **Cancel** to discard it.
+
+Users who already had **Next Browser Tab** assigned when the update arrived see
+**Move tab switching to Navigation Mode** once, when they visit a website where
+Remapad is active or open Settings. **Migrate to Navigation Mode** copies all
+saved website mappings and Site Mapping Defaults into a separate set. Choose
+**Keep Current Mappings** to dismiss the offer.
+If you finished the website tutorial before this update and have other custom
+mappings, Remapad offers to copy them into Navigation Mode once.
+
+In **Miscellaneous Options**, you can also choose **Allow website access**,
+**Turn on Navigation Mode**, and **Save Changes**. The mode uses independent
+Navigation mappings. To pause it and keep your saved profiles, choose **Turn mode
+off** and save. The popup’s global and per-site switches also pause controls.
+After revoking access in browser settings, grant access again, turn on the mode,
+and save to resume cross-site control.
+
+With Navigation Mode on, select **Browser Navigation Mode mappings** in the
+mapping environment to edit a site’s profiles. A button mapped to **Swap to Next
+Profile** or **Swap to Previous Profile** switches on a fresh press. The default
+held shortcuts use Start + D-pad Right or Left to switch profiles, Select + Start
+to open Browse with Remapad, and Cross/A + Select to close the active tab. The
+editor shows the equivalent buttons for the controller layout. Use **Profile
+Shortcuts** to record, clear, or restore a combination for that site. Hold all
+buttons for the duration shown and release them before using the shortcut again.
+
+Select **Remapad Settings** in the mapping editor to set up profiles and shortcuts
+for the Settings tab. Its default Navigation Mode mapping uses LT and RT to
+switch browser tabs and LB and RB to switch Settings sections.
 
 ## Getting started (dev)
 
@@ -130,8 +203,16 @@ details, see [docs/architecture.md](docs/architecture.md).
 5. Test on a real site.
 6. Run the full three-browser build before submitting.
 
-There's no test suite yet, so include your browser version, OS, controller
-model, connection type, and tested sites in any compatibility report.
+Run the focused Navigation Mode regression tests with an existing Node.js
+installation:
+
+```bash
+node tests/navigation-mode.test.cjs
+```
+
+These narrow automated checks do not replace browser and physical-controller
+testing. Include your browser version, OS, controller model, connection type,
+and tested sites in any compatibility report.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full checklist.
 For store releases, see the [release checklist](docs/release-checklist.md) and
@@ -140,8 +221,11 @@ For store releases, see the [release checklist](docs/release-checklist.md) and
 ## Privacy
 
 Remapad stores config in local extension storage. Netflix and Prime Video are
-built-in profiles; other sites are only accessed when you add them. No
-analytics, no telemetry, no remote code. See [PRIVACY.md](PRIVACY.md).
+built-in profiles. Standard mode accesses additional sites when you add and
+authorize them; opt-in Browser Navigation Mode requests all-sites access for
+controller navigation. Optional bookmarks/history suggestions stay local, and
+chosen searches use the browser’s default provider. No analytics, telemetry, or
+remote code. See [PRIVACY.md](PRIVACY.md).
 
 ## License
 

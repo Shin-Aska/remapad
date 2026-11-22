@@ -192,6 +192,9 @@
   let keyboardCloseCallback = null;
   let keyboardActionCallback = null;
   let keyboardShortcutGlyphs = {};
+  let keyboardDock = null;
+  let keyboardSubmitOnConfirm = true;
+  let keyboardConfirmLabel = 'Confirm';
 
   function ensureKeyboardDOM() {
     if (keyboardOverlay) return;
@@ -373,9 +376,9 @@
       const shortcut = document.createElement('span');
       shortcut.className = 'remapad-keyboard-shortcut';
       shortcut.textContent = confirmGlyph;
-      keyboardConfirmBtn.replaceChildren(document.createTextNode('Confirm '), shortcut);
+      keyboardConfirmBtn.replaceChildren(document.createTextNode(keyboardConfirmLabel + ' '), shortcut);
     } else {
-      keyboardConfirmBtn.textContent = 'Confirm';
+      keyboardConfirmBtn.textContent = keyboardConfirmLabel;
     }
     if (cancelGlyph) {
       const shortcut = document.createElement('span');
@@ -409,6 +412,9 @@
 
   function buildGamepadKeyboard() {
     ensureKeyboardDOM();
+    const previous = keyboardFocusElements[keyboardFocusIndex];
+    const previousKey = previous?.dataset.keyValue;
+    const previousAction = previous?.dataset.action;
     keyboardGrid.replaceChildren();
     const layout = getCurrentLayout();
     const layer = layout.layers[keyboardLayer] || layout.layers.alpha;
@@ -435,6 +441,15 @@
       keyboardGrid.appendChild(rowEl);
     });
     renderShortcutBadges();
+    if (previous) {
+      keyboardFocusElements = collectKeyboardFocusables();
+      const matchingIndex = keyboardFocusElements.findIndex(element =>
+        previousKey !== undefined ? element.dataset.keyValue === previousKey
+          : previousAction !== undefined && element.dataset.action === previousAction);
+      keyboardFocusIndex = matchingIndex >= 0 ? matchingIndex
+        : Math.max(0, Math.min(keyboardFocusIndex, keyboardFocusElements.length - 1));
+      refreshKeyboardFocusVisual();
+    }
   }
 
   function resolveKeyDef(value, layerId) {
@@ -515,10 +530,20 @@
     return target.value || '';
   }
 
-  function updateGamepadKeyboardPreview() {
+  function renderKeyboardPreview() {
     if (keyboardPreview) {
       keyboardPreview.textContent = keyboardValue || ' ';
+      keyboardPreview.scrollLeft = keyboardPreview.scrollWidth;
     }
+  }
+
+  function syncDockedKeyboardInput() {
+    keyboardValue = getNativeValue(keyboardTarget);
+    renderKeyboardPreview();
+  }
+
+  function updateGamepadKeyboardPreview() {
+    renderKeyboardPreview();
     if (keyboardTarget) {
       setNativeValue(keyboardTarget, keyboardValue);
       keyboardTarget.dispatchEvent(new InputEvent('input', { bubbles: true, data: keyboardValue.slice(-1) || null, inputType: 'insertText' }));
@@ -586,6 +611,13 @@
   function openGamepadKeyboard(inputEl, options = {}) {
     if (!inputEl) return;
     ensureKeyboardDOM();
+    if (keyboardDock) keyboardTarget?.removeEventListener('input', syncDockedKeyboardInput);
+    keyboardDock = options.dock instanceof HTMLElement ? options.dock : null;
+    keyboardSubmitOnConfirm = options.submitOnConfirm !== false;
+    keyboardConfirmLabel = options.confirmLabel || 'Confirm';
+    keyboardOverlay.querySelector('.remapad-keyboard-title').textContent = keyboardDock ? 'On-screen keyboard' : 'Type text';
+    (keyboardDock || document.body).appendChild(keyboardOverlay);
+    keyboardOverlay.classList.toggle('remapad-keyboard-docked', !!keyboardDock);
     keyboardTarget = inputEl;
     keyboardValue = getNativeValue(inputEl);
     keyboardLayer = 'alpha';
@@ -599,8 +631,10 @@
 
     buildGamepadKeyboard();
     updateGamepadKeyboardPreview();
+    if (keyboardDock) inputEl.addEventListener('input', syncDockedKeyboardInput);
     keyboardOverlay.style.display = 'block';
-    positionOverlayNear(inputEl);
+    if (keyboardDock) keyboardOverlay.removeAttribute('style');
+    else positionOverlayNear(inputEl);
     keyboardFocusElements = collectKeyboardFocusables();
     keyboardFocusIndex = 0;
     refreshKeyboardFocusVisual();
@@ -639,11 +673,12 @@
 
   function closeGamepadKeyboard(confirm) {
     if (!keyboardOverlay) return;
+    if (keyboardDock) keyboardTarget?.removeEventListener('input', syncDockedKeyboardInput);
     if (confirm && keyboardTarget) {
       setNativeValue(keyboardTarget, keyboardValue);
       keyboardTarget.dispatchEvent(new InputEvent('input', { bubbles: true, data: keyboardValue.slice(-1) || null, inputType: 'insertText' }));
       keyboardTarget.dispatchEvent(new Event('change', { bubbles: true }));
-      dispatchEnterOnTarget(keyboardTarget);
+      if (keyboardSubmitOnConfirm) dispatchEnterOnTarget(keyboardTarget);
     }
     keyboardOverlay.style.display = 'none';
     const target = keyboardTarget;

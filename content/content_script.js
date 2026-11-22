@@ -82,6 +82,11 @@
   let settings = settingsStore.getSettings();
   let activeProfile = settingsStore.getActiveProfile();
 
+  const chordDetector = RemapadNavigationMode.createChordDetector();
+  let modeNeutral = false;
+  let modeSwitchPending = false;
+  let initGeneration = 0;
+  let initQueue = Promise.resolve();
   let prevButtonStates = [];
   let axisTimers = {};
   let axisRepeatCounts = { left: 0, right: 0 };
@@ -102,6 +107,7 @@
   let siteMappingActive = false;
   let activePageListenersAttached = false;
   let activeGamepadIndex = null;
+  let activeGamepadId = null;
   let activeControllerStyle = null;
   const gamepadSnapshots = new Map();
 
@@ -115,14 +121,35 @@
     return settings.enabledSites[currentHostname] !== false;
   }
 
+  let checkedMappingMigration = false;
+  async function maybeOfferMappingMigration() {
+    if (checkedMappingMigration || !isSiteActive() || settings.navigationMode ||
+        tutorialController?.isVisible() || document.hidden || !document.hasFocus()) return;
+    checkedMappingMigration = true;
+    try {
+      const result = await api.runtime.sendMessage({ type: 'OFFER_MAPPING_MIGRATION_ON_SITE' });
+      if (!result?.success || result.deferred) checkedMappingMigration = false;
+    } catch (_) {
+      checkedMappingMigration = false;
+    }
+  }
+
   // ─── Initialisation ─────────────────────────────────────────────────────────
 
-  async function init(isStorageUpdate = false) {
+  function init(isStorageUpdate = false) {
+    const generation = ++initGeneration;
+    initQueue = initQueue.catch(() => {}).then(() => initialise(isStorageUpdate, generation));
+    return initQueue;
+  }
+
+  async function initialise(isStorageUpdate, generation) {
+    if (generation !== initGeneration) return;
     try {
       // Settings and active profile are loaded asynchronously from extension
       // storage; controllers are only created once because they register DOM
       // and their callbacks close over mutable state owned here.
       const { isMapped } = await settingsStore.load();
+      if (generation !== initGeneration) return;
 
       settings = settingsStore.getSettings();
       activeProfile = settingsStore.getActiveProfile();
@@ -139,6 +166,7 @@
             getControllerStyle: () => activeControllerStyle,
             getSettings: () => settings,
             openSiteMapping: () => messagingClient.openSiteMapping(),
+            openBrowse: () => messagingClient.openBrowse(),
             executeAction
           }
         });
@@ -201,7 +229,7 @@
         document.dispatchEvent(new CustomEvent('remapad:activate'));
         document.documentElement.setAttribute('data-remapad-active', 'true');
         hudController.update();
-        tutorialController.showIfNeeded();
+        tutorialController.showIfNeeded().then(maybeOfferMappingMigration);
       } else {
         removeHUD(true);
       }
@@ -259,6 +287,12 @@
   function onGamepadDisconnect(e) {
     console.log('[Remapad CS] Gamepad disconnected');
     gamepadConnected = false;
+    if (settings.navigationMode && e.gamepad.index === activeGamepadIndex) {
+      resetModeInput();
+      activeGamepadIndex = null;
+      activeGamepadId = null;
+      gamepadSnapshots.clear();
+    }
     hudController?.hide();
   }
 
@@ -266,10 +300,10 @@
     const previous = gamepadSnapshots.get(gamepad.index);
     const buttons = gamepad.buttons.map(button => button.pressed || button.value > 0.5);
     const axes = [...gamepad.axes];
-    gamepadSnapshots.set(gamepad.index, { buttons, axes });
+    gamepadSnapshots.set(gamepad.index, { id: gamepad.id, buttons, axes });
 
     // The first pressed button may be what makes Chromium expose the device.
-    if (!previous) return buttons.some(Boolean) ? 2 : 0;
+    if (!previous || previous.id !== gamepad.id) return buttons.some(Boolean) ? 2 : 0;
 
     const buttonPressed = buttons.some((pressed, index) => pressed && !previous.buttons[index]);
     if (buttonPressed) return 2;
@@ -280,7 +314,9 @@
   function selectActiveGamepad(gamepads) {
     const connected = [...gamepads].filter(gamepad => gamepad && gamepad.connected);
     if (!connected.length) {
+      if (settings.navigationMode && activeGamepadIndex !== null) resetModeInput();
       activeGamepadIndex = null;
+      activeGamepadId = null;
       gamepadSnapshots.clear();
       return null;
     }
@@ -296,15 +332,18 @@
       .map(gamepad => ({ gamepad, activity: getGamepadInputActivity(gamepad) }))
       .reduce((best, candidate) => candidate.activity > best.activity ? candidate : best, { gamepad: null, activity: 0 })
       .gamepad;
-    const previous = connected.find(gamepad => gamepad.index === activeGamepadIndex);
+    const previous = connected.find(gamepad => gamepad.index === activeGamepadIndex && gamepad.id === activeGamepadId);
     const preferred = producingInput
       || previous
       || connected.find(gamepad => !/^unknown gamepad/i.test(gamepad.id))
       || connected[0];
 
-    if (preferred.index !== activeGamepadIndex) {
+    if (preferred.index !== activeGamepadIndex || preferred.id !== activeGamepadId) {
+      if (settings.navigationMode) resetModeInput();
       activeGamepadIndex = preferred.index;
+      activeGamepadId = preferred.id;
       prevButtonStates = [];
+      chordDetector.reset(settings.navigationMode);
     }
     return preferred;
   }
@@ -327,6 +366,10 @@
 
   function processGamepad(gp) {
     if (!isSiteActive()) return;
+    if (settings.navigationMode && (!document.hasFocus() || document.hidden)) {
+      resetModeInput();
+      return;
+    }
 
     const previous = controllerStyle.getDetected();
     const previousActiveStyle = activeControllerStyle;
@@ -362,8 +405,10 @@
     // arbitrary axes would incorrectly turn stick movement into D-pad input.
     if (gp.mapping !== 'standard' && controllerStyle.detect(gp.id) === 'n64') {
       const axes = gp.axes || [];
-      const horizontalAxis = axes.length >= 6 ? axes[5] : axes.length >= 4 ? axes[2] : 0;
-      const verticalAxis = axes.length >= 6 ? axes[4] : axes.length >= 4 ? axes[3] : 0;
+      const rawHorizontalAxis = axes.length >= 6 ? axes[5] : axes.length >= 4 ? axes[2] : 0;
+      const rawVerticalAxis = axes.length >= 6 ? axes[4] : axes.length >= 4 ? axes[3] : 0;
+      const horizontalAxis = !settings.navigationMode || (Number.isFinite(rawHorizontalAxis) && Math.abs(rawHorizontalAxis) <= 1) ? rawHorizontalAxis : 0;
+      const verticalAxis = !settings.navigationMode || (Number.isFinite(rawVerticalAxis) && Math.abs(rawVerticalAxis) <= 1) ? rawVerticalAxis : 0;
       const HIGH_THRESHOLD = 0.8;
       dpadLeft = dpadLeft || horizontalAxis < -HIGH_THRESHOLD;
       dpadRight = dpadRight || horizontalAxis > HIGH_THRESHOLD;
@@ -391,12 +436,49 @@
 
       const wasPressed = prevButtonStates[idx] || false;
 
-      if (isPressed && !wasPressed) {
+      if (!settings.navigationMode && isPressed && !wasPressed) {
         onButtonPress(idx);
-      } else if (!isPressed && wasPressed) {
+      } else if (!settings.navigationMode && !isPressed && wasPressed) {
         onButtonRelease(idx);
       }
       prevButtonStates[idx] = isPressed;
+    }
+
+    let bufferedStick = null;
+    if (settings.navigationMode) {
+      // Gate before sampling or dispatch. A profile request may take many
+      // polls, and held buttons/sticks must never reach the replacement map.
+      const layout = RemapadNavigationMode.shortcutLayout(gp);
+      const shortcutButtons = RemapadNavigationMode.sampleShortcutButtons(gp, layout);
+      if (modeNeutral || modeSwitchPending) {
+        const neutral = RemapadNavigationMode.areInputsNeutral(shortcutButtons, gp, settings.navSettings, layout, DEADZONE);
+        if (!modeSwitchPending && neutral) {
+          modeNeutral = false;
+          chordDetector.reset();
+        }
+        return;
+      }
+      const shortcuts = RemapadNavigationMode.resolveProfileShortcuts(settings.navigationProfileSet.profileShortcuts, layout);
+      const result = chordDetector.sample(shortcutButtons, shortcuts, performance.now());
+      if (result.openBrowse) {
+        resetModeInput();
+        messagingClient.openBrowse();
+        return;
+      }
+      if (result.closeTab) {
+        resetModeInput();
+        messagingClient.browserAction('close_tab');
+        return;
+      }
+      if (result.direction) {
+        switchNavigationProfile(result.direction);
+        return;
+      }
+      // FC30/NES30 directions are axis controls outside shortcuts.
+      result.actions.forEach(id => { if (layout !== 'retro8bitdo' || id < 12) onButtonPress(id); });
+      result.releases.forEach(id => { if (layout !== 'retro8bitdo' || id < 12) onButtonRelease(id); });
+      if (modeSwitchPending || modeNeutral) return;
+      bufferedStick = RemapadNavigationMode.bufferedDpadStick(gp, layout, shortcutButtons, chordDetector);
     }
 
     // Tutorial is modal: button presses are routed above and axes must not
@@ -412,19 +494,23 @@
     if (nav?.enabled && siteMappingActive) {
       const leftMode = nav.leftStick?.mode;
       const rightMode = nav.rightStick?.mode;
+      const leftX = bufferedStick === 'left' ? 0 : gp.axes[0];
+      const leftY = bufferedStick === 'left' ? 0 : gp.axes[1];
+      const rightX = bufferedStick === 'right' ? 0 : gp.axes[2];
+      const rightY = bufferedStick === 'right' ? 0 : gp.axes[3];
 
       if (leftMode === 'cursor') {
-        cursorController.update('left', gp.axes[0] || 0, gp.axes[1] || 0);
+        cursorController.update('left', leftX || 0, leftY || 0);
       } else {
         cursorController.hide('left');
-        handleStick(gp.axes[0], gp.axes[1], 'left', nav);
+        handleStick(leftX, leftY, 'left', nav);
       }
 
       if (rightMode === 'cursor') {
-        cursorController.update('right', gp.axes[2] || 0, gp.axes[3] || 0);
+        cursorController.update('right', rightX || 0, rightY || 0);
       } else {
         cursorController.hide('right');
-        handleStick(gp.axes[2], gp.axes[3], 'right', nav);
+        handleStick(rightX, rightY, 'right', nav);
       }
     } else {
       cursorController.hide('left');
@@ -585,6 +671,12 @@
 
   function getEffectiveProfile() {
     const style = activeControllerStyle;
+    if (settings.navigationMode) {
+      const seeded = Object.keys(DEFAULT_PROFILE).every(key => activeProfile[key] === (key === '6' ? 'prev_tab' : key === '7' ? 'next_tab' : DEFAULT_PROFILE[key]));
+      if (seeded && style === 'retro8bitdo') return { ...RETRO_8BITDO_DEFAULT_PROFILE, 6: 'prev_tab', 7: 'next_tab' };
+      if (seeded && style === 'n64') return { ...N64_DEFAULT_PROFILE, 6: 'prev_tab', 7: 'next_tab' };
+      return activeProfile;
+    }
     const isUnmodifiedDefault = activeProfile && Object.keys(DEFAULT_PROFILE)
       .every(button => activeProfile[button] === DEFAULT_PROFILE[button]);
     if (style === 'retro8bitdo' && isUnmodifiedDefault) return RETRO_8BITDO_DEFAULT_PROFILE;
@@ -599,6 +691,7 @@
   // open Quick Map when explicitly mapped to `open_options`.
   function onButtonPress(rawBtnIdx) {
     if (!isSiteActive()) return false;
+    if (settings.navigationMode && (modeNeutral || modeSwitchPending)) return false;
 
     const btnIdx = translateButtonIndex(rawBtnIdx);
     const profile = getEffectiveProfile();
@@ -702,6 +795,11 @@
 
   function executeAction(action) {
     if (!isSiteActive()) return;
+    if (settings.navigationMode && (modeNeutral || modeSwitchPending)) return;
+    if (action === 'next_profile' || action === 'prev_profile') {
+      if (settings.navigationMode) switchNavigationProfile(action === 'next_profile' ? 'next' : 'previous');
+      return;
+    }
     console.log('[Remapad CS] Executing action:', action);
 
     if (typeof RemapadKeyboard !== 'undefined' && RemapadKeyboard.isOpen()) {
@@ -824,7 +922,8 @@
     }
 
     // Browser-level actions are handled by background worker
-    const browserActions = ['next_tab', 'prev_tab', 'close_tab', 'open_options'];
+    const browserActions = ['next_tab', 'prev_tab', 'close_tab', 'open_options', 'toggle_window_fullscreen'];
+    if (action === 'browse_remapad' || action === 'open_browse') { messagingClient.openBrowse(); return; }
     if (browserActions.includes(action)) {
       messagingClient.browserAction(action);
       return;
@@ -1039,6 +1138,11 @@
 
   function startQuickMapPicker(action) {
     if (!quickMapState || quickMapState.button === null) return;
+    if (settings.navigationMode && ['next_profile', 'prev_profile'].includes(action)) {
+      quickMapState = { ...quickMapState, phase: 'review', action, selector: null, target: null };
+      renderQuickMap();
+      return;
+    }
 
     quickMapState = { ...quickMapState, phase: 'pick', action, selector: null, target: null };
     quickMapPickerListening = true;
@@ -1186,7 +1290,9 @@
       actions.className = 'remapad-quick-map-actions';
       actions.setAttribute('role', 'group');
       actions.setAttribute('aria-label', 'Choose an action');
-      for (const [action, label] of [['click', 'Click'], ['focus', 'Focus'], ['hover', 'Hover']]) {
+      const choices = [['click', 'Click'], ['focus', 'Focus'], ['hover', 'Hover']];
+      if (settings.navigationMode) choices.push(['next_profile', 'Swap to Next Profile'], ['prev_profile', 'Swap to Previous Profile']);
+      for (const [action, label] of choices) {
         const actionButton = document.createElement('button');
         actionButton.type = 'button';
         actionButton.className = 'remapad-quick-map-action';
@@ -1206,7 +1312,8 @@
     } else {
       const button = selectedButton();
       if (button) instruction.appendChild(button);
-      instruction.append(document.createTextNode(` ${quickMapState.action} target ready.`));
+      const actionLabel = CS.Constants.ACTION_LABELS[quickMapState.action];
+      instruction.append(document.createTextNode(actionLabel ? ` ${actionLabel} ready.` : ` ${quickMapState.action} target ready.`));
       const selector = document.createElement('code');
       selector.className = 'remapad-quick-map-selector';
       selector.textContent = quickMapState.selector;
@@ -1280,11 +1387,12 @@
   }
 
   async function saveQuickMap() {
-    if (!quickMapState?.selector || quickMapState.button === null || !quickMapState.action) return;
+    if (!quickMapState || quickMapState.button === null || !quickMapState.action) return;
 
     const { action, button, selector } = quickMapState;
-    if (!['click', 'focus', 'hover'].includes(action)) return;
-    const actionValue = `${action}_element:${selector}`;
+    const profileAction = settings.navigationMode && ['next_profile', 'prev_profile'].includes(action);
+    if (!profileAction && (!selector || !['click', 'focus', 'hover'].includes(action))) return;
+    const actionValue = profileAction ? action : `${action}_element:${selector}`;
     try {
       const effectiveProfile = getEffectiveProfile();
       const profileTemplate = effectiveProfile === activeProfile ? null : effectiveProfile;
@@ -1473,6 +1581,7 @@
     prevButtonStates = [];
     gamepadConnected = false;
     activeGamepadIndex = null;
+    activeGamepadId = null;
     activeControllerStyle = null;
     gamepadSnapshots.clear();
   }
@@ -1570,6 +1679,49 @@
     controllerFocusedElement?.classList.remove('remapad-controller-focus');
     controllerFocusedElement = null;
   }
+
+  function switchNavigationProfile(direction) {
+    if (!settings.navigationMode || modeSwitchPending || modeNeutral) return;
+    resetModeInput();
+    modeSwitchPending = true;
+    api.runtime.sendMessage({ type: 'SWITCH_NAVIGATION_PROFILE', direction })
+      .then(async response => {
+        if (!response?.success) throw new Error(response?.error || 'Unable to switch profiles.');
+        await init(true);
+        if (settings.navigationMode) showRuntimeError('Active profile: ' + settings.navigationProfileName);
+      })
+      .catch(showRuntimeError)
+      .finally(() => { modeSwitchPending = false; });
+  }
+
+  function resetModeInput() {
+    prevButtonStates.forEach((pressed, id) => { if (pressed) onButtonRelease(id); });
+    prevButtonStates = [];
+    modeNeutral = true;
+    chordDetector.reset(true);
+    Object.values(axisTimers).forEach(timer => clearTimeout(timer));
+    axisTimers = {};
+    axisRepeatCounts = { left: 0, right: 0 };
+    axisLastDirections = { left: null, right: null };
+    cursorController?.hide('left');
+    cursorController?.hide('right');
+  }
+
+  function showRuntimeError(error) {
+    let status = document.getElementById('remapad-runtime-status');
+    if (!status) { status = document.createElement('div'); status.id = 'remapad-runtime-status'; status.setAttribute('role', 'status'); status.style.cssText = 'position:fixed;bottom:90px;left:20px;z-index:2147483647;background:#222;color:white;padding:12px;border-radius:8px'; document.documentElement.append(status); }
+    status.textContent = error?.message || String(error);
+    setTimeout(() => status.remove(), 6000);
+  }
+  document.addEventListener('remapad:runtime-error', event => showRuntimeError(event.detail));
+  api.runtime.onMessage.addListener((message, _sender, respond) => {
+    if (message?.type === 'GET_REMAPAD_STATUS') { respond({ active: isSiteActive() }); return false; }
+    if (message?.type !== 'REMAPAD_RUNTIME_STATUS') return;
+    if (!message.active) { ++initGeneration; siteMappingActive = false; resetModeInput(); removeHUD(true); }
+    else init(true);
+  });
+  window.addEventListener('blur', () => { if (settings.navigationMode) resetModeInput(); });
+  window.addEventListener('focus', maybeOfferMappingMigration);
 
   // ─── Boot ───────────────────────────────────────────────────────────────────
 

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Remapad: Gamepad Browser Controller",
   "short_name": "Remapad",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Navigate streaming sites with a gamepad. Map buttons, customize site profiles, and control playback, scrolling, and navigation.",
   "homepage_url": "https://gitlab.com/ShinAska/remapad",
   "author": "Richard Louie Orilla",
@@ -34,6 +34,7 @@
   },
   "background": {
     "scripts": [
+      "shared/navigation-mode.js",
       "background/service_worker.js"
     ]
   },
@@ -65,5 +66,10 @@
       "strict_min_version": "142.0"
     }
   },
-  "default_locale": "en_US"
+  "default_locale": "en_US",
+  "optional_permissions": [
+    "history",
+    "bookmarks",
+    "search"
+  ]
 }

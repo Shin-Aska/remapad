@@ -11,6 +11,7 @@ SOURCE_DIRS=(
   "_locales"
   "assets"
   "background"
+  "browse"
   "content"
   "icons"
   "options"

@@ -9,6 +9,9 @@
 (() => {
   'use strict';
 
+  if (window.__remapadBlockerInstalled) return;
+  window.__remapadBlockerInstalled = true;
+
   const nativeGetGamepads = navigator.getGamepads || null;
   const nativeAddEventListener = window.addEventListener;
   const nativeRemoveEventListener = window.removeEventListener;
